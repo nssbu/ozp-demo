@@ -1,0 +1,11 @@
+{
+  "author": "Ozone Developers",
+  "name": "OZP Demo Applications",
+  "version": "0.0.1",
+	"repository": "https://github.com/ozone-development/ozp-demo",
+  "devDependencies": {
+  	"grunt" : "0.4.x",
+		"grunt-contrib-watch": "*",
+		"grunt-contrib-connect": "*"
+  }
+}
