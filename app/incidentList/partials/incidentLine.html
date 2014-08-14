@@ -1,3 +1,10 @@
-<div class="incident">
-    <h1>{{incident.title}}</h1>
-</div>
+<accordion-group class="panel-{{incident.severity}}"
+                 is-open="isopen"
+                 ng-click="select(incident,isopen)">
+<accordion-heading >
+    {{incident.title}}
+</accordion-heading>
+<pre>
+{{incident.description}}
+</pre>
+</accordion-group>

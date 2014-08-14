@@ -3,7 +3,7 @@
 /* Directives */
 
 
-angular.module('myApp.directives', []).
+angular.module('ozpDemoIncidentList').
  directive('incidentItem', function() {
     return {
       restrict: 'E',
@@ -11,8 +11,17 @@ angular.module('myApp.directives', []).
       scope: {
           incident: "=incident"
       },
-      link: function (scope, element) {
-        console.log("Directive for ",scope.incident);
-      }
+      controller: ['$scope','iwcClient',function(scope,client) {
+        scope.select=function() {
+            if(scope.isopen) {
+                client.send({
+                    dst: "data.api",
+                    action: "set",
+                    resource: "/workContext",
+                    entity:scope.incident
+                });
+            }
+        };
+      }]
     };
  });
