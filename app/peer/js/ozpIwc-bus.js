@@ -204,9 +204,21 @@ ozpIwc.util.now=function() {
  * @returns {Function} newConstructor with an augmented prototype
  */
 ozpIwc.util.extend=function(baseClass,newConstructor) {
+    if(!baseClass || !baseClass.prototype) {
+        console.error("Cannot create a new class for ",newConstructor," due to invalid baseclass:",baseClass);
+        throw new Error("Cannot create a new class due to invalid baseClass.  Dependency not loaded first?");
+    };
     newConstructor.prototype = Object.create(baseClass.prototype);
     newConstructor.prototype.constructor = newConstructor;
     return newConstructor;
+};
+
+/**
+ * Invokes the callback handler on another event loop as soon as possible.
+*/
+ozpIwc.util.setImmediate=function(f) {
+//    window.setTimeout(f,0);
+    window.setImmediate(f);
 };
 
 /**
@@ -743,6 +755,8 @@ ozpIwc.metricTypes=ozpIwc.metricTypes || {};
 
 ozpIwc.metricTypes.BaseMetric=function() {
 	this.value=0;
+    this.name="";
+    this.unitName="";
 };
 
 ozpIwc.metricTypes.BaseMetric.prototype.get=function() { 
@@ -751,10 +765,10 @@ ozpIwc.metricTypes.BaseMetric.prototype.get=function() {
 
 ozpIwc.metricTypes.BaseMetric.prototype.unit=function(val) { 
 	if(val) {
-		this.unit=val;
+		this.unitName=val;
 		return this;
 	}
-	return this.unit; 
+	return this.unitName; 
 };
 
 
@@ -800,9 +814,10 @@ ozpIwc.metricTypes=ozpIwc.metricTypes || {};
  * A gauge is an externally defined set of metrics returned by a callback function
  * @param {ozpIwc.metricTypes.Gauge~gaugeCallback} metricsCallback
  */
-ozpIwc.metricTypes.Gauge=function(metricsCallback) {
+ozpIwc.metricTypes.Gauge=ozpIwc.util.extend(ozpIwc.metricTypes.BaseMetric,function(metricsCallback) {
+	ozpIwc.metricTypes.BaseMetric.apply(this,arguments);
 	this.callback=metricsCallback;
-};
+});
 /**
  * Set the metrics callback for this gauge.
  * @param {ozpIwc.metricTypes.Gauge~gaugeCallback} metricsCallback
@@ -992,8 +1007,8 @@ var ozpIwc=ozpIwc || {};
 ozpIwc.MetricsRegistry=function() {
 	this.metrics={};
     var self=this;
-    this.gauge('registry.metrics').set(function() {
-        return {'types':  Object.keys(self.metrics).length};
+    this.gauge('registry.metrics.types').set(function() {
+        return Object.keys(self.metrics).length;
     });
 
 };
@@ -1006,7 +1021,12 @@ ozpIwc.MetricsRegistry=function() {
  * @returns {MetricType} - Null if the metric already exists of a different type.  Otherwise a reference to the metric.
  */
 ozpIwc.MetricsRegistry.prototype.findOrCreateMetric=function(name,type) {
-	var m= this.metrics[name] = this.metrics[name] || new type();
+	var m= this.metrics[name];
+    if(!m) {
+        m = this.metrics[name] = new type();
+        m.name=name;
+        return m;
+    }
 	if(m instanceof type){
 			return m;
 	} else {
@@ -1094,7 +1114,191 @@ ozpIwc.MetricsRegistry.prototype.toJson=function() {
 	return rv;
 };
 
+ozpIwc.MetricsRegistry.prototype.allMetrics=function() {
+    var rv=[];
+    for(var k in this.metrics) {
+        rv.push(this.metrics[k]);
+    }
+    return rv;
+};
+
 ozpIwc.metrics=new ozpIwc.MetricsRegistry();
+
+(function (global, undefined) {
+    "use strict";
+
+    if (global.setImmediate) {
+        return;
+    }
+
+    var nextHandle = 1; // Spec says greater than zero
+    var tasksByHandle = {};
+    var currentlyRunningATask = false;
+    var doc = global.document;
+    var setImmediate;
+
+    function addFromSetImmediateArguments(args) {
+        tasksByHandle[nextHandle] = partiallyApplied.apply(undefined, args);
+        return nextHandle++;
+    }
+
+    // This function accepts the same arguments as setImmediate, but
+    // returns a function that requires no arguments.
+    function partiallyApplied(handler) {
+        var args = [].slice.call(arguments, 1);
+        return function() {
+            if (typeof handler === "function") {
+                handler.apply(undefined, args);
+            } else {
+                (new Function("" + handler))();
+            }
+        };
+    }
+
+    function runIfPresent(handle) {
+        // From the spec: "Wait until any invocations of this algorithm started before this one have completed."
+        // So if we're currently running a task, we'll need to delay this invocation.
+        if (currentlyRunningATask) {
+            // Delay by doing a setTimeout. setImmediate was tried instead, but in Firefox 7 it generated a
+            // "too much recursion" error.
+            setTimeout(partiallyApplied(runIfPresent, handle), 0);
+        } else {
+            var task = tasksByHandle[handle];
+            if (task) {
+                currentlyRunningATask = true;
+                try {
+                    task();
+                } finally {
+                    clearImmediate(handle);
+                    currentlyRunningATask = false;
+                }
+            }
+        }
+    }
+
+    function clearImmediate(handle) {
+        delete tasksByHandle[handle];
+    }
+
+    function installNextTickImplementation() {
+        setImmediate = function() {
+            var handle = addFromSetImmediateArguments(arguments);
+            process.nextTick(partiallyApplied(runIfPresent, handle));
+            return handle;
+        };
+    }
+
+    function canUsePostMessage() {
+        // The test against `importScripts` prevents this implementation from being installed inside a web worker,
+        // where `global.postMessage` means something completely different and can't be used for this purpose.
+        if (global.postMessage && !global.importScripts) {
+            var postMessageIsAsynchronous = true;
+            var oldOnMessage = global.onmessage;
+            global.onmessage = function() {
+                postMessageIsAsynchronous = false;
+            };
+            global.postMessage("", "*");
+            global.onmessage = oldOnMessage;
+            return postMessageIsAsynchronous;
+        }
+    }
+
+    function installPostMessageImplementation() {
+        // Installs an event handler on `global` for the `message` event: see
+        // * https://developer.mozilla.org/en/DOM/window.postMessage
+        // * http://www.whatwg.org/specs/web-apps/current-work/multipage/comms.html#crossDocumentMessages
+
+        var messagePrefix = "setImmediate$" + Math.random() + "$";
+        var onGlobalMessage = function(event) {
+            if (event.source === global &&
+                typeof event.data === "string" &&
+                event.data.indexOf(messagePrefix) === 0) {
+                runIfPresent(+event.data.slice(messagePrefix.length));
+            }
+        };
+
+        if (global.addEventListener) {
+            global.addEventListener("message", onGlobalMessage, false);
+        } else {
+            global.attachEvent("onmessage", onGlobalMessage);
+        }
+
+        setImmediate = function() {
+            var handle = addFromSetImmediateArguments(arguments);
+            global.postMessage(messagePrefix + handle, "*");
+            return handle;
+        };
+    }
+
+    function installMessageChannelImplementation() {
+        var channel = new MessageChannel();
+        channel.port1.onmessage = function(event) {
+            var handle = event.data;
+            runIfPresent(handle);
+        };
+
+        setImmediate = function() {
+            var handle = addFromSetImmediateArguments(arguments);
+            channel.port2.postMessage(handle);
+            return handle;
+        };
+    }
+
+    function installReadyStateChangeImplementation() {
+        var html = doc.documentElement;
+        setImmediate = function() {
+            var handle = addFromSetImmediateArguments(arguments);
+            // Create a <script> element; its readystatechange event will be fired asynchronously once it is inserted
+            // into the document. Do so, thus queuing up the task. Remember to clean up once it's been called.
+            var script = doc.createElement("script");
+            script.onreadystatechange = function () {
+                runIfPresent(handle);
+                script.onreadystatechange = null;
+                html.removeChild(script);
+                script = null;
+            };
+            html.appendChild(script);
+            return handle;
+        };
+    }
+
+    function installSetTimeoutImplementation() {
+        setImmediate = function() {
+            var handle = addFromSetImmediateArguments(arguments);
+            setTimeout(partiallyApplied(runIfPresent, handle), 0);
+            return handle;
+        };
+    }
+
+    // If supported, we should attach to the prototype of global, since that is where setTimeout et al. live.
+    var attachTo = Object.getPrototypeOf && Object.getPrototypeOf(global);
+    attachTo = attachTo && attachTo.setTimeout ? attachTo : global;
+
+    // Don't get fooled by e.g. browserify environments.
+    if ({}.toString.call(global.process) === "[object process]") {
+        // For Node.js before 0.9
+        installNextTickImplementation();
+
+    } else if (canUsePostMessage()) {
+        // For non-IE10 modern browsers
+        installPostMessageImplementation();
+
+    } else if (global.MessageChannel) {
+        // For web workers, where supported
+        installMessageChannelImplementation();
+
+    } else if (doc && "onreadystatechange" in doc.createElement("script")) {
+        // For IE 6–8
+        installReadyStateChangeImplementation();
+
+    } else {
+        // For older browsers
+        installSetTimeoutImplementation();
+    }
+
+    attachTo.setImmediate = setImmediate;
+    attachTo.clearImmediate = clearImmediate;
+}(new Function("return this")()));
 
 
 ozpIwc.abacPolicies={};
@@ -1145,7 +1349,7 @@ ozpIwc.BasicAuthentication=function() {
 	this.roles={};
     var self = this;
     ozpIwc.metrics.gauge('security.authentication.roles').set(function() {
-        return {'roles': self.getRoleCount()};
+        return self.getRoleCount();
     });
 };
 
@@ -1217,7 +1421,7 @@ ozpIwc.BasicAuthorization=function(config) {
 
     var self = this;
     ozpIwc.metrics.gauge('security.authorization.roles').set(function() {
-        return {'roles':  self.getRoleCount()};
+        return self.getRoleCount();
     });
 };
 /**
@@ -1951,6 +2155,17 @@ ozpIwc.Participant=function() {
 	this.events.mixinOnOff(this);
 	this.securityAttributes={};
     this.msgId=0;
+    var fakeMeter=new ozpIwc.metricTypes.Meter();
+    this.sentPacketsMeter=fakeMeter;
+    this.receivedPacketsMeter=fakeMeter;
+    this.forbiddenPacketsMeter=fakeMeter;
+    
+    this.participantType=this.constructor.name;
+    this.heartBeatContentType="application/ozpIwc-address-v1+json";
+    this.heartBeatStatus={
+        name: this.name,
+        type: this.participantType || this.constructor.name
+    };
 };
 
 /**
@@ -1961,15 +2176,16 @@ ozpIwc.Participant.prototype.receiveFromRouter=function(packetContext) {
     var self = this;
     ozpIwc.authorization.isPermitted({
         'subject': this.securityAttributes,
-        'object': packetContext.packet.permissions,
+        'object': packetContext.packet.permissions
     })
         .success(function(){
-            ozpIwc.metrics.counter("transport.packets.delivered").inc();
+            self.receivedPacketsMeter.mark();
+
             self.receiveFromRouterImpl(packetContext);
         })
         .failure(function() {
             /** @todo do we send a "denied" message to the destination?  drop?  who knows? */
-            ozpIwc.metrics.counter("transport.packets.forbidden").inc();
+            self.forbiddenPacketsMeter.mark();
         });
 };
 
@@ -1993,6 +2209,17 @@ ozpIwc.Participant.prototype.connectToRouter=function(router,address) {
     this.router=router;
     this.securityAttributes.rawAddress=address;
     this.msgId=0;
+    this.metricRoot="participants."+ this.address.split(".").reverse().join(".");
+    this.sentPacketsMeter=ozpIwc.metrics.meter(this.metricRoot,"sentPackets").unit("packets");
+    this.receivedPacketsMeter=ozpIwc.metrics.meter(this.metricRoot,"receivedPackets").unit("packets");
+    this.forbiddenPacketsMeter=ozpIwc.metrics.meter(this.metricRoot,"forbiddenPackets").unit("packets");
+    
+    this.namesResource="/address/"+this.address;
+    this.heartBeatStatus.address=this.address;
+    this.heartBeatStatus.name=this.name;
+    this.heartBeatStatus.type=this.participantType || this.constructor.name;
+
+    this.events.trigger("connectedToRouter");
 };
 
 /**
@@ -2022,6 +2249,7 @@ ozpIwc.Participant.prototype.fixPacket=function(packet) {
  */
 ozpIwc.Participant.prototype.send=function(packet) {
     packet=this.fixPacket(packet);
+    this.sentPacketsMeter.mark();
     this.router.send(packet,this);
     return packet;
 };
@@ -2031,13 +2259,16 @@ ozpIwc.Participant.prototype.generateMsgId=function() {
     return "i:" + this.msgId++;
 };
 
-ozpIwc.Participant.prototype.heartbeatStatus=function() {
-    return {
-        address: this.address,
-        securityAttributes: this.securityAttributes,
-        type: this.participantType || this.constructor.name,
-        name: this.name
-    };
+ozpIwc.Participant.prototype.heartbeat=function() {
+    if(this.router) {
+        this.send({
+            'dst': "names.api",
+            'resource': this.namesResource,
+            'action' : "set",
+            'entity' : this.heartBeatStatus,
+            'contentType' : this.heartBeatContentType
+        },function() {/* eat the response*/});
+    }
 };
 
 ozpIwc.InternalParticipant=ozpIwc.util.extend(ozpIwc.Participant,function(config) {
@@ -2048,8 +2279,10 @@ ozpIwc.InternalParticipant=ozpIwc.util.extend(ozpIwc.Participant,function(config
 	this.name=config.name;
 
     var self = this;
-    ozpIwc.metrics.gauge('transport.internal.participants').set(function() {
-        return {'callbacks':  self.getCallbackCount()};
+    this.on("connectedToRouter",function() {
+        ozpIwc.metrics.gauge(self.metricRoot,"registeredCallbacks").set(function() {
+            return self.getCallbackCount();
+        });
     });
 });
 
@@ -2072,20 +2305,23 @@ ozpIwc.InternalParticipant.prototype.receiveFromRouterImpl=function(packetContex
 	var packet=packetContext.packet;
 	if(packet.replyTo && this.replyCallbacks[packet.replyTo]) {
 		if (!this.replyCallbacks[packet.replyTo](packet)) {
-            this.cancelCallback(msgId);
+            this.cancelCallback(packet.replyTo);
         }
 	} else {
-		this.events.trigger("receive",packet);
+		this.events.trigger("receive",packetContext);
 	}
 };
 
 
-ozpIwc.InternalParticipant.prototype.send=function(packet,callback) {
-	var packet=this.fixPacket(packet);
+ozpIwc.InternalParticipant.prototype.send=function(originalPacket,callback) {
+    var packet=this.fixPacket(originalPacket);
 	if(callback) {
 		this.replyCallbacks[packet.msgId]=callback;
 	}
-	ozpIwc.Participant.prototype.send.apply(this,arguments);
+    var self=this;
+	ozpIwc.util.setImmediate(function() {
+        ozpIwc.Participant.prototype.send.call(self,packet);
+    });
 
 	return packet;
 };
@@ -2143,13 +2379,15 @@ ozpIwc.TransportPacketContext.prototype.replyTo=function(response) {
     var now=new Date().getTime();
     response.ver = response.ver || 1;
     response.time = response.time || now;
-    // TODO: track the last used timestamp and make sure we don't send a duplicate messageId
-    // default the msgId to the current timestamp
-    response.msgId = response.msgId || now;
     response.replyTo=response.replyTo || this.packet.msgId;
     response.src=response.src || this.packet.dst;
     response.dst=response.dst || this.packet.src;
-    this.router.send(response);
+    if(this.dstParticipant) {
+        this.dstParticipant.send(response);
+    } else{
+        response.msgId = response.msgId || now;
+        this.router.send(response);
+    }
     return response;
 };
 
@@ -2186,80 +2424,6 @@ ozpIwc.TransportPacketContext.prototype.replyTo=function(response) {
  * @property {ozpIwc.TransportPacket} packet
  * @property {ozpIwc.NetworkPacket} rawPacket
  */
-/**
- * @class
- */
-ozpIwc.RouterWatchdog=ozpIwc.util.extend(ozpIwc.InternalParticipant,function(config) {
-    ozpIwc.InternalParticipant.apply(this,arguments);
-
-    this.participantType="routerWatchdog";
-    var self=this;
-    this.on("connected",function() {
-        this.name=this.router.self_id;
-    },this);
-
-    this.heartbeatFrequency=config.heartbeatFrequency || 10000;
-    var self=this;
-
-    this.timer=window.setInterval(function() {
-        var heartbeat={
-            dst: "names.api",
-            action: "set",
-            resource: "/router/" + self.router.self_id,
-            entity: { participants: {} }
-        };
-        for(var k in self.router.participants) {
-            heartbeat.entity.participants[k]=self.router.participants[k].heartbeatStatus();
-        }
-        self.send(heartbeat);
-    },this.heartbeatFrequency);
-});
-
-ozpIwc.RouterWatchdog.prototype.connectToRouter=function(router,address) {
-    ozpIwc.Participant.prototype.connectToRouter.apply(this,arguments);
-    this.name=router.self_id;
-    var self=this;
-
-    //register the router watchdog with the names api service
-    var value = ozpIwc.namesApi.findOrMakeValue({resource: '/address/' + self.address, contentType: "ozp-address-collection-v1+json"});
-    var packet = {
-        src: self.address,
-        entity: self,
-        dst: "names.api"
-    };
-    value.set(packet);
-
-    //register other participants with the names api service
-    router.on("registeredParticipant", function(event) {
-        var pAddress=event.participant.address || event.participant.electionAddress;
-        if (!pAddress) {
-            return;
-        }
-        var value = ozpIwc.namesApi.findOrMakeValue({resource: '/address/' + pAddress, contentType: "ozp-address-object-v1+json"});
-        var packet = {
-            src: pAddress,
-            entity: event.participant,
-            dst: "names.api"
-        };
-        value.set(packet);
-    });
-
-    //register multicast group memberships with the names api service
-    router.on("registeredMulticast", function(event) {
-        var reg=event.entity;
-        var value = ozpIwc.namesApi.findOrMakeValue({resource: '/multicast/' + reg.group, contentType: "ozp-multicast-object-v1+json"});
-        var packet = {
-            src: reg.address,
-            entity: reg.address,
-            dst: "names.api"
-        };
-        value.set(packet);
-    });
-};
-
-ozpIwc.RouterWatchdog.prototype.shutdown=function() {
-    window.clearInterval(this.timer);
-};
 
 /**
  * @class
@@ -2311,7 +2475,7 @@ ozpIwc.Router=function(config) {
 	this.registerParticipant(this.watchdog);
 
     ozpIwc.metrics.gauge('transport.router.participants').set(function() {
-        return {'participants':  self.getParticipantCount()};
+        return self.getParticipantCount();
     });
 };
 
@@ -2329,7 +2493,7 @@ ozpIwc.Router.prototype.getParticipantCount=function() {
 
 ozpIwc.Router.prototype.shutdown=function() {
     this.watchdog.shutdown();
-}
+};
 
 /**
  * Allows a listener to add a new participant.
@@ -2342,7 +2506,7 @@ ozpIwc.Router.prototype.registerParticipant=function(participant,packet) {
     packet = packet || {};
     var address;
     do {
-        address=ozpIwc.util.generateId() + "." + this.self_id;
+        address=ozpIwc.util.generateId()+"."+this.self_id;
     } while(this.participants.hasOwnProperty(address));
 
     var registerEvent=new ozpIwc.CancelableEvent({
@@ -2510,8 +2674,8 @@ var ozpIwc=ozpIwc || {};
  *        Number of milliseconds to wait before declaring victory on an election. 
  
  */
-ozpIwc.LeaderGroupParticipant=ozpIwc.util.extend(ozpIwc.Participant,function(config) {
-	ozpIwc.Participant.apply(this,arguments);
+ozpIwc.LeaderGroupParticipant=ozpIwc.util.extend(ozpIwc.InternalParticipant,function(config) {
+	ozpIwc.InternalParticipant.apply(this,arguments);
 
 	if(!config.name) {
 		throw "Config must contain a name value";
@@ -2523,7 +2687,7 @@ ozpIwc.LeaderGroupParticipant=ozpIwc.util.extend(ozpIwc.Participant,function(con
 	this.electionAddress=config.electionAddress || (this.name + ".election");
 
 	// Election times and how to score them
-	this.priority = config.priority || ozpIwc.defaultLeaderPriority || Math.random();
+	this.priority = config.priority || ozpIwc.defaultLeaderPriority || -ozpIwc.util.now();
 	this.priorityLessThan = config.priorityLessThan || function(l,r) { return l < r; };
 	this.electionTimeout=config.electionTimeout || 250; // quarter second
 	this.leaderState="connecting";
@@ -2533,7 +2697,7 @@ ozpIwc.LeaderGroupParticipant=ozpIwc.util.extend(ozpIwc.Participant,function(con
 	this.leader=null;
 	this.leaderPriority=null;
 
-	this.participantType="leaderGroupMember";
+	this.participantType="leaderGroup";
 	this.name=config.name;
 	
 	this.on("startElection",function() {
@@ -2554,16 +2718,23 @@ ozpIwc.LeaderGroupParticipant=ozpIwc.util.extend(ozpIwc.Participant,function(con
 	
 	// handoff when we shut down
 	window.addEventListener("beforeunload",function() {
-		self.leaderPriority=0;
-		self.startElection();
-		
+        //Priority has to be the minimum possible
+        self.priority=-Number.MAX_VALUE;
+        self.leaderPriority=-Number.MAX_VALUE;
+        if(self.leaderState === "leader") {
+            self.events.trigger("unloadState");
+        }
 	});
 
     ozpIwc.metrics.gauge('transport.leaderGroup.election').set(function() {
         var queue = self.getElectionQueue();
         return {'queue': queue ? queue.length : 0};
     });
-	
+	this.on("connectedToRouter",function() {
+        this.router.registerMulticast(this,[this.electionAddress,this.name]);
+        this.startElection();
+    },this);
+    this.on("receive",this.routePacket,this);
 });
 
 /**
@@ -2573,31 +2744,6 @@ ozpIwc.LeaderGroupParticipant=ozpIwc.util.extend(ozpIwc.Participant,function(con
  */
 ozpIwc.LeaderGroupParticipant.prototype.getElectionQueue=function() {
     return this.electionQueue;
-}
-
-/**
- * Override from the participant in order to register our multicast addresses
- * and start an election.
- * @param {type} router
- * @param {type} address
- * @returns {undefined}
- */
-ozpIwc.LeaderGroupParticipant.prototype.connectToRouter=function(router,address) {
-	ozpIwc.Participant.prototype.connectToRouter.apply(this,arguments);
-	this.router.registerMulticast(this,[this.electionAddress,this.name]);
-	this.startElection();
-};
-
-/**
- * Override fixPacket to default the source address to the name of this
- * leadership group.
- * @param {type} packet
- * @returns {unresolved}
- */
-ozpIwc.LeaderGroupParticipant.prototype.fixPacket=function(packet) {
-	packet.src = packet.src || this.name;
-	
-	return ozpIwc.Participant.prototype.fixPacket.apply(this,arguments);
 };
 
 
@@ -2622,13 +2768,16 @@ ozpIwc.LeaderGroupParticipant.prototype.isLeader=function() {
  * @private
  * @param {string} type - the type of message-- "election" or "victory"
  */
-ozpIwc.LeaderGroupParticipant.prototype.sendElectionMessage=function(type) {
+ozpIwc.LeaderGroupParticipant.prototype.sendElectionMessage=function(type, config) {
+    config = config || {};
+    var state = config.state || {};
 	this.send({
 		'src': this.address,
 		'dst': this.electionAddress,
 		'action': type,
 		'entity': {
-			'priority': this.priority
+			'priority': this.priority,
+            'state': state
 		}
 	});
 };
@@ -2640,26 +2789,42 @@ ozpIwc.LeaderGroupParticipant.prototype.sendElectionMessage=function(type) {
  * @fire ozpIwc.LeaderGroupParticipant#startElection
  * @fire ozpIwc.LeaderGroupParticipant#becameLeader
  */
-ozpIwc.LeaderGroupParticipant.prototype.startElection=function() {
+ozpIwc.LeaderGroupParticipant.prototype.startElection=function(config) {
+    config = config || {};
+    var state = config.state || {};
+
 	// don't start a new election if we are in one
 	if(this.inElection()) {
 		return;
 	}
 	this.leaderState="election";
 	this.events.trigger("startElection");
+
+    this.victoryDebounce = null;
 	
 	var self=this;
 	// if no one overrules us, declare victory
 	this.electionTimer=window.setTimeout(function() {
 		self.cancelElection();
-		self.leader=self.address;
-		self.leaderPriority=self.priority;
-		self.leaderState="leader";
-		self.sendElectionMessage("victory");	
-		self.events.trigger("becameLeader");
+        self.leaderState = "leader";
+        self.leader=self.address;
+        self.leaderPriority=self.priority;
+        self.events.trigger("becameLeader");
+
+        self.sendElectionMessage("victory");
+
+        // Debouncing before setting state.
+        self.victoryDebounce = window.setTimeout(function(){
+            if (self.leaderState === "leader") {
+                if (self.stateStore && Object.keys(self.stateStore).length > 0) {
+                    self.events.trigger("acquireState", self.stateStore);
+                    self.stateStore = {};
+                }
+            }
+        },100);
 	},this.electionTimeout);
 
-	this.sendElectionMessage("election");
+	this.sendElectionMessage("election", {state: state});
 };
 
 /**
@@ -2668,10 +2833,12 @@ ozpIwc.LeaderGroupParticipant.prototype.startElection=function() {
  * @fire ozpIwc.LeaderGroupParticipant#endElection
  */
 ozpIwc.LeaderGroupParticipant.prototype.cancelElection=function() {
-	if(this.electionTimer) {	
-		window.clearTimeout(this.electionTimer);
-		this.electionTimer=null;
-		this.events.trigger("endElection");
+	if(this.electionTimer) {
+        window.clearTimeout(this.electionTimer);
+        this.electionTimer=null;
+        window.clearTimeout(this.victoryDebounce);
+        this.victoryDebounce=null;
+        this.events.trigger("endElection");
 	}
 };
 
@@ -2681,42 +2848,34 @@ ozpIwc.LeaderGroupParticipant.prototype.cancelElection=function() {
  * @param {ozpIwc.TransportPacket} packet
  * @returns {boolean}
  */
-ozpIwc.LeaderGroupParticipant.prototype.receiveFromRouterImpl=function(packetContext) {
+ozpIwc.LeaderGroupParticipant.prototype.routePacket=function(packetContext) {
 	var packet=packetContext.packet;
 	packetContext.leaderState=this.leaderState;
-	// forward non-election packets to the current state
-	if(packet.dst !== this.electionAddress) {
-		this.forwardToTarget(packetContext);
-	} else {
-		if(packet.src === this.address) {
+    if(packet.src === this.address) {
+        // drop our own packets that found their way here
+        return;
+    }
+    if(packet.dst === this.electionAddress) {
+        if(packet.src === this.address) {
 			// even if we see our own messages, we shouldn't act upon them
 			return;
-		}else if(packet.action === "election") {
+		} else if(packet.action === "election") {
 			this.handleElectionMessage(packet);
 		} else if(packet.action === "victory") {
 			this.handleVictoryMessage(packet);
 		}
-	}
+    } else {
+		this.forwardToTarget(packetContext);
+	}		
 };
-/**
- * Convention based routing.  Routes to a functions in order of
- * <ol>
- *   <li>handle${action}As${leaderState}</li>
- *   <li>handle${action}</li>
- *   <li>defaultHandlerAs${leaderState}</li>
- *   <li>defaultHandler</li>
- * </ol>
- * The variable action is the packet's action and leaderstate is the current leadership state.
- * If there's no packet action, then the handle* functions will not be invoked.
- * @param {ozpIwc.TransportPacketContext} packetContext
- */
+
 ozpIwc.LeaderGroupParticipant.prototype.forwardToTarget=function(packetContext) {
 	if(this.leaderState === "election" || this.leaderState === "connecting") {
 		this.electionQueue.push(packetContext);
 		return;
 	}
 	packetContext.leaderState=this.leaderState;
-	this.events.trigger("receive",packetContext);
+	this.events.trigger("receiveApiPacket",packetContext);
 };
 	
 	
@@ -2727,7 +2886,10 @@ ozpIwc.LeaderGroupParticipant.prototype.forwardToTarget=function(packetContext) 
  * @returns {undefined}
  */
 ozpIwc.LeaderGroupParticipant.prototype.handleElectionMessage=function(electionMessage) {
-
+    //If a state was received, store it case participant becomes the leader
+    if(Object.keys(electionMessage.entity.state).length > 0){
+        this.stateStore = electionMessage.entity.state;
+    }
 	// is the new election lower priority than us?
 	if(this.priorityLessThan(electionMessage.entity.priority,this.priority)) {
 		// Quell the rebellion!
@@ -2754,6 +2916,7 @@ ozpIwc.LeaderGroupParticipant.prototype.handleVictoryMessage=function(victoryMes
 		this.cancelElection();
 		this.leaderState="member";
 		this.events.trigger("newLeader");
+        this.stateStore = {};
 	}
 };
 
@@ -2766,16 +2929,28 @@ ozpIwc.LeaderGroupParticipant.prototype.heartbeatStatus=function() {
 };
 var ozpIwc=ozpIwc || {};
 
+
+
+
 /**
  * @class
  * @extends ozpIwc.Participant
  * @param {string} name
  */
 ozpIwc.MulticastParticipant=ozpIwc.util.extend(ozpIwc.Participant,function(name) {
-	ozpIwc.Participant.apply(this,arguments);
 	this.name=name;
 	this.participantType="multicast";
+
+    ozpIwc.Participant.apply(this,arguments);
 	this.members=[];
+    
+    this.namesResource="/multicast/"+this.name;
+    
+    this.heartBeatContentType="application/ozpIwc-multicast-address-v1+json";
+    this.heartBeatStatus.members=[];
+    this.on("connectedToRouter",function() {
+        this.namesResource="/multicast/" + this.name;
+    },this);
 });
 
 /**
@@ -2784,7 +2959,11 @@ ozpIwc.MulticastParticipant=ozpIwc.util.extend(ozpIwc.Participant,function(name)
  * @returns {Boolean}
  */
 ozpIwc.MulticastParticipant.prototype.receiveFromRouterImpl=function(packet) {
-	this.members.forEach(function(m) { m.receiveFromRouter(packet);});
+	this.members.forEach(function(m) {
+        // as we send to each member, update the context to make it believe that it's the only recipient
+        packet.dstParticipant=m;
+        m.receiveFromRouter(packet);
+    });
 	return false;
 };
 
@@ -2794,12 +2973,7 @@ ozpIwc.MulticastParticipant.prototype.receiveFromRouterImpl=function(packet) {
  */
 ozpIwc.MulticastParticipant.prototype.addMember=function(participant) {
 	this.members.push(participant);
-};
-
-ozpIwc.MulticastParticipant.prototype.heartbeatStatus=function() {
-	var status= ozpIwc.Participant.prototype.heartbeatStatus.apply(this,arguments);
-	status.members=this.members.map(function(m) { return m.address;});
-	return status;
+    this.heartBeatStatus.members.push(participant.address);
 };
 /** @namespace */
 var ozpIwc=ozpIwc || {};
@@ -2816,22 +2990,16 @@ ozpIwc.PostMessageParticipant=ozpIwc.util.extend(ozpIwc.Participant,function(con
 	ozpIwc.Participant.apply(this,arguments);
 	this.origin=this.name=config.origin;
 	this.sourceWindow=config.sourceWindow;
-	this.credentials=config.credentials;
+    this.credentials=config.credentials;
 	this.participantType="postMessageProxy";
     this.securityAttributes.origin=this.origin;
+    this.on("connectedToRouter",function() {
+        this.securityAttributes.sendAs=this.address;
+        this.securityAttributes.receiveAs=this.address;
+    },this);
+    
+    this.heartBeatStatus.origin=this.origin;
 });
-
-/**
- * @override
- * @param {ozpIwc.Router} router
- * @param {string} address
- * @returns {boolean} true if this packet could have additional recipients
- */
-ozpIwc.PostMessageParticipant.prototype.connectToRouter=function(router,address) {
-    ozpIwc.Participant.prototype.connectToRouter.apply(this,arguments);
-    this.securityAttributes.sendAs=this.address;
-    this.securityAttributes.receiveAs=this.address;
-};
 
 /**
  * @override
@@ -2887,13 +3055,6 @@ ozpIwc.PostMessageParticipant.prototype.handleTransportPacket=function(packet) {
 		}
 	};
 	this.sendToRecipient(reply);
-    var value = ozpIwc.namesApi.findOrMakeValue({resource: '/address/' + this.address, contentType: "ozp-address-collection-v1+json", entity: this});
-    var packet = {
-        src: this.address,
-        entity: this,
-        dst: "names.api"
-    };
-    value.set(packet);
 };
 
 
@@ -2967,7 +3128,7 @@ ozpIwc.PostMessageParticipantListener=function(config) {
 	}, false);
 
     ozpIwc.metrics.gauge('transport.postMessageListener.participants').set(function() {
-        return {'participants': self.getParticipantCount()};
+        return self.getParticipantCount();
     });
 };
 
@@ -3008,7 +3169,12 @@ ozpIwc.PostMessageParticipantListener.prototype.receiveFromPostMessage=function(
 	var packet=event.data;
 
 	if(typeof(event.data)==="string") {
-		packet=JSON.parse(event.data);
+		try {
+            packet=JSON.parse(event.data);
+        } catch(e) {
+            // assume that it's some other library using the bus and let it go
+            return;
+        }
 	}
 	// if this is a window who hasn't talked to us before, sign them up
 	if(!participant) {
@@ -3024,245 +3190,62 @@ ozpIwc.PostMessageParticipantListener.prototype.receiveFromPostMessage=function(
 };
 
 /**
- * The Common API Base implements the API Common Conventions.  It is intended to be subclassed by
- * the specific API implementations.
  * @class
  */
-ozpIwc.CommonApiBase = function(config) {
-	config = config || {};
-	this.participant=config.participant;
-	
-	this.participant.on("receive",ozpIwc.CommonApiBase.prototype.routePacket,this);
+ozpIwc.RouterWatchdog = ozpIwc.util.extend(ozpIwc.InternalParticipant, function(config) {
+    ozpIwc.InternalParticipant.apply(this, arguments);
 
-	this.events = new ozpIwc.Event();
-    this.events.mixinOnOff(this);
+    this.participantType = "routerWatchdog";
+    var self = this;
+    this.on("connected", function() {
+        this.name = this.router.self_id;
+    }, this);
 
-	this.data={};
-};
-/**
- * Creates a new value for the given packet's request.  Subclasses must override this
- * function to return the proper value based upon the packet's resource, content type, or
- * other parameters.
- * 
- * @abstract
- * @param {ozpIwc.TransportPacket} packet
- * @returns {ozpIwc.CommonApiValue} an object implementing the commonApiValue interfaces
- */
-ozpIwc.CommonApiBase.prototype.makeValue=function(packet) {
-	throw new Error("Subclasses of CommonApiBase must implement the makeValue(packet) function.");
-};
+    this.heartbeatFrequency = config.heartbeatFrequency || 10000;
 
-/**
- * Determines whether the action implied by the packet is permitted to occur on
- * node in question.
- * @todo the refactoring of security to allow action-level permissions
- * @todo make the packetContext have the srcSubject inside of it
- * @param {ozpIwc.CommonApiValue} node
- * @param {ozpIwc.TransportPacketContext} packetContext
- * @returns {ozpIwc.AsyncAction}
- */
-ozpIwc.CommonApiBase.prototype.isPermitted=function(node,packetContext) {
-	var subject=packetContext.srcSubject || {
-        'rawAddress':packetContext.packet.src
+    this.on("connectedToRouter", this.setupWatches, this);
+});
+
+ozpIwc.RouterWatchdog.prototype.setupWatches = function() {
+    this.name = this.router.self_id;
+    var self=this;
+    var heartbeat=function() {
+        self.send({
+            dst: "names.api",
+            action: "set",
+            resource: "/router/" + self.router.self_id,
+            contentType: "application/ozpIwc-router-v1+json",
+            entity: {
+                'address': self.router.self_id,
+                'participants': self.router.getParticipantCount()
+            }
+        });
+
+        for (var k in self.router.participants) {
+            var participant=self.router.participants[k];
+            if(participant instanceof ozpIwc.MulticastParticipant) {
+                self.send({
+                    'dst': "names.api",
+                    'resource': participant.namesResource,
+                    'action' : "set",
+                    'entity' : participant.heartBeatStatus,
+                    'contentType' : participant.heartBeatContentType              
+                });
+            } else {
+                participant.heartbeat();
+            }            
+        }
+
     };
-
-	return ozpIwc.authorization.isPermitted({
-        'subject': subject,
-        'object': node.permissions,
-        'action': {'action':packetContext.action}
-    });
+//    heartbeat();
+    
+    this.timer = window.setInterval(heartbeat, this.heartbeatFrequency);
 };
 
-
-/** 
- * Turn an event into a list of change packets to be sent to the watchers.
- * @param {object} evt
- * @param {object} evt.node - The node being changed.
- */
-ozpIwc.CommonApiBase.prototype.notifyWatchers=function(node,changes) {
-	node.eachWatcher(function(watcher) {
-		// @TODO check that the recipient has permission to both the new and old values
-		var reply={
-			'dst'   : watcher.src,
-		    'replyTo' : watcher.msgId,
-			'action': 'changed',
-			'resource': node.resource,
-			'permissions': node.permissions,
-			'entity': changes
-		};
-        
-		this.participant.send(reply);
-	},this);
+ozpIwc.RouterWatchdog.prototype.shutdown = function() {
+    window.clearInterval(this.timer);
 };
 
-/**
- * For a given packet, return the value if it already exists, otherwise create the value
- * using makeValue()
- * @protected
- * @param {ozpIwc.TransportPacket} packet
- */
-ozpIwc.CommonApiBase.prototype.findOrMakeValue=function(packet) {
-	var node=this.data[packet.resource];
-	
-	if(!node) {
-		node=this.data[packet.resource]=this.makeValue(packet);
-	}
-	return node;
-};
-
-/**
- * 
- * Determines if the given resource exists.
- * @param {string} resource
- * @returns {boolean}
- */
-ozpIwc.CommonApiBase.prototype.hasKey=function(resource) {
-	return resource in this.data;
-};
-
-/**
- * Generates a keyname that does not already exist and starts
- * with a given prefix.
- * @param {String} prefix
- * @returns {String}
- */
-ozpIwc.CommonApiBase.prototype.createKey=function(prefix) {
-	prefix=prefix || "";
-	var key;
-	do {
-		key=prefix + ozpIwc.util.generateId();
-	} while(this.hasKey(key));
-	return key;
-};
-
-/**
- * Accept a packet and do all of the pre/post routing checks.  This include
- * <ul>
- * <li> Pre-routing checks	<ul>
- *		<li> Permission check</li>
- *		<li> ACL Checks (todo)</li>
- *		<li> Precondition checks</li>
- * </ul></li>
- * <li> Post-routing actions <ul>
- *		<li> Reply to requester </li>
- *		<li> If node version changed, notify all watchers </li>
- * </ul></li>
- * @param {ozpIwc.TransportPacketContext} packetContext
- * @returns {undefined}
- */
-ozpIwc.CommonApiBase.prototype.routePacket=function(packetContext) {
-	var packet=packetContext.packet;
-
-	if(packetContext.leaderState !== 'leader')	{
-		// if not leader, just drop it.
-		return;
-	}	
-	var handler;
-	if(packet.action) {
-		handler="handle" + packet.action.charAt(0).toUpperCase() + packet.action.slice(1).toLowerCase();
-	}
-	if(!handler || typeof(this[handler]) !== 'function') {
-		packetContext.replyTo({
-			'action': 'badAction',
-			'entity': packet.action
-		});
-        return;
-	}
-
-    this.events.trigger("receive",packetContext);
-
-	var node=this.findOrMakeValue(packetContext.packet);
-	this.invokeHandler(node,packetContext,this[handler]);
-	
-};
-ozpIwc.CommonApiBase.prototype.validateResource=function(node,packetContext) {
-	return packetContext.packet.resource;
-};
-
-ozpIwc.CommonApiBase.prototype.validatePreconditions=function(node,packetContext) {
-	return !packetContext.packet.ifTag || packetContext.packet.ifTag===node.version;
-};
-
-/**
- * Invoke the proper handler for the packet after determining that
- * they handler has permission to perform this action.
- * @param {ozpIwc.CommonApiValue} node
- * @param {ozpIwc.TransportPacketContext} packetContext
- * @param {function} handler
- * @returns {undefined}
- */
-ozpIwc.CommonApiBase.prototype.invokeHandler=function(node,packetContext,handler) {
-	this.isPermitted(node,packetContext)
-		.failure(function() {
-			packetContext.replyTo({'action':'noPerm'});				
-		})
-		.success(function() {
-			if(!this.validateResource(node,packetContext)) {
-				packetContext.replyTo({'action': 'badResource'});
-				return;
-			}
-			if(!this.validatePreconditions(node,packetContext)) {
-				packetContext.replyTo({'action': 'noMatch'});
-				return;
-			}
-
-			var snapshot=node.snapshot();
-			handler.call(this,node,packetContext);
-			var changes=node.changesSince(snapshot);
-			
-			if(changes)	{
-				this.notifyWatchers(node,changes);
-			}	
-		},this);	
-};
-
-
-/**
- * @param {ozpIwc.CommonApiValue} node
- * @param {ozpIwc.TransportPacketContext} packetContext
- */
-ozpIwc.CommonApiBase.prototype.handleGet=function(node,packetContext) {
-	packetContext.replyTo(node.toPacket({'action': 'ok'}));
-};
-
-/**
- * @param {ozpIwc.CommonApiValue} node
- * @param {ozpIwc.TransportPacketContext} packetContext
- */
-ozpIwc.CommonApiBase.prototype.handleSet=function(node,packetContext) {
-	node.set(packetContext.packet);
-	packetContext.replyTo({'action':'ok'});
-};
-
-/**
- * @param {ozpIwc.CommonApiValue} node
- * @param {ozpIwc.TransportPacketContext} packetContext
- */
-ozpIwc.CommonApiBase.prototype.handleDelete=function(node,packetContext) {
-	node.deleteData();
-	packetContext.replyTo({'action':'ok'});
-};
-
-/**
- * @param {ozpIwc.CommonApiValue} node
- * @param {ozpIwc.TransportPacketContext} packetContext
- */
-ozpIwc.CommonApiBase.prototype.handleWatch=function(node,packetContext) {
-	node.watch(packetContext.packet);
-	
-	// @TODO: Reply with the entity? Immediately send a change notice to the new watcher?  
-	packetContext.replyTo({'action': 'ok'});
-};
-
-/**
- * @param {ozpIwc.CommonApiValue} node
- * @param {ozpIwc.TransportPacketContext} packetContext
- */
-ozpIwc.CommonApiBase.prototype.handleUnwatch=function(node,packetContext) {
-	node.unwatch(packetContext.packet);
-	
-	packetContext.replyTo({'action':'ok'});
-};
 
 
 /**
@@ -3274,13 +3257,16 @@ ozpIwc.CommonApiBase.prototype.handleUnwatch=function(node,packetContext) {
  */
 ozpIwc.CommonApiValue = function(config) {
 	config = config || {};
-	this.watchers=[];
+	this.watchers= config.watchers || [];
 	this.resource=config.resource;
-    
-  this.entity=config.entity;
+    this.allowedContentTypes=config.allowedContentTypes;
+    this.entity=config.entity;
 	this.contentType=config.contentType;
 	this.permissions=config.permissions || {};
 	this.version=config.version || 0;
+    
+    this.persist=true;
+    this.deleted=true;
 };
 
 /**
@@ -3347,6 +3333,7 @@ ozpIwc.CommonApiValue.prototype.deleteData=function() {
 	this.contentType=undefined;
 	this.permissions=[];
 	this.version=0;
+    this.deleted=true;
 };
 
 /**
@@ -3372,7 +3359,12 @@ ozpIwc.CommonApiValue.prototype.toPacket=function(base) {
  * @returns {Boolean}
  */
 ozpIwc.CommonApiValue.prototype.isValidContentType=function(contentType) {
-	return true;
+    if(this.allowedContentTypes && this.allowedContentTypes.indexOf(contentType) < 0) {
+        throw new ozpIwc.ApiError("badContent",
+                "Bad contentType " + contentType +", expected " + this.allowedContentTypes.join(","));
+     } else {
+        return true;
+    }
 };
 
 /**
@@ -3407,14 +3399,416 @@ ozpIwc.CommonApiValue.prototype.changesSince=function(snapshot) {
 			'oldValue': snapshot.entity
 	};
 };
-var ozpIwc=ozpIwc || {};
 
-ozpIwc.DataApi = ozpIwc.util.extend(ozpIwc.CommonApiBase,function() {
+ozpIwc.CommonApiCollectionValue = ozpIwc.util.extend(ozpIwc.CommonApiValue,function(config) {
+	ozpIwc.CommonApiValue.apply(this,arguments);
+    this.persist=false;    
+    this.pattern=config.pattern;
+    this.entity=[];
+});
+
+ozpIwc.CommonApiCollectionValue.prototype.updateContent=function(api) {
+    var changed=false;
+    this.entity=[];
+    for(var k in api.data) {
+        if(k.match(this.pattern)) {
+            this.entity.push(k);
+            changed=true;
+        }
+    }
+    if(changed) {
+        this.version++;
+    }
+};
+
+ozpIwc.CommonApiCollectionValue.prototype.set=function() {
+    throw new ozpIwc.ApiError("noPermission","This resource cannot be modified.");
+};
+
+ozpIwc.ApiError=ozpIwc.util.extend(Error,function(action,message) {
+    Error.call(this,message);
+    this.name="ApiError";
+    this.errorAction=action;
+    this.message=message;
+});
+/**
+ * The Common API Base implements the API Common Conventions.  It is intended to be subclassed by
+ * the specific API implementations.
+ * @class
+ */
+ozpIwc.CommonApiBase = function(config) {
+	config = config || {};
+	this.participant=config.participant;
+    this.participant.on("unloadState",ozpIwc.CommonApiBase.prototype.unloadState,this);
+    this.participant.on("acquireState",ozpIwc.CommonApiBase.prototype.setState,this);
+	this.participant.on("receiveApiPacket",ozpIwc.CommonApiBase.prototype.routePacket,this);
+
+	this.events = new ozpIwc.Event();
+    this.events.mixinOnOff(this);
+    
+    
+    this.collectionNodes=[];
+    this.data={};
+};
+/**
+ * Creates a new value for the given packet's request.  Subclasses must override this
+ * function to return the proper value based upon the packet's resource, content type, or
+ * other parameters.
+ * 
+ * @abstract
+ * @param {ozpIwc.TransportPacket} packet
+ * @returns {ozpIwc.CommonApiValue} an object implementing the commonApiValue interfaces
+ */
+ozpIwc.CommonApiBase.prototype.makeValue=function(/*packet*/) {
+	throw new Error("Subclasses of CommonApiBase must implement the makeValue(packet) function.");
+};
+
+/**
+ * Determines whether the action implied by the packet is permitted to occur on
+ * node in question.
+ * @todo the refactoring of security to allow action-level permissions
+ * @todo make the packetContext have the srcSubject inside of it
+ * @param {ozpIwc.CommonApiValue} node
+ * @param {ozpIwc.TransportPacketContext} packetContext
+ * @returns {ozpIwc.AsyncAction}
+ */
+ozpIwc.CommonApiBase.prototype.isPermitted=function(node,packetContext) {
+	var subject=packetContext.srcSubject || {
+        'rawAddress':packetContext.packet.src
+    };
+
+	return ozpIwc.authorization.isPermitted({
+        'subject': subject,
+        'object': node.permissions,
+        'action': {'action':packetContext.action}
+    });
+};
+
+
+/** 
+ * Turn an event into a list of change packets to be sent to the watchers.
+ * @param {object} evt
+ * @param {object} evt.node - The node being changed.
+ */
+ozpIwc.CommonApiBase.prototype.notifyWatchers=function(node,changes) {
+	node.eachWatcher(function(watcher) {
+		// @TODO check that the recipient has permission to both the new and old values
+		var reply={
+			'dst'   : watcher.src,
+            'src'   : this.participant.name,
+		    'replyTo' : watcher.msgId,
+			'response': 'changed',
+			'resource': node.resource,
+			'permissions': node.permissions,
+			'entity': changes
+		};
+        
+		this.participant.send(reply);
+	},this);
+};
+
+/**
+ * For a given packet, return the value if it already exists, otherwise create the value
+ * using makeValue()
+ * @protected
+ * @param {ozpIwc.TransportPacket} packet
+ */
+ozpIwc.CommonApiBase.prototype.findOrMakeValue=function(packet) {
+    if(packet.resource === null || packet.resource === undefined) {
+        // return a throw-away value
+        return new ozpIwc.CommonApiValue();
+    }
+	var node=this.data[packet.resource];
+
+	if(!node) {
+		node=this.data[packet.resource]=this.makeValue(packet);
+	}
+	return node;
+};
+
+/**
+ * 
+ * Determines if the given resource exists.
+ * @param {string} resource
+ * @returns {boolean}
+ */
+ozpIwc.CommonApiBase.prototype.hasKey=function(resource) {
+	return resource in this.data;
+};
+
+/**
+ * Generates a keyname that does not already exist and starts
+ * with a given prefix.
+ * @param {String} prefix
+ * @returns {String}
+ */
+ozpIwc.CommonApiBase.prototype.createKey=function(prefix) {
+	prefix=prefix || "";
+	var key;
+	do {
+		key=prefix + ozpIwc.util.generateId();
+	} while(this.hasKey(key));
+	return key;
+};
+
+/**
+* Route a packet to the appropriate handler.  The routing path is based upon
+ * the action and whether a resource is defined. If the handler does not exist, it is routed 
+ * to defaultHandler(node,packetContext)
+ * 
+ * Has Resource: handleAction(node,packetContext)
+ *
+ * No resource: rootHandleAction(node,packetContext)
+ * 
+ * Where "Action" is replaced with the packet's action, lowercase with first letter capitalized
+ * (e.g. "doSomething" invokes "handleDosomething")
+ * Note that node will usually be null for the rootHandlerAction calls.
+ * <ul>
+ * <li> Pre-routing checks	<ul>
+ *		<li> Permission check</li>
+ *		<li> ACL Checks (todo)</li>
+ *		<li> Precondition checks</li>
+ * </ul></li>
+ * <li> Post-routing actions <ul>
+ *		<li> Reply to requester </li>
+ *		<li> If node version changed, notify all watchers </li>
+ * </ul></li>
+ * @param {ozpIwc.TransportPacketContext} packetContext
+ * @returns {undefined}
+ */
+ozpIwc.CommonApiBase.prototype.routePacket=function(packetContext) {
+	var packet=packetContext.packet;
+
+	if(packetContext.leaderState !== 'leader')	{
+		// if not leader, just drop it.
+		return;
+	}
+    
+    if(packet.response && !packet.action) {
+        console.log(this.participant.name + " dropping response packet ",packet);
+        // if it's a response packet that didn't wire an explicit handler, drop the sucker
+        return;
+    }
+    
+	var handler;
+    this.events.trigger("receive",packetContext);
+
+    if(packet.resource===null || packet.resource===undefined) {
+        handler="rootHandle";
+    } else {
+        handler="handle";
+    }
+    
+	if(packet.action) {
+		handler+=packet.action.charAt(0).toUpperCase() + packet.action.slice(1).toLowerCase();
+	} else {
+        handler="defaultHandler";
+    }
+    
+	if(!handler || typeof(this[handler]) !== 'function') {
+       handler="defaultHandler";
+	}
+    var node;
+    try {
+        node=this.findOrMakeValue(packetContext.packet);
+    } catch(e) {
+        if(e.errorAction) {
+            packetContext.replyTo({
+                'response': e.errorAction,
+                'entity': e.message
+            });
+            return;
+        } else {
+            throw e;
+        }
+    }
+    if(packetContext.packet.resource && !this.validateResource(node,packetContext)) {
+        packetContext.replyTo({'response': 'badResource'});
+        return;
+    }
+	this.invokeHandler(node,packetContext,this[handler]);
+	
+};
+
+ozpIwc.CommonApiBase.prototype.defaultHandler=function(node,packetContext) {
+    console.log(this.participant.name + "/" + this.participant.address + " Received unexpected packet", packetContext);
+    packetContext.replyTo({
+        'response': 'badAction',
+        'entity': packetContext.packet.action
+    });
+};
+
+
+ozpIwc.CommonApiBase.prototype.validateResource=function(/* node,packetContext */) {
+	return true;
+};
+
+ozpIwc.CommonApiBase.prototype.validatePreconditions=function(node,packetContext) {
+	return !packetContext.packet.ifTag || packetContext.packet.ifTag===node.version;
+};
+
+/**
+ * Invoke the proper handler for the packet after determining that
+ * they handler has permission to perform this action.
+ * @param {ozpIwc.CommonApiValue} node
+ * @param {ozpIwc.TransportPacketContext} packetContext
+ * @param {function} handler
+ * @returns {undefined}
+ */
+ozpIwc.CommonApiBase.prototype.invokeHandler=function(node,packetContext,handler) {
+	var async =this.isPermitted(node,packetContext);
+		async.failure(function() {
+			packetContext.replyTo({'response':'noPerm'});				
+		})
+		.success(function() {
+			if(!this.validatePreconditions(node,packetContext)) {
+				packetContext.replyTo({'response': 'noMatch'});
+				return;
+			}
+
+			var snapshot=node.snapshot();
+            try {
+                handler.call(this,node,packetContext);
+            } catch(e) {
+                if(e.errorAction) {
+                    packetContext.replyTo({
+                        'response': e.errorAction,
+                        'entity': e.message
+                    });
+                } else {
+                    throw e;
+                }
+            }
+			var changes=node.changesSince(snapshot);
+			
+			if(changes)	{
+				this.notifyWatchers(node,changes);
+            }
+            // update all the collection values
+            this.collectionNodes.forEach(function(resource) {
+                var node=this.data[resource];
+                var snapshot=node.snapshot();
+                node.updateContent(this);
+                var changes=node.changesSince(snapshot);
+                if(changes) {
+                    this.notifyWatchers(node,changes);
+                }
+            },this);
+            
+            
+		},this);	
+};
+
+ozpIwc.CommonApiBase.prototype.addCollectionNode=function(resource,node) {
+    this.data[resource]=node;
+    node.resource=resource;
+    this.collectionNodes.push(resource);
+    node.updateContent(this);
+};
+
+/**
+ * @param {ozpIwc.CommonApiValue} node
+ * @param {ozpIwc.TransportPacketContext} packetContext
+ */
+ozpIwc.CommonApiBase.prototype.handleGet=function(node,packetContext) {
+	packetContext.replyTo(node.toPacket({'response': 'ok'}));
+};
+
+/**
+ * @param {ozpIwc.CommonApiValue} node
+ * @param {ozpIwc.TransportPacketContext} packetContext
+ */
+ozpIwc.CommonApiBase.prototype.handleSet=function(node,packetContext) {
+	node.set(packetContext.packet);
+	packetContext.replyTo({'response':'ok'});
+};
+
+/**
+ * @param {ozpIwc.CommonApiValue} node
+ * @param {ozpIwc.TransportPacketContext} packetContext
+ */
+ozpIwc.CommonApiBase.prototype.handleDelete=function(node,packetContext) {
+	node.deleteData();
+	packetContext.replyTo({'response':'ok'});
+};
+
+/**
+ * @param {ozpIwc.CommonApiValue} node
+ * @param {ozpIwc.TransportPacketContext} packetContext
+ */
+ozpIwc.CommonApiBase.prototype.handleWatch=function(node,packetContext) {
+	node.watch(packetContext.packet);
+	
+	// @TODO: Reply with the entity? Immediately send a change notice to the new watcher?  
+	packetContext.replyTo({'response': 'ok'});
+};
+
+/**
+ * @param {ozpIwc.CommonApiValue} node
+ * @param {ozpIwc.TransportPacketContext} packetContext
+ */
+ozpIwc.CommonApiBase.prototype.handleUnwatch=function(node,packetContext) {
+	node.unwatch(packetContext.packet);
+	
+	packetContext.replyTo({'response':'ok'});
+};
+
+/**
+ * Called when the leader participant fires its beforeUnload state. Releases the Api's data property
+ * to be consumed by all, then used by the new leader.
+ */
+ozpIwc.CommonApiBase.prototype.unloadState = function(){
+    this.participant.startElection({state:this.data});
+    this.data = {};
+};
+
+/**
+ * Called when the leader participant looses its leadership. This occurs when a new participant joins with a higher
+ * priority
+ */
+ozpIwc.CommonApiBase.prototype.transferState = function(){
+    this.participant.sendElectionMessage("prevLeader", {
+        state:this.data,
+        prevLeader: this.participant.address
+    });
+    this.data = {};
+};
+
+/**
+ * Sets the APIs data property. Removes current values, then constructs each API value anew.
+ * @param state
+ */
+ozpIwc.CommonApiBase.prototype.setState = function(state) {
+    this.data = {};
+    for (var key in state) {
+        this.findOrMakeValue(state[key]);
+    }
+};
+
+ /** @param {ozpIwc.CommonApiValue} node
+ * @param {ozpIwc.TransportPacketContext} packetContext
+ */
+ozpIwc.CommonApiBase.prototype.rootHandleList=function(node,packetContext) {
+    packetContext.replyTo({
+        'response':'ok',
+        'entity': Object.keys(this.data)
+    });
+};
+
+
+ozpIwc.DataApi = ozpIwc.util.extend(ozpIwc.CommonApiBase,function(config) {
 	ozpIwc.CommonApiBase.apply(this,arguments);
+    var self = this;
+    if (config.href && config.loadServerDataEmbedded) {
+        this.loadServerDataEmbedded({href: config.href})
+            .success(function () {
+                //Add on load code here
+            });
+    }
 });
 
 ozpIwc.DataApi.prototype.makeValue = function(packet){
-    return new ozpIwc.DataApiValue({resource: packet.resource});
+    return new ozpIwc.DataApiValue(packet);
 };
 
 ozpIwc.DataApi.prototype.createChild=function(node,packetContext) {
@@ -3428,7 +3822,7 @@ ozpIwc.DataApi.prototype.createChild=function(node,packetContext) {
 
 ozpIwc.DataApi.prototype.handleList=function(node,packetContext) {
 	packetContext.replyTo({
-        'action': 'ok',
+        'response': 'ok',
         'entity': node.listChildren()
     });
 };
@@ -3443,7 +3837,7 @@ ozpIwc.DataApi.prototype.handleAddchild=function(node,packetContext) {
 	node.addChild(childNode.resource);
 	
 	packetContext.replyTo({
-        'action':'ok',
+        'response':'ok',
         'entity' : {
             'resource': childNode.resource
         }
@@ -3458,8 +3852,50 @@ ozpIwc.DataApi.prototype.handleRemovechild=function(node,packetContext) {
     node.removeChild(packetContext.packet.entity.resource);
 	// delegate to the handleGet call
 	packetContext.replyTo({
-        'action':'ok'
+        'response':'ok'
     });
+};
+
+/**
+ * Expects a complete Data API data store tree returned from the specified href. Data must be of hal/json type and the
+ * stored tree must be in the '_embedded' property.
+ *
+ * @param config {Object}
+ * @param config.href {String}
+ * @returns {ozpIwc.AsyncAction}
+ */
+ozpIwc.DataApi.prototype.loadServerDataEmbedded = function (config) {
+    var self = this;
+    var asyncResponse = new ozpIwc.AsyncAction();
+    ozpIwc.util.ajax({
+        href: config.href,
+        method: "GET"
+    })
+        .success(function (data) {
+            // Take the root path from where the intent data is stored so that we can remove it from each object that
+            // becomes a intent value.
+            var rootPath = data._links.self.href;
+            for (var i in data._embedded['ozp:dataObjects']) {
+                var object = data._embedded['ozp:dataObjects'][i];
+                object.children = object.children || [];
+
+                var loadPacket = {
+                    packet: {
+                        resource: object._links.self.href.replace(rootPath, ''),
+                        entity: object.entity
+                    }
+                };
+                var node = self.findOrMakeValue(loadPacket.packet);
+
+                for (var i = 0; i < object.children.length; i++){
+                    node.addChild(object.children[i]);
+                }
+                node.set(loadPacket.packet);
+            }
+            asyncResponse.resolve("success");
+        });
+
+    return asyncResponse;
 };
 
 ozpIwc.DataApiValue = ozpIwc.util.extend(ozpIwc.CommonApiValue,function(config) {
@@ -3525,7 +3961,7 @@ ozpIwc.DataApiValue.prototype.changesSince=function(snapshot) {
         changes.addedChildren=this.children.filter(function(f) {
             return this.indexOf(f) < 0;
         },snapshot.links.children);
-	};
+	}
     return changes;
 };
 /**
@@ -3570,6 +4006,9 @@ ozpIwc.IntentsApi = ozpIwc.util.extend(ozpIwc.CommonApiBase, function (config) {
  * @returns {string} parsedResource.intentValueType - returns the value type given the resource path (capability, definition, handler)
  */
 ozpIwc.IntentsApi.prototype.parseResource = function (packetContext) {
+    if(!packetContext.packet.resource) {
+        return;
+    }
     var resourceSplit = packetContext.packet.resource.split('/');
     var result = {
         type: resourceSplit[1],
@@ -3595,6 +4034,7 @@ ozpIwc.IntentsApi.prototype.parseResource = function (packetContext) {
         }
         packetContext.packet.parsedResource = result;
     }
+    return packetContext;
 };
 
 /**
@@ -3604,6 +4044,9 @@ ozpIwc.IntentsApi.prototype.parseResource = function (packetContext) {
  * @returns {IntentsApiHandlerValue|IntentsAPiDefinitionValue|IntentsApiCapabilityValue}
  */
 ozpIwc.IntentsApi.prototype.makeValue = function (packet) {
+    if (!packet.packetResource) {
+        packet = ozpIwc.IntentsApi.prototype.parseResource({packet: packet}).packet;
+    }
     switch (packet.parsedResource.intentValueType) {
         case 'handler':
             return this.getHandler(packet);
@@ -3689,7 +4132,7 @@ ozpIwc.IntentsApi.prototype.handleRegister = function (node, packetContext) {
         packetContext.packet.parsedResource.handlerRes = this.createKey(packetContext.packet.resource + '/');
     } else if (packetContext.packet.parsedResource.intentValueType !== 'handler') {
         packetContext.replyTo({
-            'action': 'badResource'
+            'response': 'badResource'
         });
         return null;
     }
@@ -3698,7 +4141,7 @@ ozpIwc.IntentsApi.prototype.handleRegister = function (node, packetContext) {
     handler.set(packetContext);
 
     packetContext.replyTo({
-        'action': 'ok',
+        'response': 'ok',
         'entity': handler.resource
     });
 };
@@ -3718,7 +4161,7 @@ ozpIwc.IntentsApi.prototype.handleUnregister = function (node, packetContext) {
         this.data[definitionPath].entity.handlers.splice(index, 1);
     }
     delete this.data[handlerPath];
-    packetContext.replyTo({'action': 'ok'});
+    packetContext.replyTo({'response': 'ok'});
 };
 
 /**
@@ -3744,12 +4187,12 @@ ozpIwc.IntentsApi.prototype.handleInvoke = function (node, packetContext) {
                 var handler = node.handlers[handlerPreference];
                 this.data[handler].invoke(packet);
             } else {
-                packetContext.replyTo({'action': 'badResource'});
+                packetContext.replyTo({'response': 'badResource'});
             }
             break;
 
         default:
-            packetContext.replyTo({'action': 'badResource'});
+            packetContext.replyTo({'response': 'badResource'});
             break;
     }
 };
@@ -3765,7 +4208,7 @@ ozpIwc.IntentsApi.prototype.handleListen = function (node, packetContext) {
 //    var parse = this.parseResource(packetContext.packet.resource);
 //    if (parse.intentValueType !== 'definition') {
 //        return packetContext.replyTo({
-//            'action': 'badResource'
+//            'response': 'badResource'
 //        });
 //    }
 };
@@ -3781,7 +4224,7 @@ ozpIwc.IntentsApi.prototype.handleBroadcast = function (node, packetContext) {
 //    var parse = this.parseResource(packetContext.packet.resource);
 //    if (parse.intentValueType !== 'definition') {
 //        return packetContext.replyTo({
-//            'action': 'badResource'
+//            'response': 'badResource'
 //        });
 //    }
 //    for (var i in node.handlers) {
@@ -4066,102 +4509,191 @@ ozpIwc.IntentsApiHandlerValue = ozpIwc.util.extend(ozpIwc.CommonApiValue, functi
  * @param {object} packet - information passed to the activity receiving the intent.
  */
 ozpIwc.IntentsApiHandlerValue.prototype.invoke = function (packet) {
-    console.error('Invoking of intents.api handlers is not implemented.' +
-        'Override ozpIwc.IntentsApiHandlerValue.invoke to implement');
+    this.set(packet);
+//    console.error('Invoking of intents.api handlers is not implemented.' +
+//        'Override ozpIwc.IntentsApiHandlerValue.invoke to implement');
 };
+
+ozpIwc.NamesApi = ozpIwc.util.extend(ozpIwc.CommonApiBase, function() {
+    ozpIwc.CommonApiBase.apply(this, arguments);
+    
+    // map the alias "/me" to "/address/{packet.src}" upon receiving the packet
+    this.on("receive", function(packetContext) {
+        var packet = packetContext.packet;
+        if (packet.resource) {
+            packet.resource = packet.resource.replace(/\/me/, packetContext.packet.src);
+        }
+    });
+    
+    this.addCollectionNode("/address",new ozpIwc.CommonApiCollectionValue({
+        pattern: /^\/address\/.*$/,
+        contentType: "application/ozpIwc-address-v1+json"
+    }));
+    this.addCollectionNode("/multicast",new ozpIwc.CommonApiCollectionValue({
+        pattern: /^\/multicast\/.*$/,
+        contentType: "application/ozpIwc-multicast-address-v1+json"        
+    }));
+    this.addCollectionNode("/router",new ozpIwc.CommonApiCollectionValue({
+        pattern: /^\/router\/.*$/,
+        contentType: "application/ozpIwc-router-v1+json"        
+    }));
+    this.addCollectionNode("/api",new ozpIwc.CommonApiCollectionValue({
+        pattern: /^\/api\/.*$/,
+        contentType: "application/ozpIwc-api-descriptor-v1+json"        
+    }));
+
+});
+
+ozpIwc.NamesApi.prototype.validateResource=function(node,packetContext) {
+    return packetContext.packet.resource.match(/^\/(api|address|multicast|router|me)/);
+};
+
+ozpIwc.NamesApi.prototype.makeValue = function(packet) {
+    
+    var path=packet.resource.split("/");
+    var config={
+        resource: packet.resource,
+        contentType: packet.contentType
+    };
+    
+    // only handle the root elements for now...
+    switch(path[1]) {
+        case "api": config.allowedContentTypes=["application/ozpIwc-api-descriptor-v1+json"]; break;
+        case "address": config.allowedContentTypes=["application/ozpIwc-address-v1+json"]; break;
+        case "multicast": config.allowedContentTypes=["application/ozpIwc-multicast-address-v1+json"]; break;
+        case "router": config.allowedContentTypes=["application/ozpIwc-router-v1+json"]; break;
+
+        default:
+            throw new ozpIwc.ApiError("badResource","Not a valid path of names.api: " + path[1] + " in " + packet.resource);
+    }
+    return new ozpIwc.NamesApiValue(config);            
+};
+
+ozpIwc.NamesApiValue = ozpIwc.util.extend(ozpIwc.CommonApiValue,function(config) {
+    if(!config || !config.allowedContentTypes) {
+        throw new Error("NamesAPIValue must be configured with allowedContentTypes.");
+    }
+	ozpIwc.CommonApiValue.apply(this,arguments);
+});
 
 var ozpIwc=ozpIwc || {};
 
-ozpIwc.NamesApi = ozpIwc.util.extend(ozpIwc.CommonApiBase,function() {
-	ozpIwc.CommonApiBase.apply(this,arguments);
+ozpIwc.SystemApi = ozpIwc.util.extend(ozpIwc.CommonApiBase,function(config) {
+    ozpIwc.CommonApiBase.apply(this,arguments);
+    this.participant.securityAttributes=config.securityAttributes;
+    if (config.userHref) {
+        this.loadServerDataEmbedded({href: config.userHref, resource: '/user'})
+            .success(function () {
+                //Add on load code here
+            });
+    }
+    if (config.systemHref) {
+        this.loadServerDataEmbedded({href: config.systemHref, resource: '/system'})
+            .success(function () {
+                //Add on load code here
+            });
+    }
 });
 
-ozpIwc.NamesApi.prototype.makeValue = function(packet){
-    return new ozpIwc.NamesApiValue({resource: packet.resource, contentType: packet.contentType, namesApi: this});
+ozpIwc.SystemApi.prototype.makeValue = function(packet){
+    return new ozpIwc.SystemApiValue({resource: packet.resource, entity: packet.entity, contentType: packet.contentType, systemApi: this});
 };
 
-ozpIwc.NamesApi.prototype.findOrMakeValue=function(packet) {
-    if (packet.resource==='/me') {
-        packet.resource='/address/'+packet.src;
+ozpIwc.SystemApi.prototype.isPermitted=function(node,packetContext) {
+    var originalNode=node;
+    var originalPacketContext=packetContext;
+    if (packetContext.packet.action==='set' || packetContext.packet.action==='delete') {
+        node.permissions.modifyAuthority='apiLoader';
+        if (packetContext.packet.securityAttributes) {
+            packetContext.srcSubject=packetContext.srcSubject || {};
+            Object.keys(packetContext.packet.securityAttributes).forEach(function(key) {
+                packetContext.srcSubject[key]=packetContext.packet.securityAttributes[key];
+            });
+        }
+    } else {
+        delete node.permissions.modifyAuthority;
     }
-    return ozpIwc.CommonApiBase.prototype.findOrMakeValue.call(this,packet);
+    for (var i in arguments) {
+        if (arguments[i] === originalNode) {
+            arguments[i]=node;
+        } else if (arguments[i] === originalPacketContext) {
+            arguments[i]=packetContext;
+        }
+    }
+    var retVal=ozpIwc.CommonApiBase.prototype.isPermitted.apply(this,arguments);
+    delete node.permissions.modifyAuthority;
+    return retVal
+}
+
+/**
+ * Loads the user and system data from the specified href. Data must be of hal/json type and
+ * the keys 'user' and 'system' in the '_embedded' property must have object values that
+ * correspond to user and system, respectively.
+ *
+ * @param config {Object}
+ * @param config.href {String}
+ * @returns {ozpIwc.AsyncAction}
+ */
+ozpIwc.SystemApi.prototype.loadServerDataEmbedded = function (config) {
+    var self = this;
+    var asyncResponse = new ozpIwc.AsyncAction();
+    ozpIwc.util.ajax({
+        href: config.href,
+        method: "GET"
+    })
+        .success(function (data) {
+            var value=self.findOrMakeValue({'resource': config.resource});
+            value.set({entity: data});
+            asyncResponse.resolve("success");
+        })
+        .failure(function(data) {
+            console.log("AJAX failure response: " + data)
+            asyncResponse.resolve("failure",data);
+        });
+
+    return asyncResponse;
 };
-ozpIwc.NamesApiValue = ozpIwc.util.extend(ozpIwc.CommonApiValue,function(config) {
+
+ozpIwc.SystemApiValue = ozpIwc.util.extend(ozpIwc.CommonApiValue,function(config) {
     ozpIwc.CommonApiValue.apply(this,arguments);
     config=config || {};
-    this.namesApi=config.namesApi || ozpIwc.namesApi;
-    this.pInfoMap={};
-    this.pInfoMap.postMessageProxy=['origin','credentials','securityAttributes'];
-    this.pInfoMap.multicast=['members','securityAttributes'];
-    this.pInfoMap.leaderGroupMember=['electionAddress','priority','electionTimeout','leaderState','electionQueue','leader','leaderPriority','securityAttributes'];
+    this.systemApi=config.systemApi || ozpIwc.systemApi;
 });
 
-ozpIwc.NamesApiValue.prototype.set=function(packet) {
+ozpIwc.SystemApiValue.prototype.set=function(packet) {
     if(this.isValidContentType(packet.contentType)) {
         this.permissions=packet.permissions || this.permissions;
         this.contentType=packet.contentType;
-        if (packet.resource==='/me' && packet.src) {
-            this.resource='/address/'+packet.src;
-        }
         if (this.resource) {
-            if (this.resource.indexOf('/address') === 0) {
-                var id = this.addressId();
+            if (this.resource.indexOf('/application') === 0) {
+                var id = this.applicationId();
                 if (id) {
-                    if (id === 'undefined') {
-                        return;
-                    }
-                    this.entity = {
-                        participantType: packet.entity.participantType,
-                        address: packet.entity.address,
-                        name: packet.entity.name
-                    };
-                    this.augmentParticipantInfo(packet.entity);
-                    var node = this.namesApi.findOrMakeValue({resource: '/address'});
+                    this.entity = packet.entity;
+                    var node = this.systemApi.findOrMakeValue({resource: '/application'});
                     node.set({entity: id})
                 } else {
-                    this.entity=this.entity || [];
+                    this.entity = this.entity || [];
                     if (this.entity.indexOf(packet.entity) < 0) {
                         this.entity.push(packet.entity);
                     }
                 }
-            } else if (this.resource.indexOf('/multicast') === 0) {
-                var id = this.addressId();
-                this.entity=this.entity || [];
-                if (id) {
-                    if (id === 'undefined') {
-                        return;
-                    }
-                    if (this.entity.indexOf(packet.entity) < 0) {
-                        this.entity.push(packet.entity);
-                    }
-                    var node = this.namesApi.findOrMakeValue({resource: '/multicast'});
-                    node.set({entity: id});
-                } else {
-                    if (this.entity.indexOf(packet.entity) < 0) {
-                        this.entity.push(packet.entity);
-                    }
-                }
-            }
-            else {
-                this.entity=packet.entity;
+            } else {
+                this.entity = packet.entity;
             }
             this.version++;
         }
     }
-};
+}
 
-ozpIwc.NamesApiValue.prototype.deleteData=function(packet) {
-    if (packet && packet.resource==='/me' && packet.src) {
-        this.resource='/address/'+packet.src;
-    }
+ozpIwc.SystemApiValue.prototype.deleteData=function(packet) {
     if (this.resource) {
-        if (this.resource.indexOf('/address') === 0 || this.resource.indexOf('/multicast') === 0) {
-            var id = this.addressId();
+        if (this.resource.indexOf('/application') === 0) {
+            var id = this.applicationId();
             if (id) {
                 var originalEntity=this.entity;
                 ozpIwc.CommonApiValue.prototype.deleteData.apply(this,arguments);
                 if (originalEntity) {
-                    var node = this.namesApi.findOrMakeValue({resource: this.resourceRoot()});
+                    var node = this.systemApi.findOrMakeValue({resource: '/application'});
                     node.deleteData({entity: id})
                 }
             } else {
@@ -4178,7 +4710,7 @@ ozpIwc.NamesApiValue.prototype.deleteData=function(packet) {
                     return keep;
                 });
                 if (elementRemoved){
-                    var node = this.namesApi.findOrMakeValue({resource: this.resourceRoot()+'/'+packet.entity});
+                    var node = this.systemApi.findOrMakeValue({resource: '/application/'+packet.entity});
                     node.deleteData();
                 }
             }
@@ -4189,27 +4721,8 @@ ozpIwc.NamesApiValue.prototype.deleteData=function(packet) {
     }
 };
 
-ozpIwc.NamesApiValue.prototype.augmentParticipantInfo=function(participant) {
-    var fields=this.pInfoMap[participant.participantType];
-    var self=this;
-    if (fields) {
-        fields.forEach(function (field) {
-            self.entity[field] = participant[field];
-        });
-    }
-};
-
-ozpIwc.NamesApiValue.prototype.addressId=function() {
-    var regexp=/(\/address|\/multicast)\/(.*)/;
-    var res=regexp.exec(this.resource);
-    if (res && res.length > 2) {
-        return res[2];
-    }
-    return null;
-};
-
-ozpIwc.NamesApiValue.prototype.resourceRoot=function() {
-    var regexp=/(\/address|\/multicast)\/.*/;
+ozpIwc.SystemApiValue.prototype.applicationId=function() {
+    var regexp=/\/application\/(.*)/;
     var res=regexp.exec(this.resource);
     if (res && res.length > 1) {
         return res[1];
@@ -4217,8 +4730,3 @@ ozpIwc.NamesApiValue.prototype.resourceRoot=function() {
     return null;
 };
 
-var ozpIwc=ozpIwc || {};
-
-ozpIwc.SystemApi = ozpIwc.util.extend(ozpIwc.CommonApiBase,function() {
-	ozpIwc.CommonApiBase.apply(this,arguments);
-});

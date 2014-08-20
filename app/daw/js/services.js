@@ -6,9 +6,7 @@
 // Demonstrate how to register services
 // In this case it is a simple value service.
 angular.module('ozpDemo.DataAugmentationWebtop')
-.factory("iwcClient",function() {
-    return new ozpIwc.Client({peerUrl:"/peer"});
-}).value('incidentData', [
+.value('incidentData', [
     {
         'title': "Low disk space on 192.168.1.101",
         'incidentType': "SERVER_MONITOR_LOW_DISK",
