@@ -1,0 +1,47 @@
+* {
+	background-color: #272822;
+	box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+
+}
+table {
+	table-layout: fixed;
+	word-wrap: break-word;
+}
+
+.borderless >tbody>tr>td {
+	text-align: center;
+	border: none;
+	color: white;
+	font-size: x-large;
+	width: 50%;
+	padding:0;
+}
+rm 
+#buyStock {
+	background-color:green;
+	color:white;
+}
+
+#sellStock {
+	background-color:red;
+	color:white;
+}
+
+.borderless > tbody > tr > td > button {
+	border:0;
+	border-color:#272822;
+	border-radius: 0;
+	word-wrap:break-word;
+	font-size: large;
+	white-space: normal;
+}
+
+.hoverable:hover {
+opacity:.8;
+}
+
+
+#riskInd {
+	width:100%
+}

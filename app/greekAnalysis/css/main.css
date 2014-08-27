@@ -1,0 +1,45 @@
+* {
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+}
+
+img {
+    max-width: 100%
+}
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+li {
+    color:#bada55
+}
+
+table {
+    color: #000000;
+    /*background-color:#0d3268;*/
+    margin-left: auto;
+    margin-right: auto;
+    /*border: 2px dashed #ff7033;*/
+}
+
+input:hover {
+    background-color: #ff7033;
+    color:#ffffff;
+}
+
+input:default {
+    background-color: #909395;
+}
+
+td {
+    height: 25%;
+    width: 25%;
+}
+
+a {
+    text-decoration: none;
+    color: black;
+}
