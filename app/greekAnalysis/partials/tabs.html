@@ -1,0 +1,111 @@
+<section class="tab">
+
+    <ul class="nav nav-pills nav-justified">
+        <li ng-model="dataCtrl.data.optionType" ng-class="{active:tab.isCPSet(1)}">
+            <a href ng-click="tab.setCPTab(1); dataCtrl.data.optionType='c'; dataCtrl.calculate()">Call</a></li>
+        <li ng-class="{active:tab.isCPSet(2)}">
+            <a href ng-click="tab.setCPTab(2); dataCtrl.data.optionType='p'; dataCtrl.calculate()">Put</a></li>
+        <li ng-class="{active:tab.isGHSet(1)}">
+            <a href ng-click="tab.setGHTab(1)">Greeks</a></li>
+        <li ng-class="{active:tab.isGHSet(2)}">
+            <a href ng-click="tab.setGHTab(2)">Hedging</a></li>
+    </ul>
+
+    <div class="tab" ng-show="tab.isGHSet(1)">
+        <table class="table">
+            <tr>
+                <td><a href="http://www.google.com/finance" target="_blank">Stock Price</a></td>
+                <td><input type="number" class="form-control" name="stock"
+                           ng-change="dataCtrl.calculate()"
+                           ng-model="dataCtrl.data.stock" min=0
+                           step=.001></a></td>
+                <td>Delta</td>
+                <td>{{dataCtrl.greekData.delta}}</td>
+            </tr>
+
+            <tr>
+                <td><a href="http://www.google.com/finance" target="_blank">Strike Price</a></td>
+                <td><input type="number" class="form-control" name="Strike" ng-change="dataCtrl.calculate()"
+                           ng-model="dataCtrl.data.strike" min=0
+                           step=.001></td>
+                <td>Gamma</td>
+                <td>{{dataCtrl.greekData.gamma}}</td>
+            </tr>
+
+            <tr>
+                <td>Days to expiry</td>
+                <td><input type="number" class="form-control" name="timeToExpiry" ng-change="dataCtrl.calculate()"
+                           ng-model="dataCtrl.data.timeToExpiry" min=0
+                           step=1></td>
+                <td>Theta</td>
+                <td>{{dataCtrl.greekData.theta}}</td>
+            </tr>
+
+            <tr>
+                <td><a href="http://www.federalreserve.gov/releases/h15/update/" target="_blank">Interest Rate</a></td>
+                <td><input type="number" class="form-control" name="interestRate" ng-change="dataCtrl.calculate()"
+                           ng-model="dataCtrl.data.interestRate" min=0
+                           step=.000001></td>
+                <td>Rho</td>
+                <td>{{dataCtrl.greekData.rho}}</td>
+            </tr>
+
+            <tr>
+                <td><a href="http://www.ivolatility.com" target="_blank">Volatility</a></td>
+                <td><input type="number" class="form-control" name="volatility" ng-change="dataCtrl.calculate()"
+                           ng-model="dataCtrl.data.volatility" min=0
+                           step=.000001></td>
+                <td>Vega</td>
+                <td>{{dataCtrl.greekData.vega}}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="tab" ng-show="tab.isGHSet(2)">
+        <table class="table">
+            <tr>
+                <td><a href="http://www.google.com/finance" target="_blank">Stock Price</a></td>
+                <td><input type="number" class="form-control" name="stock" ng-change="dataCtrl.calculate()"
+                           ng-model="dataCtrl.data.stock" min=0
+                           step=.001></td>
+                <td>The Price of the Option</td>
+                <td>{{dataCtrl.greekData.optionValue}}</td>
+            </tr>
+
+            <tr>
+                <td><a href="http://www.google.com/finance" target="_blank">Strike Price</a></td>
+                <td><input type="number" class="form-control" name="Strike" ng-change="dataCtrl.calculate()"
+                           ng-model="dataCtrl.data.strike" min=0
+                           step=.001></td>
+                <td>Number of Options</td>
+                <td><input type="number" class="form-control" name="numberOfOptions"
+                           ng-change="dataCtrl.calculate()" ng-model="dataCtrl.neutralData.numberOfOptions"
+                           step=1></td>
+            </tr>
+
+            <tr>
+                <td>Days to expiry</td>
+                <td><input type="number" class="form-control" name="timeToExpiry" ng-change="dataCtrl.calculate()"
+                           ng-model="dataCtrl.data.timeToExpiry" min=0
+                           step=1></td>
+                <td>Number of stocks for Delta neutral</td>
+                <td>{{dataCtrl.neutralData.deltaNeutral}}</td>
+
+            </tr>
+
+            <tr>
+                <td><a href="http://www.federalreserve.gov/releases/h15/update/" target="_blank">Interest Rate</a></td>
+                <td><input type="number" class="form-control" name="interestRate" ng-change="dataCtrl.calculate()"
+                           ng-model="dataCtrl.data.interestRate" min=0
+                           step=.000001></td>
+            </tr>
+
+            <tr>
+                <td><a href="http://www.ivolatility.com " target="_blank">Volatility</a></td>
+                <td><input type="number" class="form-control" name="volatility" ng-change="dataCtrl.calculate()"
+                           ng-model="dataCtrl.data.volatility" min=0
+                           step=.000001></td>
+            </tr>
+        </table>
+    </div>
+</section>
