@@ -1,7 +1,7 @@
 (function() {
 var iwcModule=angular.module('ozpIwc', ['ozpIwcAngular']);
 
-iwcModule.constant("ozpIwcConfig",{peerUrl:"/bower_components/ozp-iwc/dist"});
+iwcModule.constant("ozpIwcConfig",{peerUrl:"../bower_components/ozp-iwc/dist"});
 
 iwcModule.factory("iwcClient",["ozpIwcConfig",function(config) {
     return client = new ozpIwc.Client(config);
