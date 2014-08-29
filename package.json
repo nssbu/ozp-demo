@@ -6,7 +6,9 @@
   "devDependencies": {
     "grunt": "0.4.x",
     "grunt-contrib-watch": "*",
+    "grunt-contrib-clean": "*",
     "grunt-contrib-connect": "*",
+    "grunt-contrib-copy": "*",
     "karma": "~0.10",
     "protractor": "~0.20.1",
     "http-server": "^0.6.1",
