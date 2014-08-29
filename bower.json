@@ -16,6 +16,7 @@
     "angular-gridster": "~0.9.11",
     "angular-animate": "latest",
     "ozp-iwc": "ozone-development/ozp-iwc",
-    "ozp-iwc-angular": "ozone-development/ozp-iwc-angular"
+    "ozp-iwc-angular": "ozone-development/ozp-iwc-angular",
+    "ozp-data-schemas": "ozone-development/ozp-data-schemas"
   }
 }
