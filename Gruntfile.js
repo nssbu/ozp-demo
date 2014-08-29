@@ -23,9 +23,12 @@ module.exports = function(grunt) {
       files: [
         {
           src: ['api/**'],
-          dest: 'app/bower_components/ozp-iwc/dist',
+          dest: 'app/bower_components/ozp-iwc/dist/',
           cwd: 'app/bower_components/ozp-data-schemas/mock',
-          expand: true
+          expand: true,
+          rename: function(dest, src) {
+            return dest + src.replace(/\.json$/, ".html");
+          }
         }
       ]
     }
