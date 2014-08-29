@@ -11,12 +11,18 @@ module.exports = function(grunt) {
 					debug: true
 				}
 			}
-		}
-
+		},
+    'gh-pages': {
+    options: {
+      base: 'app'
+    },
+    src: ['**']
+  }
   });
 
 	grunt.loadNpmTasks('grunt-contrib-watch');
 	grunt.loadNpmTasks('grunt-contrib-connect');
+  grunt.loadNpmTasks('grunt-gh-pages');
 	
   // Default task(s).
   grunt.registerTask('default', ['connect']);
