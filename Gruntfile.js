@@ -47,4 +47,6 @@ module.exports = function(grunt) {
   // Default task(s).
   grunt.registerTask('default', ['clean', 'copy', 'connect']);
 
+  grunt.registerTask('build', ['clean', 'copy']);
+
 };
