@@ -14,6 +14,8 @@
     "bootstrap": "~3.1.x",
     "html5-boilerplate": "~4.3.0",
     "angular-gridster": "~0.9.11",
-    "angular-animate": "latest"
+    "angular-animate": "latest",
+    "ozp-iwc": "ozone-development/ozp-iwc",
+    "ozp-iwc-angular": "ozone-development/ozp-iwc-angular"
   }
 }
