@@ -1,0 +1,26 @@
+{
+  "name": "ozp-iwc-angular",
+  "version": "0.0.1",
+  "homepage": "https://github.com/ozone-development/ozp-iwc-angular",
+  "authors": [
+    "Ozone Developers"
+  ],
+  "description": "Angular wrappers for the OZONE IWC",
+  "keywords": [
+    "angular",
+    "iwc",
+    "ozone"
+  ],
+  "license": "Apache-2.0",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    "ozp-iwc"
+  ],
+  "dependencies": {
+    "ozp-iwc": "ozone-development/ozp-iwc"
+  }
+}
