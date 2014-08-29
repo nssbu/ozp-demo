@@ -201,7 +201,7 @@ $(document).ready(function(){
 //	},500);
 });
 
-var client=new ozpIwc.Client({peerUrl:'../../bower_components/ozp-iwc/dist'});
+var client=new ozpIwc.Client({peerUrl:'../bower_components/ozp-iwc/dist'});
 
 client.on("connected",function() {
 	// setup
