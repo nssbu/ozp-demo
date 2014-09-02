@@ -2,7 +2,7 @@ var ozpIwc=ozpIwc || {};
 
 //ozpIwc.initEndpoints(ozpIwc.apiRootUrl || "api");
 console.log('trying to connect to new endpoint');
-ozpIwc.initEndpoints("http://ozone-development.github.io/ozp-demo/bower_components/ozp-iwc/dist/api");
+ozpIwc.initEndpoints("/ozp-demo/bower_components/ozp-iwc/dist/api");
 
 ozpIwc.defaultPeer=new ozpIwc.Peer();
 ozpIwc.defaultLocalStorageLink=new ozpIwc.KeyBroadcastLocalStorageLink({
