@@ -27,6 +27,10 @@ node_modules
 app/bower_components
 
 
+# JetBrains IDE
+.idea/
+
+
 
 ### grunt ###
 # Grunt usually compiles files inside this directory
