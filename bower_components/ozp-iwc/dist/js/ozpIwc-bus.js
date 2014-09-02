@@ -2207,7 +2207,6 @@ ozpIwc.util.parseQueryParams=function(query) {
 };
 
 ozpIwc.util.ajax = function (config) {
-    console.log('config: ' + JSON.stringify(config));
     return new Promise(function(resolve,reject) {
         var request = new XMLHttpRequest();
         request.onreadystatechange = function() {
