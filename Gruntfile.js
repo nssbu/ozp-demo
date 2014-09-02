@@ -27,7 +27,7 @@ module.exports = function(grunt) {
           cwd: 'app/bower_components/ozp-data-schemas/mock',
           expand: true,
           rename: function(dest, src) {
-            return dest + src.replace(/\.json$/, ".html");
+            return dest + src.replace(/index\.json$/, "index.html");
           }
         }
       ]
@@ -46,5 +46,7 @@ module.exports = function(grunt) {
 	
   // Default task(s).
   grunt.registerTask('default', ['clean', 'copy', 'connect']);
+
+  grunt.registerTask('build', ['clean', 'copy']);
 
 };
