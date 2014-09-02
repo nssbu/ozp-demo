@@ -1,10 +1,10 @@
 (function() {
-var iwcModule=angular.module('ozpIwc', []);
+var iwcModule=angular.module('ozpIwc', ['ozpIwcAngular']);
 
-iwcModule.constant("ozpIwcConfig",{peerUrl:"/peer"});
+iwcModule.constant("ozpIwcConfig",{peerUrl:"../bower_components/ozp-iwc/dist"});
 
 iwcModule.factory("iwcClient",["ozpIwcConfig",function(config) {
-    return client=new ozpIwc.Client(config);
+    return client = new ozpIwc.Client(config);
 }]);
 
 iwcModule.directive("iwcModel",function() {

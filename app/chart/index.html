@@ -1,9 +1,13 @@
 <!DOCTYPE html>
 <html>
-<script src="d3.min.js"></script>
-<script src="/bower_components/angular/angular.js"></script>
-<script type="text/javascript" src="../jslib/ozpIwc-client.js"></script>
-<script type="text/javascript" src="../jslib/ozpIwc-angular.js"></script>
+
+<link rel="stylesheet" type="text/css" href="../bower_components/bootstrap/dist/css/bootstrap.min.css"/>
+<script src="../bower_components/d3/d3.js"></script>
+<script src="../bower_components/angular/angular.js"></script>
+<script src="../bower_components/angular-bootstrap/ui-bootstrap-tpls.js"></script>
+<script src="../bower_components/ozp-iwc/dist/js/ozpIwc-client.js"></script>
+<script src="../bower_components/ozp-iwc-angular/dist/js/ozpIwc-client-angular.js"></script>
+<script src="../jslib/ozpIwc-angular.js"></script>
 
 <style>
     * {
@@ -39,11 +43,11 @@
     }
 
 </style>
-<body ng-app="myApp" ng-controller="LineChartController">
+    <body ng-app="myApp" ng-controller="LineChartController as lcCtrl">
 
-<line-chart data="data"></line-chart>
+        <line-chart data="data"></line-chart>
 
-</body>
+    </body>
 
 <script>
     'use strict';
@@ -51,6 +55,7 @@
     var app = angular.module("myApp", ['ozpIwc']);
 
     app.controller('LineChartController', [ '$scope','iwcClient',function(scope, client) {
+
         scope.data = {};
 
         scope.address = client.address;
@@ -104,12 +109,6 @@
                     .y(function (d) {
                         return y(d.y);
                     });
-
-            var svg = d3.select(el).append("svg")
-                    .attr("width", width + margin.left + margin.right)
-                    .attr("height", height + margin.top + margin.bottom)
-                    .append("g")
-                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
             scope.$watch('data', function (data) {
 
