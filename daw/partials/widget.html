@@ -1,11 +1,8 @@
 
-<div data-gridster-item class="panel panel-default"
-    data-row="widget.position[0]" 
-    data-col="widget.position[1]" 
-    data-sizex="widget.size.x" 
-    data-sizey="widget.size.y">
-  <div class="panel-heading">{{widget.name}}</div>
-  <div class="panel-body">
-      <pre>{{widget.content}}</pre>
-  </div>
+<div class="col-md-6">
+    <div class="panel panel-default">
+        <div class="panel-heading">{{widget.label}}</div>
+            <iframe class="widget panel-body" src="{{widget._links.describes.href}}"></iframe>
+        </div>
+    </div>
 </div>

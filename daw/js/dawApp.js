@@ -27,7 +27,7 @@ dawModule.directive('widget', function() {
 dawModule.directive('contextResource', function() {
     return {
       restrict: 'E',
-      templateUrl: 'partials/workContextArea.html',
+      templateUrl: 'partials/contextResource.html',
       scope: true,
       controller: ['$scope','iwcClient',function(scope,client) {
               console.log("In work context, scope is ",scope);
