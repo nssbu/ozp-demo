@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<!--[if lt IE 7]>      <html lang="en" ng-app="ozpDemoIncidentList" class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
-<!--[if IE 7]>         <html lang="en" ng-app="ozpDemoIncidentList" class="no-js lt-ie9 lt-ie8"> <![endif]-->
-<!--[if IE 8]>         <html lang="en" ng-app="ozpDemoIncidentList" class="no-js lt-ie9"> <![endif]-->
-<!--[if gt IE 8]><!--> <html lang="en" ng-app="ozpDemoIncidentList" class="no-js"> <!--<![endif]-->
+<!--[if lt IE 7]>      <html lang="en" ng-app="ozpDemoMetricViewer" class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html lang="en" ng-app="ozpDemoMetricViewer" class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html lang="en" ng-app="ozpDemoMetricViewer" class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html lang="en" ng-app="ozpDemoMetricViewer" class="no-js"> <!--<![endif]-->
 <head>
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>Network Incident List</title>
+  <title>Workstation Web History</title>
   <meta name="description" content="">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="../bower_components/html5-boilerplate/css/normalize.css">
@@ -14,28 +14,21 @@
   <link rel="stylesheet" href="../bower_components/bootstrap/dist/css/bootstrap.css">
   <link rel="stylesheet" href="../bower_components/bootstrap/dist/css/bootstrap-theme.css">
   <link rel="stylesheet" href="css/app.css"/>
-  <script src="../bower_components/html5-boilerplate/js/vendor/modernizr-2.6.2.min.js"></script>
 </head>
-<body ng-controller="IncidentListController">
-    <tabset  class="panel panel-primary">
+<body>
+<!--    <tabset  class="panel panel-primary">
       <tab heading="Demo Description">
-          This widget simulates an aggregated list of all network incidents from intrusion detection,
-          system monitoring, web filtering, etc.  It is intended to be used with the <a href="../daw" target="_blank">Data Augmentation Webtop</a>
+          
       </tab>
       <tab heading="Consumed Resources">Something consumed</tab>
       <tab heading="Provided Resources">Note to self: share more</tab>
-  </tabset>
+  </tabset>-->
     
-  <accordion close-others="true" >
 
-        <incident-item incident="incident" ng-repeat="incident in incidents"> </incident-item>
-
-  </accordion>
-  
-
-
-
-
+    <h1>Metric History</h1>
+    <svg width="200px" height="200px" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 200 l20 -5 l20 -5 l20 -5 l20 -10 l20 -10 l20 -15 l20 -15 l20 -25 l20 -40 l20 -50" fill="transparent" stroke="black"/>
+    </svg>
 
   <script src="../bower_components/angular/angular.js"></script>
   <script src="../bower_components/angular-route/angular-route.js"></script>
@@ -44,7 +37,6 @@
   <script src="../jslib/ozpIwc-angular.js"></script>
   <script src="js/app.js"></script>
   <script src="js/services.js"></script>
-  <script src="js/controllers.js"></script>
-  <script src="js/directives.js"></script>
+
 </body>
 </html>

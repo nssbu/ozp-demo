@@ -25,7 +25,6 @@
         <script src="../bower_components/angular-gridster/src/angular-gridster.js"></script>
   
         <script src="../bower_components/ozp-iwc/dist/js/ozpIwc-client.js"></script>
-        <script src="../bower_components/ozp-iwc-angular/dist/js/ozpIwc-client-angular.js"></script>
         <script src="../jslib/ozpIwc-angular.js"></script>
         <script src="js/dawApp.js"></script>
         <script src="js/services.js"></script>
@@ -33,21 +32,18 @@
     <body ng-controller="TileController">
     <tabset class="panel panel-primary">
         <tab heading="Demo Description">
-            This is a pretty demo
+            This is the Data Augmentation Workspace.  It responds to widgets that modify a shared work context
+            by opening all applications with an intent to "view" that data.  This is a way to give a broad view
+            of all data related to the user's working set without needing prior knowledge.
         </tab>
         <tab heading="Consumed Resources">Something consumed</tab>
         <tab heading="Provided Resources">Note to self: share more</tab>
     </tabset>
 
-    <div iwc-model="workContext@data.api/workContext">
-        <context-resource ng-model="workContext"></context-resource>
+    <div iwc-model="workContext@data.api/workContext" class="container-fluid">
+        <context-resource ></context-resource>
         <context-resource ng-repeat="workContext in workContext.associatedResources"></context-resource>
-    </div>      
-
-
-
-
-
+    </div>
 
 
 </body>

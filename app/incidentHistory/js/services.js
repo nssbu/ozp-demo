@@ -5,7 +5,7 @@
 
 // Demonstrate how to register services
 // In this case it is a simple value service.
-angular.module('ozpDemoIncidentList')
+angular.module('ozpDemoIncidentHistory')
 .value('incidentData', [
     {
         'title': "Low disk space on 192.168.1.101",
@@ -15,11 +15,6 @@ angular.module('ozpDemoIncidentList')
         'severity' : "warning",
         'associatedResources': [
             {
-                'contentType' : "application/incident+json",
-                'entity': {
-                    'incidentId': 1234
-                }
-            },{
                 'contentType': "application/server+json",
                 'entity': {
                     'ip' : '192.168.1.101'
@@ -33,18 +28,12 @@ angular.module('ozpDemoIncidentList')
         ]
     },{
         'title': "Melissa worm detected on 192.168.100.30",
-        'contentType' : "application/incident+json",
         'incidentType': "VIRUS",
         'occurredAt': "Thu Aug 14 2014 11:00:00 GMT-0400",
         'severity' : "danger",
         'description' : "Network traffic analysis indicates that a worm may be running on a 192.168.100.30",
         'associatedResources': [
             {
-                'contentType' : "application/incident+json",
-                'entity': {
-                    'incidentId': 1234
-                }
-            },{
                 'contentType': "application/workstation+json",
                 'entity': {
                     'ip' : '192.168.100.30'
@@ -58,24 +47,18 @@ angular.module('ozpDemoIncidentList')
         ]
     },{
         'title': "IP address 192.168.100.67 has been visiting inappropriate sites.",
-        'contentType' : "application/incident+json",
         'incidentType': "CONTENT_CONTROL_VIOLATION",
         'occurredAt': "Thu Aug 14 2014 10:55:00 GMT-0400",
         'severity' : "info",
         'description': "The workstation 192.168.100.67 has been visiting Monster.com in violation of company policy.",
         'associatedResources': [
             {
-                'contentType' : "application/incident+json",
-                'entity': {
-                    'incidentId': 1234
-                }
-            },{
                 'contentType': "application/workstation+json",
                 'entity': {
                     'ip' : '192.168.100.67'
                 }
             },{
-                'contentType': "application/filterViolations+json",
+                'contentType': "application/filter-violations+json",
                 'entity': {
                     'violationType': "Restricted site",
                     'site': "http://www.monster.com",
