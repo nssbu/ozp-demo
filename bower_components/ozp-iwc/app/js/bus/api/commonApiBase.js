@@ -125,6 +125,7 @@ ozpIwc.CommonApiBase.prototype.notifyWatchers=function(node,changes) {
     if(!changes) {
         return;
     }
+    this.events.trigger("changedNode",node,changes);
 	node.eachWatcher(function(watcher) {
 		// @TODO check that the recipient has permission to both the new and old values
 		var reply={
@@ -334,7 +335,10 @@ ozpIwc.CommonApiBase.prototype.addDynamicNode=function(node) {
 ozpIwc.CommonApiBase.prototype.defaultHandler=function(node,packetContext) {
     packetContext.replyTo({
         'response': 'badAction',
-        'entity': packetContext.packet.action
+        'entity': {
+            'action': packetContext.packet.action,
+            'originalRequest' : packetContext.packet
+        }
     });
 };
 
