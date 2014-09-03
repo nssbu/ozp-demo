@@ -1,5 +1,5 @@
 (function() {
-var iwcModule=angular.module('ozpIwc');
+var iwcModule=angular.module('ozpIwc',[]);
 
 iwcModule.constant("ozpIwcConfig",{peerUrl:"../bower_components/ozp-iwc/dist"});
 
