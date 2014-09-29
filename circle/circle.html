@@ -1,31 +1,21 @@
-<!DOCTYPE HTML>
+<!DOCTYPE html>
 <html>
-  <head>
-    <style>
-      body {
-        margin: 0px;
-        padding: 0px;
-      }
-    </style>
-  </head>
-  <body>
 
-    <canvas id="circle" width="146" height="146"></canvas>
-    <script>
-      var canvas = document.getElementById('circle');
-      var context = canvas.getContext('2d');
-      var centerX = canvas.width / 2;
-      var centerY = canvas.height / 2;
-      var radius = 70;
+<style>
+  html, body { margin:0; padding:0; overflow:hidden }
+  svg { position:fixed; top:0; left:0; height:100%; width:100% }
+</style>
+<body>
 
-      context.beginPath();
-      context.arc(centerX, centerY, radius, 0, 2 * Math.PI, false);
-      context.fillStyle = 'purple';
-      context.fill();
-      context.lineWidth = 5;
-      context.strokeStyle = '#003300';
-      context.stroke();
-    </script>
+  <svg id="viewport" version="1.1"
+       baseProfile="full"
+       viewbox="0 0 1000 1000"
+       preserveAspectRatio="xMidYMid meet"
+       xmlns="http://www.w3.org/2000/svg">
+       <circle x="0" y="0" cx="50%" cy="50%" r="50%" fill-opacity="0.750"
+           fill="purple" stroke="black" stroke-width="10" />
 
-  </body>
+  </svg>
+
+</body>
 </html>
