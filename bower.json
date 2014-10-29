@@ -19,5 +19,8 @@
     "ozp-iwc": "ozone-development/ozp-iwc",
     "ozp-iwc-angular": "ozone-development/ozp-iwc-angular",
     "ozp-data-schemas": "ozone-development/ozp-data-schemas"
+  },
+  "resolutions": {
+    "angular": "1.2.26"
   }
 }
