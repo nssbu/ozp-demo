@@ -16,19 +16,27 @@ module.exports = function(grunt) {
     },
 
     concat: {
-      options: {
-        banner: 'angular.module(\'ozpIwcAngular\', []).factory(\'ozpIwc\', function () {\n',
-        footer: '\n//Return the ozpIwc object\nreturn ozpIwc;\n});'
-      },
       bus: {
+        options: {
+          banner: 'angular.module(\'ozpIwcBus\', []).factory(\'iwcBus\', function () {\n',
+          footer: '\n//Return the ozpIwc object\nreturn ozpIwc;\n});'
+        },
         src: '<%= iwcJs %>/ozpIwc-bus.js',
         dest: 'dist/js/ozpIwc-bus-angular.js'
       },
       client: {
+        options: {
+          banner: 'angular.module(\'ozpIwcClient\', []).factory(\'iwcClient\', function () {\n',
+          footer: '\n//Return the ozpIwc object\nreturn ozpIwc;\n});'
+        },
         src: '<%= iwcJs %>/ozpIwc-client.js',
         dest: 'dist/js/ozpIwc-client-angular.js'
       },
       metrics: {
+        options: {
+          banner: 'angular.module(\'ozpIwcMetrics\', []).factory(\'iwcMetrics\', function () {\n',
+          footer: '\n//Return the ozpIwc object\nreturn ozpIwc;\n});'
+        },
         src: '<%= iwcJs %>/ozpIwc-metrics.js',
         dest: 'dist/js/ozpIwc-metrics-angular.js'
       }
@@ -92,7 +100,7 @@ module.exports = function(grunt) {
       ozonebus: {
         options: {
           port: 9001,
-          base: ['dist_iwc'],
+          base: ['dist_iwc', 'bower_components/ozp-data-schemas/mock'],
           hostname: 'localhost',
           keepalive: true
         }

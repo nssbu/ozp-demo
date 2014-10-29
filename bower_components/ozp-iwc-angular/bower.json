@@ -1,5 +1,13 @@
 {
   "name": "ozp-iwc-angular",
+  "main": [
+    "dist/js/ozpIwc-bus-angular.js",
+    "dist/js/ozpIwc-bus-angular.min.js",
+    "dist/js/ozpIwc-client-angular.js",
+    "dist/js/ozpIwc-client-angular.min.js",
+    "dist/js/ozpIwc-metrics-angular.js",
+    "dist/js/ozpIwc-metrics-angular.min.js"
+  ],
   "version": "0.0.1",
   "homepage": "https://github.com/ozone-development/ozp-iwc-angular",
   "authors": [
@@ -21,6 +29,7 @@
     "ozp-iwc"
   ],
   "dependencies": {
-    "ozp-iwc": "ozone-development/ozp-iwc"
+    "ozp-iwc": "ozone-development/ozp-iwc",
+    "ozp-data-schemas": "ozone-development/ozp-data-schemas"
   }
 }

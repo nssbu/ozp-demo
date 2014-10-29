@@ -2,14 +2,28 @@
 // licensed under CCv3.0: http://creativecommons.org/licenses/by/3.0/
 
 var ozpIwc=ozpIwc || {};
+
+/**
+ * Statistics classes for the ozpIwc Metrics
+ * @module metrics
+ * @submodule metrics.statistics
+ */
+/**
+ * metricStats namespace
+ * @class metricStats
+ * @namespace ozpIwc
+ * @static
+ */
 ozpIwc.metricsStats=ozpIwc.metricsStats || {};
 /**
  * This acts as a ordered binary heap for any serializeable JS object or collection of such objects 
  * <p>Borrowed from https://github.com/mikejihbe/metrics. Originally from from http://eloquentjavascript.net/appendix2.html
  * <p>Licenced under CCv3.0
- * @class
- * @param {type} scoreFunction
- * @returns {BinaryHeap}
+ *
+ * @class BinaryHeap
+ * @namespace ozpIwc.metricStats
+ * @param {Function} scoreFunction
+ * @returns {ozpiwc.metricStats.BinaryHeap}
  */
 ozpIwc.metricsStats.BinaryHeap = function BinaryHeap(scoreFunction){
   this.content = [];
@@ -55,16 +69,18 @@ ozpIwc.metricsStats.BinaryHeap.prototype = {
     // To remove a value, we must search through the array to find
     // it.
     for (var i = 0; i < len; i++) {
-      if (this.content[i] == node) {
+      if (this.content[i] === node) {
         // When it is found, the process seen in 'pop' is repeated
         // to fill up the hole.
         var end = this.content.pop();
-        if (i != len - 1) {
+        if (i !== len - 1) {
           this.content[i] = end;
-          if (this.scoreFunction(end) < this.scoreFunction(node))
-            this.bubbleUp(i);
-          else
-            this.sinkDown(i);
+          if (this.scoreFunction(end) < this.scoreFunction(node)) {
+              this.bubbleUp(i);
+          }
+          else {
+              this.sinkDown(i);
+          }
         }
         return true;
       }
@@ -110,25 +126,28 @@ ozpIwc.metricsStats.BinaryHeap.prototype = {
       // This is used to store the new position of the element,
       // if any.
       var swap = null;
+      var child1Score = null;
       // If the first child exists (is inside the array)...
       if (child1N < length) {
         // Look it up and compute its score.
-        var child1 = this.content[child1N],
-            child1Score = this.scoreFunction(child1);
+        var child1 = this.content[child1N];
+        child1Score = this.scoreFunction(child1);
         // If the score is less than our element's, we need to swap.
-        if (child1Score < elemScore)
-          swap = child1N;
+        if (child1Score < elemScore) {
+            swap = child1N;
+        }
       }
       // Do the same checks for the other child.
       if (child2N < length) {
         var child2 = this.content[child2N],
             child2Score = this.scoreFunction(child2);
-        if (child2Score < (swap == null ? elemScore : child1Score))
-          swap = child2N;
+        if (child2Score < (swap === null ? elemScore : child1Score)) {
+            swap = child2N;
+        }
       }
 
       // If the element needs to be moved, swap it, and continue.
-      if (swap != null) {
+      if (swap !== null) {
         this.content[n] = this.content[swap];
         this.content[swap] = element;
         n = swap;

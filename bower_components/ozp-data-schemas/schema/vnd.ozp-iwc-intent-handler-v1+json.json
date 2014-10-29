@@ -1,0 +1,47 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "A description of an intent handler.",
+    "type": "object",
+    "id": "http://ozoneplatform.org/jsonschema/vnd.ozp-iwc-intent-handler-v1+json.json",
+    "required" : ["action","type"],
+    "properties": {
+        "_links": {
+            "properties": {
+                "describes": {
+                    "type": "object",
+                    "description": "The URL to open a new instance of the intent handler.",
+                    "properties": {"$ref" : "ozp-iwc-base.json#/definitions/_links/properties"}
+                }
+            },
+            "additionalProperties":  { "$ref" : "ozp-iwc-base.json#/definitions/_links"}
+        },
+        "_embedded": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": { "$ref": "hal-schema.json#/properties/_embedded" }
+        },
+        "type": {
+            "type" : "string",
+            "format": "mimeType",
+            "description": "The content type for this intent."
+        },
+        "action" : {
+            "type": "string",
+            "description": "The action that this intent takes."
+        },
+        "icon" : {
+            "type": "string",
+            "format": "uri",
+            "description": "An image that can be used to represent this intent."
+        },
+        "label" : {
+            "type": "string",
+            "description": "A label suitable for use as a menu option or short tooltip."
+        },
+        "invokeIntent" : { 
+            "type": "object",
+            "description": "A packet fragment to be sent when this intent is invoked.",
+            "properties" : {"$ref": "vnd.ozp-iwc-transport-packet+json.json"}
+        }
+    }
+}

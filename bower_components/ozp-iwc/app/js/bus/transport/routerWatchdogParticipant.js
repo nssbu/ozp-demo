@@ -1,31 +1,98 @@
 /**
- * @class
+ * @submodule bus.transport
+ */
+
+/**
+ * @class RouterWatchdog
+ * @extends ozpIwc.InternalParticipant
+ * @namespace ozpIwc
  */
 ozpIwc.RouterWatchdog = ozpIwc.util.extend(ozpIwc.InternalParticipant, function(config) {
     ozpIwc.InternalParticipant.apply(this, arguments);
 
+    /**
+     * The type of the participant.
+     * @property participantType
+     * @type String
+     */
     this.participantType = "routerWatchdog";
-    var self = this;
+
+    /**
+     * Fired when connected.
+     * @event #connected
+     */
     this.on("connected", function() {
-        this.name = this.router.self_id;
+        this.name = this.router.selfId;
     }, this);
 
+    /**
+     * Frequency of heartbeats
+     * @property heartbeatFrequency
+     * @type Number
+     * @defualt 10000
+     */
     this.heartbeatFrequency = config.heartbeatFrequency || 10000;
 
+    /**
+     * Fired when connected to the router.
+     * @event #connectedToRouter
+     */
     this.on("connectedToRouter", this.setupWatches, this);
+
+
 });
 
+/**
+ * Removes this participant from the $bus.multicast multicast group.
+ *
+ * @method leaveEventChannel
+ */
+ozpIwc.RouterWatchdog.prototype.leaveEventChannel = function() {
+    // handle anything before leaving.
+    if(this.router) {
+
+        this.send({
+            dst: "$bus.multicast",
+            action: "disconnect",
+            entity: {
+                address: this.address,
+                participantType: this.participantType,
+                namesResource: this.namesResource
+            }
+        });
+
+        this.send({
+            dst: "$bus.multicast",
+            action: "disconnect",
+            entity: {
+                address: this.router.selfId,
+                namesResource: "/router/"+this.router.selfId
+            }
+        });
+        //TODO not implemented
+//        this.router.unregisterMulticast(this, ["$bus.multicast"]);
+        return true;
+    } else {
+        return false;
+    }
+
+};
+/**
+ * Sets up the watchdog for all participants connected to the router. Reports heartbeats based on
+ * {{#crossLink "ozpIwc.RouterWatchdogParticipant/heartbeatFrequency:property"}}{{/crossLink}}
+ * @method setupWatches
+ */
 ozpIwc.RouterWatchdog.prototype.setupWatches = function() {
-    this.name = this.router.self_id;
+    this.name = this.router.selfId;
     var self=this;
     var heartbeat=function() {
         self.send({
             dst: "names.api",
             action: "set",
-            resource: "/router/" + self.router.self_id,
+            resource: "/router/" + self.router.selfId,
             contentType: "application/ozpIwc-router-v1+json",
             entity: {
-                'address': self.router.self_id,
+                'address': self.router.selfId,
                 'participants': self.router.getParticipantCount()
             }
         });
@@ -47,10 +114,19 @@ ozpIwc.RouterWatchdog.prototype.setupWatches = function() {
 
     };
 //    heartbeat();
-    
+
+    /**
+     * The timer for the heartBeat
+     * @property timer
+     * @type window.setInterval
+     */
     this.timer = window.setInterval(heartbeat, this.heartbeatFrequency);
 };
 
+/**
+ * Removes the watchdog.
+ * @method shutdown
+ */
 ozpIwc.RouterWatchdog.prototype.shutdown = function() {
     window.clearInterval(this.timer);
 };

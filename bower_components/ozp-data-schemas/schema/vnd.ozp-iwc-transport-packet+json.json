@@ -1,0 +1,57 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "",
+    "type": "object",
+    "id": "http://ozoneplatform.org/jsonschema/vnd.ozp-iwc-transport-packet+json.json",
+    "required": ["dst","ver"],
+    "properties": {
+        "_links": { "$ref": "ozp-iwc-base.json#/definitions/_links" },
+        "_embedded": {
+            "type": "object",
+            "properties": { },
+            "additionalProperties": { "$ref": "hal-schema.json#/properties/_embedded" }
+        },
+        "src": {
+            "type": "string",
+            "format": "iwcAddress",
+            "description": "The participant address that sent this packet."
+        },
+        "dst": {
+            "type": "string",
+            "format": "iwcAddress",
+            "description": "The intended recipient of this packet."
+        },
+        "ver": {
+            "type": "number",
+            "description": "Protocol Version.  Should be 1."
+        },
+        "msgId": {
+            "type": ["string","number"],
+            "description": "A unique id for this packet."
+       },
+        "entity": {
+            "type": ["object", "array", "string", "number"],
+            "description": "The payload of this packet."
+        },
+        "permissions": {
+            "type": "object",
+            "description": "Permissions required to see the payload of this packet."
+        },
+        "time": {
+            "type": "number",
+            "description": "The time in milliseconds since epoch that this packet was created."
+        },
+        "replyTo": {
+            "type": ["string","number"],
+            "description": "Reference to the msgId that this is in reply to."
+        },
+        "action": {
+            "type": "string",
+            "description": "Action to be performed."
+        },
+        "resource": {
+            "type": "string",
+            "description": "Resource to perform the action upon."
+        }
+    }
+}

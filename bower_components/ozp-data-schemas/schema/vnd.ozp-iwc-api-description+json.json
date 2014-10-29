@@ -1,0 +1,22 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "",
+    "type": "object",
+    "id": "http://ozoneplatform.org/jsonschema/vnd.ozp-iwc-api-description+json.json",
+    "required": [],
+    "properties": {
+        "_links": { "$ref" : "ozp-iwc-base.json#/definitions/_links"},
+        "_embedded": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": { "$ref": "hal-schema.json#/properties/_embedded" }
+        },
+        "actions": {
+            "type": "array",
+            "description": "An array of valid actions that this API supports",
+            "items" : {
+                "type": "string"
+            }
+        }
+    }
+}

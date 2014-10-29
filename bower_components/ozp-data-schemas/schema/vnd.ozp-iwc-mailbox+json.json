@@ -1,0 +1,46 @@
+{
+"$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "",
+    "type": "object",
+    "id": "http://ozoneplatform.org/jsonschema/vnd.ozp-iwc-mailbox+json.json",
+    "required": [],
+    "properties": {
+       "_links": { "$ref" : "ozp-iwc-base.json#/definitions/_links"},
+        "_embedded": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": { "$ref": "hal-schema.json#/properties/_embedded" }
+        },
+        "mailbox": {
+            "type": "string",
+            "format": "uri",
+            "description": "A pointer to an IWC location that contains additional mailbox data.  Automatically fetched and included by the client javascript."
+        },
+        "peer" : {
+            "type": "string",
+            "format": "uri",
+            "description": "Suggests to the application a IWC bus to connect to."
+        },
+        "intents": {
+            "type": "array",
+            "description": "Intents to be executed by the recipient",
+            "items" : {
+                "type" : "object",
+                "properties" : {
+                    "type": {
+                        "type": "string",
+                        "description": "The content type of the intent being invoked."
+                    },
+                    "action": {
+                        "type": "string",
+                        "description": "The action of the intent being invoked."
+                    },
+                    "entity": {
+                       "type": "object",
+                        "description": "The object being acted upon by the intent."
+                    }
+                }
+            }
+        }
+    }
+}

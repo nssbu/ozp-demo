@@ -1,0 +1,39 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "An intent descriptor",
+    "type": "object",
+    "id": "http://ozoneplatform.org/jsonschema/vnd.ozp-intent-description+json.json",
+    "required" : ["action","type"],
+    "properties": {
+        "_links": { "$ref" : "ozp-iwc-base.json#/definitions/_links"},
+        "_embedded": {
+            "type": "object",
+            "properties": {
+                "item": {
+                    "type": "array",
+                    "description": "Registered handlers for this intent.  Only present inside the IWC.",
+                    "item": { "$ref": "vnd.ozp-iwc-intent-handler-v1+json.json#" }
+                }
+            },
+            "additionalProperties": { "$ref": "hal-schema.json#/properties/_embedded" }
+        },
+        "type": {
+            "type" : "string",
+            "format": "mimeType",
+            "description": "The content type for this intent."
+        },
+        "action" : {
+            "type": "string",
+            "description": "The action that this intent takes."
+        },
+        "icon" : {
+            "type": "string",
+            "format": "uri",
+            "description": "An image that can be used to represent this intent."
+        },
+        "label" : {
+            "type": "string",
+            "description": "A label suitable for use as a menu option or short tooltip."
+        }        
+    }
+}

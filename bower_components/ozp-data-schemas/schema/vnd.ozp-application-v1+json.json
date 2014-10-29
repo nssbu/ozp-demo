@@ -1,0 +1,82 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "An application listing in the Ozone Platform",
+    "type": "object",
+    "id": "http://ozoneplatform.org/jsonschema/vnd.ozp-application+json.json",
+    "required" : ["name","description","type","state"],
+    "properties": {
+        "name": {
+            "description": "The name that end users will know the application by.",
+            "type": "string"
+        },
+        "description" : {
+            "description": "A description of the application suitable for presentation to the user.",
+            "type": "string"
+        },
+        "type" : {
+            "description": "Describes how the application will be handled by OZP.  Not presented to the user.",
+            "type" : "string",
+            "enum" : ["application","service","microformat"]
+        },
+        "state" : {
+            "description": "The lifecycle state of the application.",
+            "type" :"string",
+            "enum" : ["submitted","active","disabled"]
+        },
+        "uiHints": {
+            "type": "object",
+            "description:": "Informational hints to any container that may render this application.",
+            "properties" : {
+                "width" : { "type": "integer" },
+                "height" : { "type": "integer" },
+                "singleton" : { "type": "boolean" }
+            },
+           "additionalProperties": true
+        },
+        "tags": {
+            "type": "array",
+            "default": [],
+            "items": { "type" : "string" }
+        },
+        "icons" : {
+            "type" : "object",
+            "properties" : {
+                "small" : {
+                    "type": "string",
+                    "format": "uri"
+                },
+                "large" : {
+                    "type": "string",
+                    "format": "uri"
+                }
+            },
+            "additionalProperties" : {
+                    "type": "string",
+                    "format": "uri"
+            }
+        },
+        "screenShots" : {
+            "type" : "array",
+            "items": {"$ref" : "hal-schema.json#definitions/link" }
+        },
+        "launchUrls" : {
+            "type" : "object",
+            "properties" : {
+                "default" : {
+                    "type": "string",
+                    "format": "uri"
+                }
+            },
+            "additionalProperties" : {
+                    "type": "string",
+                    "format": "uri"
+            }
+        },
+        "intents": {
+            "type": "array",
+            "items": { "$ref" : "http://ozoneplatform.org/jsonschema/vnd.ozp-iwc-intent-handler-v1+json.json"}
+        },
+        "_links": { "$ref" : "ozp-iwc-base.json#/definitions/_links"},
+        "_embedded": { "$ref": "hal-schema.json#/properties/_embedded" }
+    }
+}

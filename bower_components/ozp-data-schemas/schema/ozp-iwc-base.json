@@ -1,0 +1,19 @@
+{
+    "id": "http://ozoneplatform.org/jsonschema/ozp-iwc-base.json",
+    "definitions": {
+        "_links": {
+            "type" : "object",
+            "allOf" : [
+                {"$ref": "hal-schema.json#definitions/_links"},
+                {
+                    "properties" : {
+                        "ozp:iwcSelf": { "$ref": "hal-schema.json#definitions/link" },
+                        "self": { "$ref": "hal-schema.json#definitions/link" }
+                    },
+                    "additionalProperties" : true,
+                    "required": ["ozp:iwcSelf","self"]
+                }
+            ]
+        }
+    }
+}

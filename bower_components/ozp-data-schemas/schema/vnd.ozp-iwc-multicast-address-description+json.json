@@ -1,0 +1,42 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "",
+    "type": "object",
+    "id": "http://ozoneplatform.org/jsonschema/vnd.ozp-iwc-multicast-address-description+json.json",
+    "required": ["address","type"],
+    "properties": {
+        "_links": { "$ref" : "ozp-iwc-base.json#/definitions/_links"},
+        "_embedded": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": { "$ref": "hal-schema.json#/properties/_embedded" }
+        },
+        "name": {
+            "type":"string",
+            "description": "A human-readable name for this participant"
+        },
+        "type": {
+            "type":"string",
+            "description": "The participant type at this address (e.g. postMessageProxy, leaderGroup, internal)"
+        },
+        "address": {
+            "type":"string",
+            "description": "The IWC address of this type",
+            "format": "iwcAddress"
+        },
+        "origin": {
+            "type":"string",
+            "description": "The participant's origin, if available.",
+            "format": "uri"
+        },
+        "members": {
+            "type":"array",
+            "descriptions": "The address of all members in this multicast group.",
+            "item": {
+                "type":"string",
+                "description": "The IWC address of this type",
+                "format": "iwcAddress"
+            }
+        }                
+    }
+}

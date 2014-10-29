@@ -2,15 +2,15 @@
 
 // Declare app module
 angular.module('ozpIwcAngularSender', [
-    'ozpIwcAngular'
+    'ozpIwcClient'
 ]);
 
-angular.module('ozpIwcAngularSender').controller('DemoController', function ($scope, ozpIwc) {
+angular.module('ozpIwcAngularSender').controller('DemoController', function ($scope, iwcClient) {
 
     $scope.myData = '', $scope.connected = false;
 
     // IWC Set-up
-    var client = new ozpIwc.Client({
+    var client = new iwcClient.Client({
         peerUrl: 'http://' + window.location.hostname + ':9001'
     });
 
@@ -25,7 +25,7 @@ angular.module('ozpIwcAngularSender').controller('DemoController', function ($sc
     client.on('connected', function () { 
 
         client.send(pushRequest, function(packet){
-            if(packet.action==="ok") {
+            if(packet.response==="ok") {
                 console.log("Request sucessful");
             } else {
                 console.log("Failed to push the data " + JSON.stringify(packet,null,2));

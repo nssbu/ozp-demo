@@ -1,14 +1,27 @@
 /**
- * @class
- * @extends ozpIwc.BaseMetric
+ * @submodule metrics.types
+ */
+
+/**
+ * @class Histogram
+ * @namespace ozpIwc.metricTypes
+ * @extends ozpIwc.metricTypes.BaseMetric
  */
 ozpIwc.metricTypes.Histogram=ozpIwc.util.extend(ozpIwc.metricTypes.BaseMetric,function() {
 	ozpIwc.metricTypes.BaseMetric.apply(this,arguments);
+
+    /**
+     * @property sample
+     * @type {ozpIwc.metricsStats.ExponentiallyDecayingSample}
+     */
 	this.sample = new ozpIwc.metricsStats.ExponentiallyDecayingSample();
 	this.clear();
 });
 
 
+/**
+ * @method clear
+ */
 ozpIwc.metricTypes.Histogram.prototype.clear=function() {
 	this.sample.clear();
 	this.min=this.max=null;
@@ -19,8 +32,10 @@ ozpIwc.metricTypes.Histogram.prototype.clear=function() {
 };
 
 /**
- * @param {Number} [delta=1] - Increment by this value
- * @returns {Number} - Value of the counter after increment
+ * @method mark
+ * @param {Number} val
+ * @param {Number} timestamp Current time in milliseconds.
+ * @returns {Number} Value of the counter after increment
  */
 ozpIwc.metricTypes.Histogram.prototype.mark=function(val,timestamp) { 
 	timestamp = timestamp || ozpIwc.util.now();
@@ -39,6 +54,11 @@ ozpIwc.metricTypes.Histogram.prototype.mark=function(val,timestamp) {
 	return this.count;
 };
 
+/**
+ * @method get
+ * @returns {{percentile10, percentile25, median, percentile75, percentile90, percentile95, percentile99,
+ * percentile999, variance: null, mean: null, stdDev: null, count: *, sum: *, max: *, min: *}}
+ */
 ozpIwc.metricTypes.Histogram.prototype.get=function() { 
 	var values=this.sample.getValues().map(function(v){
 		return parseFloat(v);
@@ -58,14 +78,14 @@ ozpIwc.metricTypes.Histogram.prototype.get=function() {
 	};
 
 	return {
-		'percentile_10': percentile(0.10),
-		'percentile_25': percentile(0.25),				
+		'percentile10': percentile(0.10),
+		'percentile25': percentile(0.25),
 		'median': percentile(0.50),				
-		'percentile_75': percentile(0.75),				
-		'percentile_90': percentile(0.90),				
-		'percentile_95': percentile(0.95),				
-		'percentile_99': percentile(0.99),				
-		'percentile_999': percentile(0.999),				
+		'percentile75': percentile(0.75),
+		'percentile90': percentile(0.90),
+		'percentile95': percentile(0.95),
+		'percentile99': percentile(0.99),
+		'percentile999': percentile(0.999),
 		'variance' : this.count < 1 ? null : this.varianceM2 / (this.count -1),
 		'mean' : this.count === 0 ? null : this.varianceMean,
 		'stdDev' : this.count < 1 ? null : Math.sqrt(this.varianceM2 / (this.count -1)),

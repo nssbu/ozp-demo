@@ -1,20 +1,21 @@
 /** @namespace */
 var ozpIwc=ozpIwc || {};
-
-/** @namespace */
-ozpIwc.util=ozpIwc.util || {};
+/**
+ * @submodule common
+ */
 
 /**
- * Generates a large hexidecimal string to serve as a unique ID.  Not a guid.
- * @returns {String}
+ * @class util
+ * @namespace ozpIwc
+ * @static
  */
-ozpIwc.util.generateId=function() {
-    return Math.floor(Math.random() * 0xffffffff).toString(16);
-};
+ozpIwc.util=ozpIwc.util || {};
 
 /**
  * Used to get the current epoch time.  Tests overrides this
  * to allow a fast-forward on time-based actions.
+ *
+ * @method now
  * @returns {Number}
  */
 ozpIwc.util.now=function() {
@@ -23,62 +24,99 @@ ozpIwc.util.now=function() {
 
 /**
  * Create a class with the given parent in it's prototype chain.
- * @param {function} baseClass - the class being derived from
- * @param {function} newConstructor - the new base class
- * @returns {Function} newConstructor with an augmented prototype
+ *
+ * @method extend
+ * @param {Function} baseClass The class being derived from.
+ * @param {Function} newConstructor The new base class.
+ *
+ * @returns {Function} New Constructor with an augmented prototype.
  */
 ozpIwc.util.extend=function(baseClass,newConstructor) {
     if(!baseClass || !baseClass.prototype) {
         console.error("Cannot create a new class for ",newConstructor," due to invalid baseclass:",baseClass);
         throw new Error("Cannot create a new class due to invalid baseClass.  Dependency not loaded first?");
-    };
+    }
     newConstructor.prototype = Object.create(baseClass.prototype);
     newConstructor.prototype.constructor = newConstructor;
     return newConstructor;
 };
 
 /**
- * Invokes the callback handler on another event loop as soon as possible.
-*/
-ozpIwc.util.setImmediate=function(f) {
-//    window.setTimeout(f,0);
-    window.setImmediate(f);
-};
-
-/**
- * Detect browser support for structured clones.
- * @returns {boolean} - true if structured clones are supported,
- * false otherwise
+ * Detect browser support for structured clones. Returns quickly since it
+ * caches the result. However, a bug in FF will cause clone to fail fr file objects
+ * (see https://bugzilla.mozilla.org/show_bug.cgi?id=722126). This method will
+ * not detect that, since it's designed to determine browser support and cache
+ * the result for efficiency. This method should therefore not be called except
+ * from a method which subsequently tests the ability to clone a File object. (See
+ * ozpIwc.util.getPostMessagePayload()).
+ *
+ * @private
+ *
+ * @method structuredCloneSupport
+ *
+ * @returns {Boolean} True if structured clones are supported, false otherwise.
  */
 ozpIwc.util.structuredCloneSupport=function() {
-    if (ozpIwc.util.structuredCloneSupport.cache !== undefined) {
-        return ozpIwc.util.structuredCloneSupport.cache;
+    ozpIwc.util = ozpIwc.util || {};
+    if (ozpIwc.util.structuredCloneSupportCache !== undefined) {
+        return ozpIwc.util.structuredCloneSupportCache;
     }
-    var onlyStrings = false;
+    var cloneSupport = 'postMessage' in window;
     //If the browser doesn't support structured clones, it will call toString() on the object passed to postMessage.
-    //A bug in FF will cause File clone to fail (see https://bugzilla.mozilla.org/show_bug.cgi?id=722126)
-    //We detect this using a test Blob
     try {
         window.postMessage({
             toString: function () {
-                onlyStrings = true;
-            },
-            blob: new Blob()
+                cloneSupport = false;
+            }
         }, "*");
     } catch (e) {
-        onlyStrings=true;
+        //exception expected: objects with methods can't be cloned
+        //e.DATA_CLONE_ERR will exist only for browsers with structured clone support, which can be used as an additional check if needed
     }
-    ozpIwc.util.structuredCloneSupport.cache=!onlyStrings;
-    return ozpIwc.util.structuredCloneSupport.cache;
+    ozpIwc.util.structuredCloneSupportCache=cloneSupport;
+    return ozpIwc.util.structuredCloneSupportCache;
 };
 
 ozpIwc.util.structuredCloneSupport.cache=undefined;
 
 /**
+* Return an object suitable for passing to window.postMessage
+* based on whether or not the browser supports structured clones
+* and the object to be cloned is supported. Testing for browser support
+* is not sufficient because of a bug in Firefox which prevents successful
+* cloning of File objects. (see https://bugzilla.mozilla.org/show_bug.cgi?id=722126)
+*
+* @method getPostMessagePayload
+*
+* @returns {Object} The object passed in, if it can be cloned; otherwise te object stringified.
+*/
+ozpIwc.util.getPostMessagePayload=function(msg) {
+    if (ozpIwc.util.structuredCloneSupport()) {
+        if (!(msg instanceof File)) {
+            //if the object is not a File, we can trust the cached indicator of browser support for structured clones
+            return msg;
+        }
+        //otherwise, test whether the object can be cloned
+        try {
+            window.postMessage(msg, "*");
+        } catch (e) {
+            msg=JSON.stringify(msg);
+        } finally {
+            return msg;
+        }
+    } else {
+        return JSON.stringify(msg);
+    }
+
+}
+
+/**
  * Does a deep clone of a serializable object.  Note that this will not
  * clone unserializable objects like DOM elements, Date, RegExp, etc.
- * @param {type} value - value to be cloned.
- * @returns {object} - a deep copy of the object
+ *
+ * @method clone
+ * @param {Array|Object} value The value to be cloned.
+ * @returns {Array|Object}  a deep copy of the object
  */
 ozpIwc.util.clone=function(value) {
 	if(Array.isArray(value) || typeof(value) === 'object') {
@@ -94,82 +132,83 @@ ozpIwc.util.clone=function(value) {
 
 
 /**
- * Returns true if every needle is found in the haystack.
- * @param {array} haystack - The array to search.
- * @param {array} needles - All of the values to search.
- * @param {function} [equal] - What constitutes equality.  Defaults to a===b.
- * @returns {boolean}
+ * A regex method to parse query parameters.
+ *
+ * @method parseQueryParams
+ * @param {String} query
+ *
  */
-ozpIwc.util.arrayContainsAll=function(haystack,needles,equal) {
-    equal=equal || function(a,b) { return a===b;};
-    return needles.every(function(needle) { 
-        return haystack.some(function(hay) { 
-            return equal(hay,needle);
-        });
-    });
-};
-
-
-/**
- * Returns true if the value every attribute in needs is equal to 
- * value of the same attribute in haystack.
- * @param {array} haystack - The object that must contain all attributes and values.
- * @param {array} needles - The reference object for the attributes and values.
- * @param {function} [equal] - What constitutes equality.  Defaults to a===b.
- * @returns {boolean}
- */
-ozpIwc.util.objectContainsAll=function(haystack,needles,equal) {
-    equal=equal || function(a,b) { return a===b;};
-    
-    for(var attribute in needles) {
-        if(!equal(haystack[attribute],needles[attribute])) {
-            return false;
-        }
-    }
-    return true;
-};
-
 ozpIwc.util.parseQueryParams=function(query) {
     query = query || window.location.search;
     var params={};
 	var regex=/\??([^&=]+)=?([^&]*)/g;
 	var match;
-	while(match=regex.exec(query)) {
+	while((match=regex.exec(query)) !== null) {
 		params[match[1]]=decodeURIComponent(match[2]);
 	}
     return params;
 };
 
-ozpIwc.util.ajax = function (config) {
-    return new Promise(function(resolve,reject) {
-        var request = new XMLHttpRequest();
-        request.onreadystatechange = function() {
-            if (request.readyState !== 4) {
-                return;
-            }
-
-            if (request.status === 200) {
-                resolve(JSON.parse(this.responseText));
-            } else {
-                reject(this);
-            }
-        };
-        request.open(config.method, config.href, true);
-
-        if(config.method === "POST") {
-            request.send(config.data);
-        }
-        request.setRequestHeader("Content-Type", "application/json");
-        request.setRequestHeader("Cache-Control", "no-cache");
-        request.send();
-    });
-};
-
+/**
+ * Determines the origin of a given url
+ * @method determineOrigin
+ * @param url
+ * @returns {String}
+ */
 ozpIwc.util.determineOrigin=function(url) {
     var a=document.createElement("a");
     a.href = url;
     var origin=a.protocol + "//" + a.hostname;
-    if(a.port)
+    if(a.port) {
         origin+= ":" + a.port;
+    }
     return origin;
+};
+
+/**
+ * Escapes regular expression characters in a string.
+ * @method escapeRegex
+ * @param {String} str
+ * @returns {String}
+ */
+ozpIwc.util.escapeRegex=function(str) {
+    return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+};
+
+/**
+ * 
+ * @method parseOzpUrl
+ * @param {type} url
+ * @returns {ozpIwc.TransportPacket}
+ */
+ozpIwc.util.parseOzpUrl=function(url) {
+    var m = /^(?:(?:web\+ozp|ozp):\/\/)?([0-9a-zA-Z](?:[-.\w])*)(\/[^?#]*)(\?[^#]*)?(#.*)?$/.exec(decodeURIComponent(url));
+    if (m) {
+        // an action of "get" is implied
+        var packet = {
+            'dst': m[1],
+            'resource': m[2],
+            'action': "get"
+        };
+        // TODO: parse the query params into fields
+
+        return packet;
+    }
+    return null;
+};
+
+/**
+ * Returns true if the specified packet meets the criteria of an IWC Packet.
+ * @method isIwcPacket
+ * @static
+ * @param {ozpIwc.TransportPacket} packet
+ * @returns {Boolean}
+ */
+ozpIwc.util.isIWCPacket=function(packet) {
+    if(typeof packet.src !== "string" ||typeof packet.dst !== "string" ||
+        typeof packet.ver !== "number" || typeof packet.msgId !== "string") {
+        return false;
+    } else {
+        return true;
+    }
 };

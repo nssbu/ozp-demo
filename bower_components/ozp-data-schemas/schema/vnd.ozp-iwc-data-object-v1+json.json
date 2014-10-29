@@ -1,0 +1,23 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "An data object in the Ozone Platform",
+    "type": "object",
+    "id": "http://ozoneplatform.org/jsonschema/vnd.ozp-iwc-data-object+json.json",
+    "required" : ["contentType","entity"],
+    "properties": {
+        "_links": { "$ref" : "ozp-iwc-base.json#/definitions/_links"},
+        "_embedded": { "$ref": "hal-schema.json#/properties/_embedded" },
+        "contentType": {
+            "type" : "string",
+            "format": "mimeType"
+        },
+        "entity": {
+            "type": ["object","string"],
+            "additionalProperties": true
+        },
+        "permissions" : {
+            "type": "object",
+            "additionalProperties":true
+        }            
+    }
+}

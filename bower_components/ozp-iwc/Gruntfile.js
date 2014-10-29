@@ -1,4 +1,5 @@
 module.exports = function(grunt) {
+    /* jshint camelcase: false */
     var sampleDataBase={
                             "path":"data-schemas/mock",
                             options: {
@@ -30,7 +31,6 @@ module.exports = function(grunt) {
             bus: [
                 '<%= src.common %>',
                 '<%= src.metrics %>',
-                'app/js/bus/setImmediate.js',
                 'app/js/bus/util/**/*.js',
                 'app/js/bus/security/**/*.js',
                 'app/js/bus/network/**/*.js',
@@ -110,7 +110,7 @@ module.exports = function(grunt) {
             jssrc: {
                 files: [
                     {
-                        src: ['js/defaultWiring.js','iframe_peer.html','tools/**/*'],
+                        src: ['js/defaultWiring.js','*.html','tools/**/*'],
                         dest: './dist/',
                         cwd: 'app',
                         expand: true,
@@ -122,11 +122,18 @@ module.exports = function(grunt) {
         clean: {
           dist: ['./dist/', './app/js/ozpIwc-*.js']
         },
-        jsdoc: {
-            dist: {
-                src: ['<%= src.bus %>', '<%= src.client %>'],
+        yuidoc: {
+            compile: {
+                name: '<%= pkg.name %>',
+                description: '<%= pkg.description %>',
+                version: '<%= pkg.version %>',
+                url: '<%= pkg.homepage %>',
                 options: {
-                    destination: 'dist/doc'
+                    paths: [
+                        'app/js/'
+                    ],
+//                    themedir: 'path/to/custom/theme/',
+                    outdir: 'dist/doc'
                 }
             }
         },
@@ -180,7 +187,7 @@ module.exports = function(grunt) {
                 options: {port: 14001, base: ["dist","test/mockParticipant"]}
             },
             testBus: {
-                options:{ port: 14002, base: ['dist'] }
+                options:{ port: 14002, base: ['dist',sampleDataBase] }
             },
             demo1: {
                 options: { port: 15000, base: ["dist","demo/bouncingBalls"] }
@@ -198,7 +205,7 @@ module.exports = function(grunt) {
                 options: { port: 15004, base: ["dist","demo/gridster"] }
             },
             intentsDemo: {
-                options:{	port: 15006, base: ["dist","demo/intentsSandbox","test/tests/unit"]}
+                options:{	port: 15006, base: ["dist","demo/intentDemo","test/tests/unit"]}
             }
         },
         dist: {
@@ -214,7 +221,7 @@ module.exports = function(grunt) {
 
     // Default task(s).
     grunt.registerTask('build', ['concat_sourcemap', 'uglify', 'copy']);
-    grunt.registerTask('dist', ['jshint','build', 'jsdoc']);
+    grunt.registerTask('dist', ['jshint','build', 'yuidoc']);
     grunt.registerTask('testOnly', ['build','connect:tests','connect:testBus','connect:mockParticipant', 'watch']);
     grunt.registerTask('test', ['build','connect','watch']);
     grunt.registerTask('default', ['dist']);

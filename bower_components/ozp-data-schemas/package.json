@@ -6,6 +6,7 @@
   "devDependencies": {
     "grunt": "0.4.x",
     "grunt-jsonlint": "*",
+    "grunt-tv4": "^0.4.1",
     "load-grunt-tasks": "~0.6.0"
   }
 }

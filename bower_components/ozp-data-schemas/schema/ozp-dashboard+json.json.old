@@ -1,0 +1,114 @@
+{
+    "type":"object",
+    "$schema": "http://json-schema.org/draft-03/schema",
+    "description": "The representation of a user's webtop dashboards",
+    "required":false,
+    "properties":{
+        "dashboards": {
+            "type":"array",
+            "required":false,
+            "items": {
+                "type":"object",
+                "required":false,
+                "properties": {
+                    "frames": {
+                        "type":"array",
+                        "required":false,
+                        "items": {
+                            "type":"object",
+                            "required":false,
+                            "properties": {
+                                "appId": {
+                                    "type":"string",
+                                    "description": "A unique id for an application",
+                                    "required":false
+                                },
+                                "desktopLayout": {
+                                    "type":"object",
+                                    "description": "The representation of this dashboard as a desktop view",
+                                    "required":false,
+                                    "properties":{
+                                        "height": {
+                                            "type":"number",
+                                            "required":false
+                                        },
+                                        "left": {
+                                            "type":"number",
+                                            "required":false
+                                        },
+                                        "top": {
+                                            "type":"number",
+                                            "required":false
+                                        },
+                                        "width": {
+                                            "type":"number",
+                                            "required":false
+                                        },
+                                        "zIndex": {
+                                            "type":"number",
+                                            "required":false
+                                        }
+                                    }
+                                },
+                                "gridLayout": {
+                                    "type":"object",
+                                    "required":false,
+                                    "description": "The representation of this dashboard as a grid view",
+                                    "properties":{
+                                        "col": {
+                                            "type":"number",
+                                            "required":false
+                                        },
+                                        "row": {
+                                            "type":"number",
+                                            "required":false
+                                        },
+                                        "sizeX": {
+                                            "type":"number",
+                                            "required":false
+                                        },
+                                        "sizeY": {
+                                            "type":"number",
+                                            "required":false
+                                        }
+                                    }
+                                },
+                                "id": {
+                                    "type":"string",
+                                    "required":false
+                                }
+                            }
+                        }
+                    },
+                    "id": {
+                        "type":"number",
+                        "required":false
+                    },
+                    "layout": {
+                        "type":"string",
+                        "description": "The chosen layout of this dashboard",
+                        "required":false
+                    },
+                    "name": {
+                        "type":"string",
+                        "required":false
+                    }
+                }
+            }
+        },
+        "defaultDashboard": {
+            "type":"number",
+            "description": "A user's chosen default dashboard",
+            "required":false
+        },
+        "name": {
+            "type":"string",
+            "required":false
+        },
+        "user": {
+            "type":"string",
+            "description": "A user name",
+            "required":false
+        }
+    }
+}
