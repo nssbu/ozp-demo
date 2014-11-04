@@ -21,6 +21,8 @@ $(document).ready(function(){
             var color=e.target.value;
             changeColor(color);
         });
+    }).catch(function(er){
+        console.log(er);
     });
 
     window.addEventListener("beforeunload",function() {
@@ -94,3 +96,15 @@ function invoke(resource,entity) {
         console.error("Error invoking intent:",e);
     });
 }
+
+function broadcast(resource,entity) {
+    client.api('intents.api').broadcast(resource, {
+        contentType: "application/ozpIwc-intents-handler-v1+json",
+        entity: entity
+    }).then(function(response){
+        console.log("I get called when a resolution has been made on the intent broadcast!",response);
+    }).catch(function(e){
+        console.error("Error broadcasting intent:",e);
+    });
+}
+

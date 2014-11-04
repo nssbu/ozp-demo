@@ -139,7 +139,7 @@ ozpIwc.Client=function(config) {
             'actions': ["get","set","delete","watch","unwatch","list"]
         }, 
         "intents.api" : { 'address': 'intents.api',
-            'actions': ["get","set","delete","watch","unwatch","list","register","invoke"]
+            'actions': ["get","set","delete","watch","unwatch","list","register","invoke","broadcast"]
         }
     };
 
@@ -441,7 +441,7 @@ ozpIwc.Client.prototype.connect=function() {
              */
             self.events.trigger("connected");
         }).catch(function(error) {
-            console.log("Failed to connect to bus ",error);
+                ozpIwc.log.log("Failed to connect to bus ",error);
         });
     }
     return this.connectPromise; 

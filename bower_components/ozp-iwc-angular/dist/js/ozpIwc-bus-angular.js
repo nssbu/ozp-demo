@@ -2063,7 +2063,7 @@ ozpIwc.util.now=function() {
  */
 ozpIwc.util.extend=function(baseClass,newConstructor) {
     if(!baseClass || !baseClass.prototype) {
-        console.error("Cannot create a new class for ",newConstructor," due to invalid baseclass:",baseClass);
+        ozpIwc.log.error("Cannot create a new class for ",newConstructor," due to invalid baseclass:",baseClass);
         throw new Error("Cannot create a new class due to invalid baseClass.  Dependency not loaded first?");
     }
     newConstructor.prototype = Object.create(baseClass.prototype);
@@ -2153,7 +2153,7 @@ ozpIwc.util.clone=function(value) {
         try {
             return JSON.parse(JSON.stringify(value));
         } catch (e) {
-            console.log(e);
+            ozpIwc.log.log(e);
         }
 	} else {
 		return value;
@@ -3422,7 +3422,11 @@ ozpIwc.util.ajax = function (config) {
                 resolve(JSON.parse(this.responseText));
             }
             catch (e) {
-                reject(this);
+                if(this.status === 204 && !this.responseText){
+                    resolve();
+                } else {
+                    reject(this);
+                }
             }
         };
 
@@ -3543,7 +3547,11 @@ var ozpIwc=ozpIwc || {};
 /**
  * @submodule bus.util
  */
-
+var getStackTrace = function() {
+    var obj = {};
+    Error.captureStackTrace(obj, getStackTrace);
+    return obj.stack;
+};
 /**
  * A logging wrapper for the ozpIwc namespace
  * @class log
@@ -3892,7 +3900,7 @@ ozpIwc.util.alert = function (message, errorObject) {
         // Temporary placement: all alerts are silenced after first instance, but since this is not in data.api its on
         // a widget basis.
         this.alerts[message].silence = true;
-        console.log(message,errorObject);
+        ozpIwc.log.log(message,errorObject);
     }
 };
 
@@ -4301,7 +4309,7 @@ ozpIwc.KeyBroadcastLocalStorageLink = function (config) {
         try {
             packet = JSON.parse(event.key);
         } catch (e) {
-            console.log("Parse error on " + event.key);
+            ozpIwc.log.log("Parse error on " + event.key);
             ozpIwc.metrics.counter('links.keyBroadcastLocalStorage.packets.parseError').inc();
             return;
         }
@@ -5907,9 +5915,9 @@ ozpIwc.Router.prototype.registerMulticast=function(participant,multicastGroups) 
             });
             self.events.trigger("registeredMulticast", registeredEvent);
         } else {
-            console.log("no address for " +  participant.participantType + " " + participant.name + "with address " + participant.address + " for group " + groupName);
+            ozpIwc.log.log("no address for " +  participant.participantType + " " + participant.name + "with address " + participant.address + " for group " + groupName);
         }
-        //console.log("registered " + participant.participantType + " " + participant.name + "with address " + participant.address + " for group " + groupName);
+        //ozpIwc.log.log("registered " + participant.participantType + " " + participant.name + "with address " + participant.address + " for group " + groupName);
     });
     return multicastGroups;
 };
@@ -6331,7 +6339,7 @@ ozpIwc.LeaderGroupParticipant.prototype.sendElectionMessage=function(type, confi
     try {
         JSON.stringify(state);
     } catch (ex) {
-        console.error(this.name,this.address,"failed to send state.", ex);
+        ozpIwc.log.error(this.name,this.address,"failed to send state.", ex);
         state = {};
     }
 
@@ -6579,7 +6587,7 @@ ozpIwc.LeaderGroupParticipant.prototype.heartbeatStatus=function() {
  */
 ozpIwc.LeaderGroupParticipant.prototype.changeState=function(state,config) {
     if(state !== this.leaderState){
-//        console.log(this.address, this.leaderState, state);
+//        ozpIwc.log.log(this.address, this.leaderState, state);
         if(this._validateState(state)){
             for(var key in config){
                 this[key] = config[key];
@@ -6618,7 +6626,7 @@ ozpIwc.LeaderGroupParticipant.prototype._validateState = function(state){
         this.leaderState = state;
         return true;
     } else {
-        console.error(this.address, this.name, "does not have state:", state);
+        ozpIwc.log.error(this.address, this.name, "does not have state:", state);
         return false;
     }
 };
@@ -7705,7 +7713,7 @@ ozpIwc.CommonApiBase.prototype.loadFromEndpoint=function(endpointName, requestHe
                 self.updateDynamicNode(self.data[resource]);
             });
         }).catch(function(e) {
-            console.error("Could not load from api (" + endpointName + "): " + e.message,e);
+            ozpIwc.log.error("Could not load from api (" + endpointName + "): " + e.message,e);
             rejectLoad("Could not load from api (" + endpointName + "): " + e.message + e);
         });
     return p;
@@ -7723,6 +7731,15 @@ ozpIwc.CommonApiBase.prototype.updateResourceFromServer=function(object,path,end
     //TODO where should we get content-type?
     if (!object.contentType) {
         object.contentType = 'application/json';
+    }
+    var parseEntity;
+    if(typeof object.entity === "string"){
+        try{
+            parseEntity = JSON.parse(object.entity);
+            object.entity = parseEntity;
+        }catch(e){
+            // fail silently for now
+        }
     }
     var node = this.findNodeForServerResource(object,path,endpoint);
 
@@ -7812,7 +7829,7 @@ ozpIwc.CommonApiBase.prototype.loadLinkedObjectsFromServer=function(endpoint,dat
                     endpoint.get(href, requestHeaders).then(function (objectResource) {
                         self.updateResourceFromServer(objectResource, href, endpoint, res);
                     }).catch(function (error) {
-                        console.error("unable to load " + object.href + " because: ", error);
+                        ozpIwc.log.error("unable to load " + object.href + " because: ", error);
                     });
                 });
             } else {
@@ -7820,7 +7837,7 @@ ozpIwc.CommonApiBase.prototype.loadLinkedObjectsFromServer=function(endpoint,dat
                 endpoint.get(href, requestHeaders).then(function (objectResource) {
                     self.updateResourceFromServer(objectResource, href, endpoint, res);
                 }).catch(function (error) {
-                    console.error("unable to load " + object.href + " because: ", error);
+                    ozpIwc.log.error("unable to load " + object.href + " because: ", error);
                 });
             }
         }
@@ -7993,7 +8010,7 @@ ozpIwc.CommonApiBase.prototype.routePacket=function(packetContext) {
             f.apply(self);
         } catch(e) {
             if(!e.errorAction) {
-                console.log("Unexpected error:",e);
+                ozpIwc.log.log("Unexpected error:",e);
             }
             packetContext.replyTo({
                 'response': e.errorAction || "unknownError",
@@ -8008,7 +8025,7 @@ ozpIwc.CommonApiBase.prototype.routePacket=function(packetContext) {
     }
 
     if(packet.response && !packet.action) {
-        console.log(this.participant.name + " dropping response packet ",packet);
+        ozpIwc.log.log(this.participant.name + " dropping response packet ",packet);
         // if it's a response packet that didn't wire an explicit handler, drop the sucker
         return;
     }
@@ -8058,7 +8075,7 @@ ozpIwc.CommonApiBase.prototype.routeEventChannel = function(packetContext) {
             this.handleEventChannelDisconnect(packetContext);
             break;
         default:
-            console.error(this.participant.name, "No handler found for corresponding event channel action: ", packet.action);
+            ozpIwc.log.error(this.participant.name, "No handler found for corresponding event channel action: ", packet.action);
             break;
     }
 };
@@ -8484,7 +8501,7 @@ ozpIwc.CommonApiBase.prototype.leaderSync = function () {
                     recvFunc();
                 } else {
                     self.loadFromServer();
-                    console.log(self.participant.name, "New leader(",self.participant.address, ") failed to retrieve state from previous leader(", self.participant.previousLeader, "), so is loading data from server.");
+                    ozpIwc.log.log(self.participant.name, "New leader(",self.participant.address, ") failed to retrieve state from previous leader(", self.participant.previousLeader, "), so is loading data from server.");
                 }
 
                 self.participant.off("receivedState", recvFunc);
@@ -8493,14 +8510,14 @@ ozpIwc.CommonApiBase.prototype.leaderSync = function () {
 
         } else {
             // This is the first of the bus, winner doesn't obtain any previous state
-            console.log(self.participant.name, "New leader(",self.participant.address, ") is loading data from server.");
+            ozpIwc.log.log(self.participant.name, "New leader(",self.participant.address, ") is loading data from server.");
             self.loadFromServer().then(function (data) {
                 self.setToLeader();
             },function(err){
-                console.error(self.participant.name, "New leader(",self.participant.address, ") could not load data from server. Error:", err);
+                ozpIwc.log.error(self.participant.name, "New leader(",self.participant.address, ") could not load data from server. Error:", err);
                 self.setToLeader();
             }).catch(function(er){
-                console.log(er);
+                ozpIwc.log.log(er);
             });
         }
     },0);
@@ -9066,16 +9083,31 @@ ozpIwc.DataApiValue.prototype.changesSince=function(snapshot) {
  * @param {ozpIwc.TransportPacket} serverData
  */
 ozpIwc.DataApiValue.prototype.deserialize=function(serverData) {
-    this.entity=serverData.entity;
-    this.contentType=serverData.contentType || this.contentType;
-	this.permissions=serverData.permissions || this.permissions;
-	this.version=serverData.version || this.version;
+    var clone = ozpIwc.util.clone(serverData);
+
+    this.entity= clone.entity.entity || {};
+    this.contentType=clone.contentType || this.contentType;
+    this.permissions=clone.permissions || this.permissions;
+    this.version=clone.version || this.version;
+
+    /**
+     * @property _links
+     * @type Object
+     */
+    this._links = clone.entity._links || this._links;
+
+    /**
+     * @property key
+     * @type String
+     */
+    this.key = clone.entity.key || this.key;
 
     /**
      * @property self
      * @type Object
      */
-	this.self=serverData.self || this.self;
+    this.self=clone.self || this.self;
+
 };
 
 /**
@@ -9246,6 +9278,38 @@ ozpIwc.IntentsApi.prototype.handleRegister = function (node, packetContext) {
     });
 };
 
+/**
+ * Invokes all handlers for the given intent.
+ *
+ * @method handleBroadcast
+ * @param {Object} node the definition or handler value used to invoke the intent.
+ * @param {ozpIwc.TransportPacketContext} packetContext the packet received by the router.
+ */
+ozpIwc.IntentsApi.prototype.handleBroadcast = function (node, packetContext) {
+    if(typeof(node.getHandlers) !== "function") {
+        throw new ozpIwc.ApiError("badResource","Resource is not an invokable intent");
+    }
+
+    var handlerNodes=node.getHandlers(packetContext);
+
+    var self = this;
+    handlerNodes.forEach(function(handler){
+
+        var inflightPacket = self.makeIntentInvocation(node,packetContext);
+
+        var updateInFlightEntity = ozpIwc.util.clone(inflightPacket);
+        updateInFlightEntity.entity.handlerChosen = {
+            'resource' : handler.resource,
+            'reason' : "broadcast"
+        };
+
+        updateInFlightEntity.entity.state = "delivering";
+
+        inflightPacket.set(updateInFlightEntity);
+
+        self.invokeIntentHandler(handler,packetContext,inflightPacket);
+    });
+};
 
 /**
  * Invokes the appropriate handler for the intent from one of the following methods:
@@ -9294,17 +9358,27 @@ ozpIwc.IntentsApi.prototype.handleInvoke = function (node, packetContext) {
  */
 ozpIwc.IntentsApi.prototype.handleSet = function (node, packetContext) {
     if(packetContext.packet.contentType === "application/vnd.ozp-iwc-intent-in-flight-v1+json"){
+
+        var badActionResponse = {
+            'response': 'badAction',
+            'entity': {
+                'reason': "cannot drive inFlightIntent state transition",
+                'state': node.entity.state,
+                'requestedState': packetContext.packet.entity.state
+            }
+        };
+
         switch (packetContext.packet.entity.state){
             case "new":
                 // shouldn't be set externally
-                packetContext.replyTo({'response':'bad'});
+                packetContext.replyTo(badActionResponse);
                 break;
             case "choosing":
                 this.handleInFlightChoose(node,packetContext);
                 break;
             case "delivering":
                 // shouldn't be set externally
-                packetContext.replyTo({'response':'bad'});
+                packetContext.replyTo({'response':'badAction'});
                 break;
             case "running":
                 this.handleInFlightRunning(node,packetContext);
@@ -9315,6 +9389,10 @@ ozpIwc.IntentsApi.prototype.handleSet = function (node, packetContext) {
             case "complete":
                 this.handleInFlightComplete(node,packetContext);
                 break;
+            default:
+                if(node.acceptedStates.indexOf(packetContext.packet.entity.state) < 0){
+                    packetContext.replyTo(badActionResponse);
+                }
         }
     } else {
         ozpIwc.CommonApiBase.prototype.handleSet.apply(this, arguments);
@@ -9727,7 +9805,7 @@ ozpIwc.IntentsApiInFlightIntent = ozpIwc.util.extend(ozpIwc.CommonApiValue, func
     };
 });
 
-ozpIwc.IntentsApiInFlightIntent.prototype.acceptedReasons = ["user","pref","onlyOne"];
+ozpIwc.IntentsApiInFlightIntent.prototype.acceptedReasons = ["user","pref","onlyOne","broadcast"];
 ozpIwc.IntentsApiInFlightIntent.prototype.acceptedStates = ["new","choosing","delivering","running","error","complete"];
 
 /**
