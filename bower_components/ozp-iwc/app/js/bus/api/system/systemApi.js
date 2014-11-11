@@ -25,7 +25,7 @@ ozpIwc.SystemApi = ozpIwc.util.extend(ozpIwc.CommonApiBase,function(config) {
     this.addDynamicNode(new ozpIwc.CommonApiCollectionValue({
         resource: "/application",
         pattern: /^\/application\/.*$/,
-        contentType: "application/ozpIwc-application-list-v1+json"
+        contentType: "application/vnd.ozp-iwc-application-list-v1+json"
     }));
 
     this.on("changedNode",this.updateIntents,this);
@@ -100,7 +100,7 @@ ozpIwc.SystemApi.prototype.updateIntents=function(node,changes) {
             'src' : "system.api",
             'action': "set",
             'resource': "/"+i.type+"/"+i.action+"/system.api"+node.resource.replace(/\//g,'.'),
-            'contentType': "application/ozpIwc-intents-handler-v1+json",
+            'contentType': "application/vnd.ozp-iwc-intent-handler-v1+json",
             'entity': {
                 'type': i.type,
                 'action': i.action,
@@ -125,44 +125,44 @@ ozpIwc.SystemApi.prototype.updateIntents=function(node,changes) {
  * @returns {ozpIwc.SystemApiMailboxValue|ozpIwc.SystemApiApplicationValue}
  */
 ozpIwc.SystemApi.prototype.makeValue = function(packet){
-    if(packet.resource.indexOf("/mailbox") === 0) {
-        return new ozpIwc.SystemApiMailboxValue({
-            resource: packet.resource,
-            entity: packet.entity,
-            contentType: packet.contentType
-        });
+    switch (packet.contentType){
+        case "application/vnd.ozp-application-v1+json":
+            var launchDefinition = "/system"+packet.resource;
+            packet.entity.launchDefinition = packet.entity.launchDefinition || launchDefinition;
+
+            var app =  new ozpIwc.SystemApiApplicationValue({
+                resource: packet.resource,
+                entity: packet.entity,
+                contentType: packet.contentType,
+                systemApi: this
+            });
+
+            this.participant.send({
+                dst: "intents.api",
+                action: "register",
+                contentType: "application/vnd.ozp-iwc-intent-handler-v1+json",
+                resource:launchDefinition,
+                entity: {
+                    icon:  (packet.entity.icons && packet.entity.icons.small)  ? packet.entity.icons.small : "" ,
+                    label: packet.entity.name || "",
+                    contentType: "application/json",
+                    invokeIntent:{
+                        dst: "system.api",
+                        action: "invoke",
+                        resource: packet.resource
+                    }
+                }
+            },function(response,done){
+                app.entity.launchResource = response.entity.resource;
+                done();
+            });
+
+            return app;
+        default:
+            var app = new ozpIwc.CommonApiValue(packet);
+            return app;
     }
-    var launchDefinition = "/system"+packet.resource;
-    packet.entity.launchDefinition = packet.entity.launchDefinition || launchDefinition;
 
-    var app =  new ozpIwc.SystemApiApplicationValue({
-        resource: packet.resource,
-        entity: packet.entity,
-        contentType: packet.contentType,
-        systemApi: this
-    });
-
-    this.participant.send({
-        dst: "intents.api",
-        action: "register",
-        contentType: "application/ozpIwc-intents-handler-v1+json",
-        resource:launchDefinition,
-        entity: {
-            icon:  (packet.entity.icons && packet.entity.icons.small)  ? packet.entity.icons.small : "" ,
-            label: packet.entity.name || "",
-            contentType: "application/json",
-            invokeIntent:{
-                dst: "system.api",
-                action: "invoke",
-                resource: packet.resource
-            }
-        }
-    },function(response,done){
-        app.entity.launchResource = response.entity.resource;
-        done();
-    });
-
-    return app;
 };
 
 /**
@@ -191,7 +191,7 @@ ozpIwc.SystemApi.prototype.handleLaunch = function(node,packetContext) {
 
     this.participant.send({
         dst: "intents.api",
-        contentType: "application/ozpIwc-intents-handler-v1+json",
+        contentType: "application/vnd.ozp-iwc-intent-handler-v1+json",
         action: "invoke",
         resource: node.entity.launchResource,
         entity: packetContext.packet.entity

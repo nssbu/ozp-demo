@@ -15,9 +15,24 @@
  *
  * @type {Function}
  */
-ozpIwc.NamesApi = ozpIwc.util.extend(ozpIwc.CommonApiBase, function() {
+ozpIwc.NamesApi = ozpIwc.util.extend(ozpIwc.CommonApiBase, function(config) {
     ozpIwc.CommonApiBase.apply(this, arguments);
 
+    /**
+     * How often a heartbeat message should occur.
+     * @property heartbeatFrequency
+     * @type {Number}
+     * @default 10000
+     */
+    this.heartbeatFrequency = config.heartbeatFrequency || 10000;
+
+    /**
+     * The amount of heartbeats to drop an unresponsive participant after
+     * @property heartbeatDropCount
+     * @type {number|*}
+     * @default 3
+     */
+    this.heartbeatDropCount = config.heartbeatDropCount || 3;
     // map the alias "/me" to "/address/{packet.src}" upon receiving the packet
     this.on("receive", function (packetContext) {
         var packet = packetContext.packet;
@@ -29,54 +44,75 @@ ozpIwc.NamesApi = ozpIwc.util.extend(ozpIwc.CommonApiBase, function() {
     this.addDynamicNode(new ozpIwc.CommonApiCollectionValue({
         resource: "/address",
         pattern: /^\/address\/.*$/,
-        contentType: "application/ozpIwc-address-v1+json"
+        contentType: "application/vnd.ozp-iwc-address-list-v1+json"
     }));
     this.addDynamicNode(new ozpIwc.CommonApiCollectionValue({
         resource: "/multicast",
         pattern: /^\/multicast\/.*$/,
-        contentType: "application/ozpIwc-multicast-address-v1+json"
+        contentType: "application/vnd.ozp-iwc-multicast-list-v1+json"
     }));
     this.addDynamicNode(new ozpIwc.CommonApiCollectionValue({
         resource: "/router",
         pattern: /^\/router\/.*$/,
-        contentType: "application/ozpIwc-router-v1+json"
+        contentType: "application/vnd.ozp-iwc-router-list-v1+json"
     }));
     this.addDynamicNode(new ozpIwc.CommonApiCollectionValue({
         resource: "/api",
         pattern: /^\/api\/.*$/,
-        contentType: "application/ozpIwc-api-descriptor-v1+json"
+        contentType: "application/vnd.ozp-iwc-api-list-v1+json"
     }));
     //temporary injector code. Remove when api loader is implemented
     var packet = {
         resource: '/api/data.api',
         entity: {'actions': ['get', 'set', 'delete', 'watch', 'unwatch', 'addChild', 'removeChild']},
-        contentType: 'application/ozpIwc-api-descriptor-v1+json'
+        contentType: 'application/vnd.ozp-iwc-api-v1+json'
     };
     var node=this.findOrMakeValue(packet);
     node.set(packet);
     packet = {
         resource: '/api/intents.api',
         entity: {'actions': ['get','set','delete','watch','unwatch','register','unregister','invoke']},
-        contentType: 'application/ozpIwc-api-descriptor-v1+json'
+        contentType: 'application/vnd.ozp-iwc-api-v1+json'
     };
     node=this.findOrMakeValue(packet);
     node.set(packet);
     packet = {
         resource: '/api/names.api',
         entity: {'actions': ['get','set','delete','watch','unwatch']},
-        contentType: 'application/ozpIwc-api-descriptor-v1+json'
+        contentType: 'application/vnd.ozp-iwc-api-v1+json'
     };
     node=this.findOrMakeValue(packet);
     node.set(packet);
     packet = {
         resource: '/api/system.api',
         entity: { 'actions': ['get','set','delete','watch','unwatch']},
-        contentType: 'application/ozpIwc-api-descriptor-v1+json'
+        contentType: 'application/vnd.ozp-iwc-api-v1+json'
     };
     node=this.findOrMakeValue(packet);
     node.set(packet);
+    var self = this;
+    setInterval(function(){
+        self.removeDeadNodes();
+    },this.heartbeatFrequency);
 });
 
+ozpIwc.NamesApi.prototype.removeDeadNodes = function(){
+    for(var key in this.data){
+        var node = this.data[key];
+        if(this.dynamicNodes.indexOf(key) < 0 && node.entity && node.entity.time) {
+            if ((ozpIwc.util.now() - node.entity.time) > this.heartbeatFrequency * this.heartbeatDropCount) {
+                var snapshot = node.snapshot();
+                node.deleteData;
+                this.notifyWatchers(node, node.changesSince(snapshot));
+                delete this.data[key];
+                // update all the collection values
+                this.dynamicNodes.forEach(function(resource) {
+                    this.updateDynamicNode(this.data[resource]);
+                },this);
+            }
+        }
+    }
+};
 /**
  * Checks that the given packet context's resource meets the requirements of the api. Throws exception if fails
  * validation
@@ -108,10 +144,10 @@ ozpIwc.NamesApi.prototype.makeValue = function(packet) {
     
     // only handle the root elements for now...
     switch(path[1]) {
-        case "api": config.allowedContentTypes=["application/ozpIwc-api-descriptor-v1+json"]; break;
-        case "address": config.allowedContentTypes=["application/ozpIwc-address-v1+json"]; break;
-        case "multicast": config.allowedContentTypes=["application/ozpIwc-multicast-address-v1+json"]; break;
-        case "router": config.allowedContentTypes=["application/ozpIwc-router-v1+json"]; break;
+        case "api": config.allowedContentTypes=["application/vnd.ozp-iwc-api-v1+json"]; break;
+        case "address": config.allowedContentTypes=["application/vnd.ozp-iwc-address-v1+json"]; break;
+        case "multicast": config.allowedContentTypes=["application/vnd.ozp-iwc-multicast-address-v1+json"]; break;
+        case "router": config.allowedContentTypes=["application/vnd.ozp-iwc-router-v1+json"]; break;
 
         default:
             throw new ozpIwc.ApiError("badResource","Not a valid path of names.api: " + path[1] + " in " + packet.resource);
