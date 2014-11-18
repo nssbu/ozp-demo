@@ -131,6 +131,7 @@ angular.module('FrameIt').controller('MainController', function($scope, $rootSco
         console.log(reply.entity.newValue);
         $scope.recentUrls = reply.entity.newValue.recentUrls;
         console.log('recent urls: ' + $scope.recentUrls);
+        if(!$scope.$$phase) { $scope.$apply(); }
       }
     });
   }
