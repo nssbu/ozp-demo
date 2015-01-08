@@ -24,13 +24,11 @@ ozpIwc.IntentsApiTypeValue = ozpIwc.util.extend(ozpIwc.CommonApiValue, function 
      * @property pattern
      * @type RegExp
      */
-    this.pattern=new RegExp(ozpIwc.util.escapeRegex(this.resource)+"/[^/]*");
+    this.pattern=new RegExp(this.resource.replace("$","\\$").replace(".","\\.")+"\/[^/]*$");
+    this.pattern.toJSON = RegExp.prototype.toString;
     this.entity={
         'type': config.intentType,
-        'actions': [],
-        '_embedded': {
-            'items': []            
-        }
+        'actions': []
     };
 });
 
@@ -56,4 +54,25 @@ ozpIwc.IntentsApiTypeValue.prototype.updateContent=function(changedNodes) {
     this.entity.actions=changedNodes.map(function(changedNode) { 
         return changedNode.resource; 
     });
+};
+
+/**
+ * Handles deserializing an {{#crossLink "ozpIwc.TransportPacket"}}{{/crossLink}} and setting this value with
+ * the contents.
+ *
+ * @method deserialize
+ * @param {ozpIwc.TransportPacket} serverData
+ */
+ozpIwc.IntentsApiTypeValue.prototype.deserialize=function(serverData) {
+    ozpIwc.IntentsApiDefinitionValue.prototype.deserialize.apply(this, arguments);
+};
+
+/**
+ * Serializes a Intents Api Type value to a packet.
+ *
+ * @method serialize
+ * @return {ozpIwc.TransportPacket}
+ */
+ozpIwc.IntentsApiTypeValue.prototype.serialize=function() {
+    return  ozpIwc.IntentsApiDefinitionValue.prototype.serialize.apply(this,arguments);
 };

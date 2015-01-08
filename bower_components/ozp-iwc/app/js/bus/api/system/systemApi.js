@@ -29,24 +29,6 @@ ozpIwc.SystemApi = ozpIwc.util.extend(ozpIwc.CommonApiBase,function(config) {
     }));
 
     this.on("changedNode",this.updateIntents,this);
-
-    // @todo populate user and system endpoints
-//    this.data["/user"]=new ozpIwc.CommonApiValue({
-//        resource: "/user",
-//        contentType: "application/ozpIwc-user-v1+json",
-//        entity: {
-//            "name": "DataFaked BySystemApi",
-//            "userName": "fixmefixmefixme"
-//        }
-//    });
-//    this.data["/system"]=new ozpIwc.CommonApiValue({
-//        resource: "/system",
-//        contentType: "application/ozpIwc-system-info-v1+json",
-//        entity: {
-//            "version": "1.0",
-//            "name": "Fake Data from SystemAPI FIXME"
-//        }
-//    });
 });
 
 /**
@@ -71,7 +53,7 @@ ozpIwc.SystemApi.prototype.loadFromServer=function() {
                             });
                     });
             })
-            .catch(function(error) {
+            ['catch'](function(error) {
                 reject(error);
             });
     });
@@ -125,52 +107,57 @@ ozpIwc.SystemApi.prototype.updateIntents=function(node,changes) {
  * @returns {ozpIwc.SystemApiMailboxValue|ozpIwc.SystemApiApplicationValue}
  */
 ozpIwc.SystemApi.prototype.makeValue = function(packet){
-    switch (packet.contentType){
-        case "application/vnd.ozp-application-v1+json":
-            var launchDefinition = "/system"+packet.resource;
-            packet.entity.launchDefinition = packet.entity.launchDefinition || launchDefinition;
+        switch (packet.contentType) {
+            case "application/vnd.ozp-application-v1+json":
+                var launchDefinition = "/system" + packet.resource;
+                packet.entity = packet.entity || {};
+                packet.entity.launchDefinition = packet.entity.launchDefinition || launchDefinition;
 
-            var app =  new ozpIwc.SystemApiApplicationValue({
-                resource: packet.resource,
-                entity: packet.entity,
-                contentType: packet.contentType,
-                systemApi: this
-            });
+                var app = new ozpIwc.SystemApiApplicationValue({
+                    resource: packet.resource,
+                    entity: packet.entity,
+                    contentType: packet.contentType,
+                    systemApi: this
+                });
 
-            this.participant.send({
-                dst: "intents.api",
-                action: "register",
-                contentType: "application/vnd.ozp-iwc-intent-handler-v1+json",
-                resource:launchDefinition,
-                entity: {
-                    icon:  (packet.entity.icons && packet.entity.icons.small)  ? packet.entity.icons.small : "" ,
-                    label: packet.entity.name || "",
-                    contentType: "application/json",
-                    invokeIntent:{
-                        dst: "system.api",
-                        action: "invoke",
-                        resource: packet.resource
+                this.participant.send({
+                    dst: "intents.api",
+                    action: "register",
+                    contentType: "application/vnd.ozp-iwc-intent-handler-v1+json",
+                    resource: launchDefinition,
+                    entity: {
+                        icon: (packet.entity.icons && packet.entity.icons.small) ? packet.entity.icons.small : "",
+                        label: packet.entity.name || "",
+                        contentType: "application/json",
+                        invokeIntent: {
+                            dst: "system.api",
+                            action: "invoke",
+                            resource: packet.resource
+                        }
                     }
-                }
-            },function(response,done){
-                app.entity.launchResource = response.entity.resource;
-                done();
-            });
+                }, function (response, done) {
+                    app.entity.launchResource = response.entity.resource;
+                    done();
+                });
 
-            return app;
-        default:
-            var app = new ozpIwc.CommonApiValue(packet);
-            return app;
-    }
-
+                return app;
+            default:
+                return new ozpIwc.CommonApiValue(packet);
+        }
 };
 
 /**
  * Handles System api requests with an action of "set"
  * @method handleSet
  */
-ozpIwc.SystemApi.prototype.handleSet = function() {
-    throw new ozpIwc.ApiError("badAction", "Cannot modify the system API");
+ozpIwc.SystemApi.prototype.handleSet = function(node,packetContext) {
+    packetContext.replyTo({
+        'response': 'badAction',
+        'entity': {
+            'action': packetContext.packet.action,
+            'originalRequest' : packetContext.packet
+        }
+    });
 };
 
 /**
@@ -178,8 +165,14 @@ ozpIwc.SystemApi.prototype.handleSet = function() {
  *
  * @method handleDelete
  */
-ozpIwc.SystemApi.prototype.handleDelete = function() {
-    throw new ozpIwc.ApiError("badAction", "Cannot modify the system API");
+ozpIwc.SystemApi.prototype.handleDelete = function(node,packetContext) {
+    packetContext.replyTo({
+        'response': 'badAction',
+        'entity': {
+            'action': packetContext.packet.action,
+            'originalRequest' : packetContext.packet
+        }
+    });
 };
 
 /**
@@ -196,7 +189,7 @@ ozpIwc.SystemApi.prototype.handleLaunch = function(node,packetContext) {
         resource: node.entity.launchResource,
         entity: packetContext.packet.entity
     });
-    packetContext.replyTo({'action': "ok"});
+    packetContext.replyTo({'response': "ok"});
 };
 
 /**
@@ -207,9 +200,9 @@ ozpIwc.SystemApi.prototype.handleLaunch = function(node,packetContext) {
 ozpIwc.SystemApi.prototype.handleInvoke = function(node,packetContext) {
     if(packetContext.packet.entity && packetContext.packet.entity.inFlightIntent){
         this.launchApplication(node,packetContext.packet.entity.inFlightIntent);
-        packetContext.replyTo({'action': "ok"});
+        packetContext.replyTo({'response': "ok"});
     } else{
-        packetContext.replyTo({'action': "badResource"});
+        packetContext.replyTo({'response': "badResource"});
     }
 
 };
@@ -227,6 +220,6 @@ ozpIwc.SystemApi.prototype.launchApplication=function(node,intentResource) {
             "ozpIwc.inFlightIntent="+encodeURIComponent(intentResource)
     ];
 
-    ozpIwc.util.openWindow(node.entity._links.describes.href,launchParams.join("&"));
+    ozpIwc.util.openWindow(node.entity.launchUrls.default,launchParams.join("&"));
 };
 
