@@ -27,7 +27,6 @@ ozpIwc.CommonApiCollectionValue = ozpIwc.util.extend(ozpIwc.CommonApiValue,funct
      * @default ''
      */
     this.pattern=config.pattern || '';
-    this.pattern.toJSON = RegExp.prototype.toString;
     this.entity=[];
 });
 
@@ -63,32 +62,17 @@ ozpIwc.CommonApiCollectionValue.prototype.set=function() {
 };
 
 /**
- * Deserializes a Common Api Collection value from a packet.
+ * Deserializes a Intents Api handler value from a packet and constructs this Intents Api handler value.
  *
  * @method deserialize
  * @param {ozpIwc.TransportPacket} serverData
  */
 ozpIwc.CommonApiCollectionValue.prototype.deserialize=function(serverData) {
-    ozpIwc.CommonApiValue.prototype.deserialize.apply(this,arguments);
-    var clone = ozpIwc.util.clone(serverData);
-
-    this.pattern = (typeof clone.pattern == "string") ? new RegExp(clone.pattern.replace(/^\/|\/$/g, '')) : this.pattern;
-    this.pattern.toJSON = RegExp.prototype.toString;
-};
-
-/**
- * Serializes a Common Api Collection value to a packet.
- *
- * @method serialize
- * @return {ozpIwc.TransportPacket}
-*/
-ozpIwc.CommonApiCollectionValue.prototype.serialize=function() {
-    var serverData = {};
-    serverData.entity=this.entity;
-    serverData.pattern=this.pattern;
-    serverData.contentType=this.contentType;
-    serverData.permissions=this.permissions;
-    serverData.version=this.version;
-    serverData.watchers=this.watchers;
-    return serverData;
+    this.entity=serverData.entity || this.entity;
+    this.contentType=serverData.contentType || this.contentType;
+    this.permissions=serverData.permissions || this.permissions;
+    this.pattern = new RegExp(serverData.pattern.replace(/^\/|\/$/g, '')) || this.pattern;
+    this.persist=serverData.persist || this.persist;
+    this.version=serverData.version || this.version;
+    this.watchers = serverData.watchers || this.watchers;
 };

@@ -43,8 +43,7 @@ module.exports = function(grunt) {
                 'app/js/bus/api/commonApiCollectionValue.js',
                 'app/js/bus/api/*.js',
                 'app/js/bus/api/**/*.js',
-                'app/js/bus/*/**/*.js',
-                'app/js/defaultWiring.js'
+                'app/js/bus/*/**/*.js'
             ],
             client: [
                 '<%= src.common %>',
@@ -52,20 +51,6 @@ module.exports = function(grunt) {
             ],
             test: [
                 'test/**/*'
-            ],
-            debugger: [
-                '<%= src.bus %>',
-                'bower_components/bootstrap/dist/boostrap.js',
-                'bower_components/jquery/dist/jquery.js',
-                'bower_components/angular/angular.js',
-                'bower_components/vis/dist/vis.js',
-                'bower_components/angular-bootstrap/ui-bootstrap-tpls.js',
-                'app/js/debugger/**/*.js'
-            ],
-            debuggerCss: [
-                'bower_components/bootstrap/dist/css/bootstrap.css',
-                'bower_components/vis/dist/vis.css',
-                'app/css/debugger.css'
             ],
             all: [
                 '<%= src.metrics %>',
@@ -77,13 +62,9 @@ module.exports = function(grunt) {
             busJs: 'dist/js/<%= pkg.name %>-bus.js',
             clientJs: 'dist/js/<%= pkg.name %>-client.js',
             metricsJs: 'dist/js/<%= pkg.name %>-metrics.js',
-            debuggerJs: 'dist/js/debugger.js',
-            debuggerCss: 'dist/css/debugger.css',
-            
             busJsMin: 'dist/js/<%= pkg.name %>-bus.min.js',
             clientJsMin: 'dist/js/<%= pkg.name %>-client.min.js',
             metricsJsMin: 'dist/js/<%= pkg.name %>-metrics.min.js',
-            debuggerJsMin: 'dist/js/debugger.min.js',
             allJs: ['<%=output.busJs %>', '<%=output.clientJs %>', '<%=output.metricsJs %>'],
             allJsMin: ['<%=output.busJsMin %>', '<%=output.clientJsMin %>', '<%=output.metricsJsMin %>']
         },
@@ -102,17 +83,6 @@ module.exports = function(grunt) {
             metrics: {
                 src: '<%= src.metrics %>',
                 dest: '<%= output.metricsJs %>'
-            },
-            debugger: {
-                options: {
-                    sourcesContent: false
-                },
-                src: '<%= src.debugger %>',
-                dest: '<%= output.debuggerJs %>'
-            },
-            debuggerCss: {
-                src: '<%= src.debuggerCss %>',
-                dest: '<%= output.debuggerCss %>'
             }
         },
         uglify: {
@@ -132,40 +102,17 @@ module.exports = function(grunt) {
             metrics: {
                 src: '<%= concat_sourcemap.metrics.dest %>',
                 dest: '<%= output.metricsJsMin %>'
-            },
-            debugger: {
-                src: '<%= concat_sourcemap.debugger.dest %>',
-                dest: '<%= output.debuggerJsMin %>'
             }
         },
 
         // Copies minified and non-minified js into dist directory
         copy: {
-            dist: {
+            jssrc: {
                 files: [
                     {
-                        src: ['*.html'],
+                        src: ['js/defaultWiring.js','*.html','tools/**/*'],
                         dest: './dist/',
                         cwd: 'app',
-                        expand: true,
-                        nonull:true
-                    },{
-                        src: ['*'],
-                        dest: './dist/fonts',
-                        cwd: 'bower_components/bootstrap/dist/fonts',
-                        expand: true,
-                        nonull:true
-                    }
-                ]
-            },
-            // concat_sourcemap on the boostrap.css wants to see the less files
-            // munge the source a bit to give it what it wants
-            hackBootstrap: {
-                files: [
-                    {
-                        src: ['**/*'],
-                        dest: 'bower_components/bootstrap/dist/css/less',
-                        cwd: 'bower_components/bootstrap/less',
                         expand: true,
                         nonull:true
                     }
@@ -173,7 +120,7 @@ module.exports = function(grunt) {
             }
         },
         clean: {
-          dist: ['./dist/']
+          dist: ['./dist/', './app/js/ozpIwc-*.js']
         },
         yuidoc: {
             compile: {
@@ -193,7 +140,7 @@ module.exports = function(grunt) {
         watch: {
             concatFiles: {
                 files: ['Gruntfile.js', '<%= src.all %>','app/**/*'],
-                tasks: ['concat_sourcemap', 'copy:dist'],
+                tasks: ['concat_sourcemap', 'copy'],
                 options: {
                     interrupt: true,
                     spawn: false
@@ -263,25 +210,6 @@ module.exports = function(grunt) {
         },
         dist: {
 
-        },
-        bump: {
-            options: {
-                files: [
-                    'package.json',
-                    'bower.json'
-                ],
-                commit: true,
-                commitMessage: 'chore(release): v%VERSION%',
-                commitFiles: [
-                    'package.json',
-                    'bower.json'
-                ],
-                createTag: true,
-                tagName: 'v%VERSION%',
-                tagMessage: 'Version %VERSION%',
-                push: false,
-                pushTo: 'origin'
-            }
         }
 
     };
@@ -292,7 +220,7 @@ module.exports = function(grunt) {
     grunt.initConfig(config);
 
     // Default task(s).
-    grunt.registerTask('build', ['copy:hackBootstrap','concat_sourcemap', 'uglify', 'copy:dist']);
+    grunt.registerTask('build', ['concat_sourcemap', 'uglify', 'copy']);
     grunt.registerTask('dist', ['jshint','build', 'yuidoc']);
     grunt.registerTask('testOnly', ['build','connect:tests','connect:testBus','connect:mockParticipant', 'watch']);
     grunt.registerTask('test', ['build','connect','watch']);

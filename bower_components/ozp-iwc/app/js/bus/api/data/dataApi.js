@@ -44,16 +44,6 @@ ozpIwc.DataApi.prototype.makeValue = function(packet){
 };
 
 /**
- * A middleware function used to format server data to be deserialized into Api nodes
- *
- * @method formatServerData
- * @param object
- * @returns {{object}}
- */
-ozpIwc.DataApi.prototype.formatServerData = function(object){
-    return object.entity;
-};
-/**
  * Creates a child node of a given Data Api node. The child's key will be automatically generated based on its
  * parents key.
  *
@@ -116,9 +106,6 @@ ozpIwc.DataApi.prototype.handleList=function(node,packetContext) {
  */
 ozpIwc.DataApi.prototype.handleAddchild=function(node,packetContext) {
     var childNode=this.createChild(node,packetContext);
-    if (childNode && childNode.entity && childNode.entity.persist) {
-        this.persistNode(childNode);
-    }
 
     node.addChild(childNode.resource);
 
@@ -153,11 +140,6 @@ ozpIwc.DataApi.prototype.handleRemovechild=function(node,packetContext) {
     if (node && packetContext.packet.entity.persist) {
         this.persistNode(node);
     }
-    var childNode=this.findOrMakeValue(packetContext.packet.entity);
-    if (childNode && childNode.entity && childNode.entity.persist) {
-        this.deleteNode(childNode);
-    }
-
     // delegate to the handleGet call
     packetContext.replyTo({
         'response':'ok'
@@ -187,8 +169,8 @@ ozpIwc.DataApi.prototype.handleSet=function(node,packetContext) {
  * @method handleDelete
  * @param {ozpIwc.DataApiValue} node
  */
-ozpIwc.DataApi.prototype.handleDelete=function(node,packetContext) {
-    if (node.entity && node.entity.persist) {
+ozpIwc.DataApi.prototype.handleDelete=function(node) {
+    if (node && node.persist) {
         this.deleteNode(node);
     }
     ozpIwc.CommonApiBase.prototype.handleDelete.apply(this,arguments);
@@ -202,12 +184,7 @@ ozpIwc.DataApi.prototype.handleDelete=function(node,packetContext) {
  */
 ozpIwc.DataApi.prototype.persistNode=function(node) {
     var endpointref= ozpIwc.endpoint(this.endpointUrl);
-    var persistNode = node.serialize();
-
-    //Watchers don't need persistence they are run time.
-    delete persistNode.watchers;
-
-    endpointref.put(node.resource, JSON.stringify(persistNode));
+    endpointref.put(node.resource, JSON.stringify(node.entity));
 };
 
 /**

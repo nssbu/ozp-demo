@@ -29,7 +29,7 @@
     "ozp-iwc"
   ],
   "dependencies": {
-    "ozp-iwc": "ozone-development/ozp-iwc#master",
+    "ozp-iwc": "ozone-development/ozp-iwc",
     "ozp-data-schemas": "ozone-development/ozp-data-schemas"
   }
 }

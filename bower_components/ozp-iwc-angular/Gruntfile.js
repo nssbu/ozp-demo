@@ -4,9 +4,7 @@ module.exports = function(grunt) {
 
   // Load plugins
   require('load-grunt-tasks')(grunt);
-  var iwcConfigOverides={
-      apiRootUrl:"https://www.owfgoss.org/ng/dev-alpha/mp/api",
-  };
+
   var config = {
     pkg: grunt.file.readJSON('package.json'),
 
@@ -63,37 +61,29 @@ module.exports = function(grunt) {
       iframepeer: {
         files: [
           {
-            src: [ '<%= iwcJs %>/../*.html' ],
+            src: [ '<%= iwcJs %>/../iframe_peer.html' ],
             dest: 'dist_iwc/',
             cwd: '.',
             expand: true,
-            flatten: true,
+            flatten: true
           }
-        ],
-        options: {
-          process: function (content, srcPath) {
-              console.log("Filtering " + srcPath);
-              if (srcPath.match(/\.html/)) {
-                  console.log("Filtering " + srcPath);
-                  return content.replace(/ozpIwc\.(.*)=.*;/g, function (match, field) {
-                      if (field in iwcConfigOverides) {
-                          console.log("   Setting " + field + " to " + iwcConfigOverides[field]);
-                          return "ozpIwc." + field + '="' + iwcConfigOverides[field] + '";';
-                      } else {
-                          console.log("   Ignoring " + match);
-                          return match;
-                      }
-                  });
-              }
-              return content;
+        ]
+      },
+      defaultwiring: {
+        files: [
+          {
+            src: [ '<%= iwcJs %>/defaultWiring.js' ],
+            dest: 'dist_iwc/js/',
+            cwd: '.',
+            expand: true,
+            flatten: true
           }
-        }
-
+        ]
       },
       iwcbus: {
         files: [
           {
-            src: [ '<%= iwcJs %>/ozpIwc-bus.js', '<%= iwcJs %>/debugger.js', '<%= iwcJs %>/ozpIwc-client.js'  ],
+            src: [ '<%= iwcJs %>/ozpIwc-bus.js' ],
             dest: 'dist_iwc/js/',
             cwd: '.',
             expand: true,

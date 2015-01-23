@@ -85,7 +85,6 @@ ozpIwc.Participant=function() {
         type: this.participantType || this.constructor.name
     };
 
-    this.replyCallbacks = {};
 
     // Handle leaving Event Channel
     var self=this;

@@ -28,15 +28,18 @@ ozpIwc.Endpoint=function(endpointRegistry) {
  */
 ozpIwc.Endpoint.prototype.get=function(resource, requestHeaders) {
     var self=this;
-    resource = resource || '';
+
     return this.endpointRegistry.loadPromise.then(function() {
-        if (resource === '/' || resource === '' ) {
-            resource=self.baseUrl;
+        if (resource === '/') {
+            resource = self.baseUrl;
         }
         return ozpIwc.util.ajax({
             href:  resource,
             method: 'GET',
-            headers: requestHeaders
+            headers: requestHeaders,
+            withCredentials: true,
+            user: ozpIwc.marketplaceUsername,
+            password: ozpIwc.marketplacePassword
         });
     });
 };
@@ -65,7 +68,10 @@ ozpIwc.Endpoint.prototype.put=function(resource, data, requestHeaders) {
             href:  resource,
             method: 'PUT',
 			data: data,
-            headers: requestHeaders
+            headers: requestHeaders,
+            withCredentials: true,
+            user: ozpIwc.marketplaceUsername,
+            password: ozpIwc.marketplacePassword
         });
     });
 };
@@ -86,17 +92,16 @@ ozpIwc.Endpoint.prototype.delete=function(resource, data, requestHeaders) {
     var self=this;
 
     return this.endpointRegistry.loadPromise.then(function() {
-        if(!self.baseUrl) {
-            throw Error("The server did not define a relation of type " 
-                + this.name + " for retrivieving " + resource);
-        }
         if(resource.indexOf(self.baseUrl)!==0) {
             resource=self.baseUrl + resource;
         }
         return ozpIwc.util.ajax({
             href:  resource,
             method: 'DELETE',
-            headers: requestHeaders
+            headers: requestHeaders,
+            withCredentials: true,
+            user: ozpIwc.marketplaceUsername,
+            password: ozpIwc.marketplacePassword
         });
     });
 };
@@ -152,25 +157,20 @@ ozpIwc.EndpointRegistry=function(config) {
      */
     this.loadPromise=ozpIwc.util.ajax({
         href: apiRoot,
-        method: 'GET'
+        method: 'GET',
+        withCredentials: true,
+        user: ozpIwc.marketplaceUsername,
+        password: ozpIwc.marketplacePassword
     }).then(function(data) {
-        var payload = data.response || {};
-        payload._links = payload._links || {};
-        payload._embedded = payload._embedded || {};
-
-        for (var linkEp in payload._links) {
+        for (var linkEp in data._links) {
             if (linkEp !== 'self') {
-                var link = payload._links[linkEp].href;
-								if(Array.isArray(payload._links[linkEp])) {
-									link=payload._links[linkEp][0].href;
-								}
-
-                self.endpoint(linkEp).baseUrl = link;
+                var link=data._links[linkEp].href;
+                self.endpoint(linkEp).baseUrl=link;
             }
         }
-        for (var embEp in payload._embedded) {
-            var embLink = payload._embedded[embEp]._links.self.href;
-            self.endpoint(embEp).baseUrl = embLink;
+        for (var embEp in data._embedded) {
+            var embLink=data._embedded[embEp]._links.self.href;
+            self.endpoint(embEp).baseUrl=embLink;
         }
     });
 };

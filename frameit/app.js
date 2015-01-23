@@ -3,10 +3,21 @@ angular.module('FrameIt', [
 ]);
 angular.module('FrameIt').controller('MainController', ['ozpIwcClient']);
 
-angular.module('FrameIt').controller('MainController', function($scope, $rootScope, $http, $interval, $sce, iwcClient) {
+angular.module('FrameIt').controller('MainController', function($scope, $rootScope,
+                                                                $http, $interval,
+                                                                $sce, $location,
+                                                                iwcClient) {
+
+  var ozpIwcPeerUrl = '';
+  var queryParams = $location.search();
+  if (queryParams.hasOwnProperty('ozpIwc.peer')) {
+    ozpIwcPeerUrl = queryParams['ozpIwc.peer'];
+  } else {
+    ozpIwcPeerUrl = 'http://ozone-development.github.io/iwc';
+  }
 
   $scope.ozpBusInfo = {
-    'url': 'http://ozone-development.github.io/iwc',
+    'url': ozpIwcPeerUrl,
     'connected': false
   };
 

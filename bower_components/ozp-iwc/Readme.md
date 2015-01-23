@@ -1,4 +1,4 @@
-[ozp-iwc](http://ozone-development.github.io/ozp-iwc/)
+ozp-iwc
 ==============================
 
 ozp-iwc provides an in-browser communications network between participants in multiple browser tabs, 

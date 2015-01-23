@@ -32,33 +32,25 @@ ozpIwc.util=ozpIwc.util || {};
 ozpIwc.util.ajax = function (config) {
     return new Promise(function(resolve,reject) {
         var request = new XMLHttpRequest();
-        request.withCredentials = true;
-        request.open(config.method, config.href, true);
+        request.withCredentials = config.withCredentials;
+        request.open(config.method, config.href, true, config.user, config.password);
+//        request.setRequestHeader("Content-Type", "application/json");
         if (Array.isArray(config.headers)) {
             config.headers.forEach(function(header) {
                 request.setRequestHeader(header.name, header.value);
             });
         }
-        /*
-         * Setting username and password as params to open() (and setting request.withCredentials = true)
-         * per the API does not work in FF. setting them explicitly in the Authorization header works
-         * (but only for BASIC authentication as coded here). If the credentials are set in the open command,
-         * FF will fail to make the request, even though the credentials are manually set in the Authorization header
-         * */
+        //Setting username and password as params to open() per the API does not work. setting them
+        //explicitly in the Authorization header works (but only for BASIC authentication)
+        request.setRequestHeader("Authorization", "Basic " + btoa(config.user + ":" + config.password));
 
         request.onload = function () {
             try {
-                resolve({
-                    "response": JSON.parse(this.responseText),
-                    "header":  ozpIwc.util.ajaxResponseHeaderToJSON(this.getAllResponseHeaders())
-                });
+                resolve(JSON.parse(this.responseText));
             }
             catch (e) {
                 if(this.status === 204 && !this.responseText){
-                    resolve({
-                        "response": {},
-                        "header":  ozpIwc.util.ajaxResponseHeaderToJSON(this.getAllResponseHeaders())
-                    });
+                    resolve();
                 } else {
                     reject(this);
                 }
@@ -69,48 +61,11 @@ ozpIwc.util.ajax = function (config) {
             reject(this);
         };
 
-        try {
-            if ((config.method === "POST") || (config.method === "PUT")) {
-                request.send(config.data);
-            }
-            else {
-                request.send();
-            }
-        } catch (e) {
-            reject(e);
+        if((config.method === "POST") || (config.method === "PUT")) {
+            request.send(config.data);
+        }
+        else {
+            request.send();
         }
     });
-};
-
-
-/**
- * Takes the Javascript ajax response header (string) and converts it to JSON
- * @method ajaxResponseHeaderToJSON
- * @param {String} header
- *
- * @returns {Object}
- */
-ozpIwc.util.ajaxResponseHeaderToJSON = function(header) {
-    var obj = {};
-    header.split("\n").forEach(function (property) {
-        var kv = property.split(":");
-        if (kv.length === 2) {
-            obj[kv[0].trim()] = kv[1].trim();
-        }
-    });
-
-    return obj;
-};
-
-/**
- * Returns the protocol of the URL
- * @method getProtocol
- * @param {String} url
- *
- * @returns {String}
- */
-var getProtocol =function (url){
-    var a = document.createElement('a');
-    a.href = url;
-    return a.protocol;
 };

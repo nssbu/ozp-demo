@@ -103,7 +103,8 @@ ozpIwc.PostMessageParticipant.prototype.receiveFromRouterImpl=function(packetCon
  * @todo Only IE requires the packet to be stringified before sending, should use feature detection?
  */
 ozpIwc.PostMessageParticipant.prototype.sendToRecipient=function(packet) {
-	ozpIwc.util.safePostMessage(this.sourceWindow,packet,this.origin);
+    var data=ozpIwc.util.getPostMessagePayload(packet);
+	this.sourceWindow.postMessage(data,this.origin);
 };
 
 /**
@@ -257,12 +258,8 @@ ozpIwc.PostMessageParticipantListener.prototype.findParticipant=function(sourceW
  */
 ozpIwc.PostMessageParticipantListener.prototype.receiveFromPostMessage=function(event) {
 	var participant=this.findParticipant(event.source);
-    var packet=event.data;
-    if(event.source === window) {
-        // the IE profiler seems to make the window receive it's own postMessages
-        // ... don't ask.  I don't know why
-        return;
-    }
+	var packet=event.data;
+
 	if(typeof(event.data)==="string") {
 		try {
             packet=JSON.parse(event.data);

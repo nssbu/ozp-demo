@@ -101,8 +101,7 @@ Ball.prototype.remove=function() {
         resource: this.ballResource,
         replyTo: this.watchId
     });
-    this.el.setAttribute('display','none');
-//    this.el.remove();
+    this.el.remove();
     delete balls[this.ballResource];
 };
 
@@ -229,7 +228,7 @@ client.on("connected",function() {
 		lastUpdate=now;
 	};
 
-	window.setInterval(animate,500);
+	window.setInterval(animate,50);
 
 
 	//=================================================================
