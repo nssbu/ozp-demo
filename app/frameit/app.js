@@ -36,6 +36,7 @@ angular.module('FrameIt').controller('MainController', function($scope, $rootSco
 
   $scope.connectToBus = function() {
     $scope.ozpBusInfo.connected = false;
+    console.log('FrameIt using IWC bus: ' + $scope.ozpBusInfo.url);
     $scope.iwcClient = new iwcClient.Client({
       peerUrl: $scope.ozpBusInfo.url
     });
