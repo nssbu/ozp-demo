@@ -15,7 +15,6 @@ angular.module('FrameIt').controller('MainController', function($scope, $rootSco
     console.log('found IWC bus in query param: ' + ozpIwcPeerUrl);
   } else {
     ozpIwcPeerUrl = 'http://ozone-development.github.io/iwc';
-    console.log('query params: ' + JSON.stringify(queryParams));
   }
 
   $scope.ozpBusInfo = {
