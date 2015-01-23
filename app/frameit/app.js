@@ -12,6 +12,7 @@ angular.module('FrameIt').controller('MainController', function($scope, $rootSco
   var queryParams = $location.search();
   if (queryParams.hasOwnProperty('ozpIwc.peer')) {
     ozpIwcPeerUrl = queryParams['ozpIwc.peer'];
+    console.log('found IWC bus in query param: ' + ozpIwcPeerUrl);
   } else {
     ozpIwcPeerUrl = 'http://ozone-development.github.io/iwc';
   }
