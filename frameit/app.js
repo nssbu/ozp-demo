@@ -16,6 +16,7 @@ angular.module('FrameIt').controller('MainController', function($scope, $rootSco
   } else {
     ozpIwcPeerUrl = 'http://ozone-development.github.io/iwc';
   }
+  console.log('FrameIt query params: ' + JSON.stringify(queryParams));
 
   $scope.ozpBusInfo = {
     'url': ozpIwcPeerUrl,
