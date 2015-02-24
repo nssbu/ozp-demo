@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    var app = angular.module('appTitude', [,'ngAnimate', 'ozpIwcClient']);
+    var app = angular.module('appTitude', ['ngAnimate', 'ozpIwcClient']);
 
     app.controller("HedgeController", [ '$scope','iwcClient',function(scope, iwcClient) {
         scope.isConnected = false;
