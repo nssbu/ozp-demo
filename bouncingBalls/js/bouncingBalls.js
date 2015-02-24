@@ -200,7 +200,7 @@ $(document).ready(function(){
     },500);
 });
 
-var client=new ozpIwc.Client({peerUrl:"http://" + window.location.hostname + ":13000"});
+var client=new ozpIwc.Client({peerUrl:'../bower_components/ozp-iwc/dist'});
 
 client.on("connected",function() {
     // setup
