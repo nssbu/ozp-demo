@@ -1,4 +1,4 @@
-ozp-iwc
+[ozp-iwc](http://ozone-development.github.io/ozp-iwc/)
 ==============================
 
 ozp-iwc provides an in-browser communications network between participants in multiple browser tabs, 
@@ -11,9 +11,12 @@ To Build
 2.  sudo npm install -g grunt-cli
 3.  git clone git@github.com:ozone-development/ozp-iwc.git
 4.  cd ozp-iwc
-5.  npm install
-6.  grunt test
-7.  Browse to http://localhost:14000 for an index of samples and tests!
+5.  git submodule init
+6.  git submodule update
+7.  npm install
+8.  bower install
+9.  grunt test
+10. Browse to http://localhost:14000 for an index of samples and tests!
 
 Demo
 ---------------

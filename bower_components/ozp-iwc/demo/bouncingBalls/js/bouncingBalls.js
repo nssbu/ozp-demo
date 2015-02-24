@@ -101,7 +101,8 @@ Ball.prototype.remove=function() {
         resource: this.ballResource,
         replyTo: this.watchId
     });
-    this.el.remove();
+    this.el.setAttribute('display','none');
+//    this.el.remove();
     delete balls[this.ballResource];
 };
 
@@ -188,16 +189,14 @@ $(document).ready(function(){
     });
 
 
-//	window.setInterval(function() {
-//		var elapsed=(ozpIwc.util.now()-client.startTime)/1000;
-//
-//		$('#averageLatencies').text(
-//			"Sent [Pkt/sec: " + (client.sentPackets/elapsed).toFixed(1) + ", " +
-//			"Bytes/sec: " + Math.floor(client.sentBytes/elapsed) + "], Received [" +
-//			"Pkt/sec: " + (client.receivedPackets/elapsed).toFixed(1) + ", " +
-//			"Bytes/sec: " + Math.floor(client.receivedBytes/elapsed) + "]"
-//		);
-//	},500);
+	window.setInterval(function() {
+		var elapsed=(ozpIwc.util.now()-client.startTime)/1000;
+
+		$('#averageLatencies').text(
+			"Pkt/sec [sent: " + (client.sentPackets/elapsed).toFixed(1) + ", " +
+			"received: " + (client.receivedPackets/elapsed).toFixed(1) + "]"
+		);
+	},500);
 });
 
 var client=new ozpIwc.Client({peerUrl:"http://" + window.location.hostname + ":13000"});
@@ -205,9 +204,9 @@ var client=new ozpIwc.Client({peerUrl:"http://" + window.location.hostname + ":1
 client.on("connected",function() {
 	// setup
 	var viewPort=$('#viewport');
-
+    var fps=20;
     $('#myAddress').text(client.address);
-
+    $('#fps').text(""+fps);
 	//=================================================================
 	// cleanup when we are done
 	window.addEventListener("beforeunload",function() {
@@ -228,7 +227,7 @@ client.on("connected",function() {
 		lastUpdate=now;
 	};
 
-	window.setInterval(animate,50);
+	window.setInterval(animate,1000/fps);
 
 
 	//=================================================================
