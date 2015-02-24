@@ -29,7 +29,9 @@ var Ball=function(ballRef,svgElement) {
         resource: ballRef
     };
     var self=this;
-    var packet=client.send(watchRequest,function(reply) {
+
+    client.send(watchRequest,function(reply) {
+        self.watchId=reply.replyTo;
         self.packets++;
         var now=ozpIwc.util.now();
         self.totalLatency+=now-reply.time;
@@ -38,7 +40,6 @@ var Ball=function(ballRef,svgElement) {
             self.refreshed = true;
             self.draw(reply.entity.newValue);
         }
-        return true;//maintain persistent callback
     });
     this.removeWatchdog = function(){
         if(self.refreshed){
@@ -60,7 +61,7 @@ var Ball=function(ballRef,svgElement) {
             },500);
         }
     };
-   setInterval(this.removeWatchdog,2500);
+    setInterval(this.removeWatchdog,10000);
 
     $(this.el).click(function() {
         if(self.label.getAttribute("class").match("svgHidden")) {
@@ -69,7 +70,6 @@ var Ball=function(ballRef,svgElement) {
             self.label.setAttribute("class","svgHidden");
         }
     });
-    this.watchId=packet.msgId;
 };
 
 Ball.prototype.draw=function(info) {
@@ -87,10 +87,10 @@ Ball.prototype.draw=function(info) {
     this.circle.setAttribute("fill",info.color);
     this.label.setAttribute("x",info.r  + 5);
     this.label.textContent=info.label
-        + "[pkt=" + this.packets
-        + ",updateAvg=" + Math.floor(this.updateDelta/this.updateCount) + "ms"
+    + "[pkt=" + this.packets
+    + ",updateAvg=" + Math.floor(this.updateDelta/this.updateCount) + "ms"
 //			+ ",avg=" + (this.totalLatency/this.packets).toPrecision(2)
-        +']';
+    +']';
 
 };
 
@@ -99,10 +99,11 @@ Ball.prototype.remove=function() {
     client.send({
         dst: "data.api",
         action: "unwatch",
-        rsource: this.ballResource,
+        resource: this.ballResource,
         replyTo: this.watchId
     });
-    this.el.remove();
+    this.el.setAttribute('display','none');
+//    this.el.remove();
     delete balls[this.ballResource];
 };
 
@@ -189,107 +190,99 @@ $(document).ready(function(){
     });
 
 
-//	window.setInterval(function() {
-//		var elapsed=(ozpIwc.util.now()-client.startTime)/1000;
-//
-//		$('#averageLatencies').text(
-//			"Sent [Pkt/sec: " + (client.sentPackets/elapsed).toFixed(1) + ", " +
-//			"Bytes/sec: " + Math.floor(client.sentBytes/elapsed) + "], Received [" +
-//			"Pkt/sec: " + (client.receivedPackets/elapsed).toFixed(1) + ", " +
-//			"Bytes/sec: " + Math.floor(client.receivedBytes/elapsed) + "]"
-//		);
-//	},500);
+    window.setInterval(function() {
+        var elapsed=(ozpIwc.util.now()-client.startTime)/1000;
+
+        $('#averageLatencies').text(
+            "Pkt/sec [sent: " + (client.sentPackets/elapsed).toFixed(1) + ", " +
+            "received: " + (client.receivedPackets/elapsed).toFixed(1) + "]"
+        );
+    },500);
 });
-//ozpIwc.apiRootUrl = '../bower_components/ozp-iwc/dist/api';
-var client=new ozpIwc.Client({peerUrl:'../bower_components/ozp-iwc/dist'});
+
+var client=new ozpIwc.Client({peerUrl:"http://" + window.location.hostname + ":13000"});
 
 client.on("connected",function() {
-	// setup
-	var viewPort=$('#viewport');
-
+    // setup
+    var viewPort=$('#viewport');
+    var fps=20;
     $('#myAddress').text(client.address);
+    $('#fps').text(""+fps);
+    //=================================================================
+    // cleanup when we are done
+    window.addEventListener("beforeunload",function() {
+        for(var i=0;i<ourBalls.length;++i) {
+            ourBalls[i].cleanup();
+        }
+    });
 
-	//=================================================================
-	// cleanup when we are done
-	window.addEventListener("beforeunload",function() {
-		for(var i=0;i<ourBalls.length;++i) {
-			ourBalls[i].cleanup();
-		}
-	});
+    //=================================================================
+    // Animate our balls
+    var lastUpdate=new Date().getTime();
+    var animate=function() {
+        var now=new Date().getTime();
+        var delta=(now-lastUpdate)/1000.0;
+        for(var i=0;i<ourBalls.length;++i) {
+            ourBalls[i].tick(delta);
+        }
+        lastUpdate=now;
+    };
 
-	//=================================================================
-	// Animate our balls
-	var lastUpdate=new Date().getTime();
-	var animate=function() {
-		var now=new Date().getTime();
-		var delta=(now-lastUpdate)/1000.0;
-		for(var i=0;i<ourBalls.length;++i) {
-			ourBalls[i].tick(delta);
-		}
-		lastUpdate=now;
-	};
-
-	window.setInterval(animate,50);
+    window.setInterval(animate,1000/fps);
 
 
-	//=================================================================
-	// listen for balls changing
-	var watchRequest={
-		dst: "data.api",
-		action: "watch",
-		resource: "/balls"
-	};
-	var onBallsChanged=function(reply) {
-		if(reply.response!=="changed") {
-			return true;//maintain persistent callback
-		}
-		if(reply.entity.addedChildren) {
-			reply.entity.addedChildren.forEach(function(b) {
-    			balls[b]=new Ball(b,viewPort);
+    //=================================================================
+    // listen for balls changing
+    var watchRequest={
+        dst: "data.api",
+        action: "watch",
+        resource: "/balls"
+    };
+    var onBallsChanged=function(reply) {
+        if(reply.entity.addedChildren) {
+            reply.entity.addedChildren.forEach(function(b) {
+                balls[b]=new Ball(b,viewPort);
             });
-		}
-		if(reply.entity.removedChildren) {
-			reply.entity.removeChildren.forEach(function(b) {
+        }
+        if(reply.entity.removedChildren) {
+            reply.entity.removeChildren.forEach(function(b) {
                 balls[b].cleanup();
             });
-		}
-		return true;//maintain persistent callback
-	};
-	client.send(watchRequest,onBallsChanged);
+        }
+    };
+    client.send(watchRequest,onBallsChanged);
 
-	//=================================================================
-	// get the existing balls
-	var listExistingBalls={
-		dst: "data.api",
-		action: "list",
-		resource: "/balls"
-	};
+    //=================================================================
+    // get the existing balls
+    var listExistingBalls={
+        dst: "data.api",
+        action: "list",
+        resource: "/balls"
+    };
 
-	client.send(listExistingBalls,function(reply) {
-		for(var i=0; i<reply.entity.length;++i) {
-			balls[reply.entity[i]]=new Ball(reply.entity[i],viewPort);
-		}
-		return null;//de-register callback
-	});
+    client.send(listExistingBalls).then(function(reply) {
+        for(var i=0; i<reply.entity.length;++i) {
+            balls[reply.entity[i]]=new Ball(reply.entity[i],viewPort);
+        }
+    });
 
-	//=================================================================
-	// add our ball
-	var pushRequest={
-		dst: "data.api",
-		action: "addChild",
-		resource: "/balls",
-		entity: {}
-	};
+    //=================================================================
+    // add our ball
+    var pushRequest={
+        dst: "data.api",
+        action: "addChild",
+        resource: "/balls",
+        entity: {}
+    };
 
-	client.send(pushRequest,function(packet){
-		if(packet.response==="ok") {
-			ourBalls.push(new AnimatedBall({
-				resource:packet.entity.resource
-			}));
+    client.send(pushRequest).then(function(packet){
+        if(packet.response==="ok") {
+            ourBalls.push(new AnimatedBall({
+                resource:packet.entity.resource
+            }));
 
-		} else {
-			console.log("Failed to push our ball: " + JSON.stringify(packet,null,2));
-		}
-		return null;//de-register callback
-	});
+        } else {
+            ozpIwc.log.log("Failed to push our ball: " + JSON.stringify(packet,null,2));
+        }
+    });
 });
