@@ -10,15 +10,58 @@
     <script type="text/javascript" src="../bower_components/jquery/dist/jquery.min.js"></script>
     <script type="text/javascript" src="../bower_components/bootstrap/dist/js/bootstrap.min.js"></script>
     <script type="text/javascript" src="js/script.js"></script>
-    <script src="../bower_components/ozp-iwc/dist/js/ozpIwc-client.js"></script>
     <script src="../bower_components/ozp-iwc-angular/dist/js/ozpIwc-client-angular.js"></script>
-    <script src="../jslib/ozpIwc-angular-solo.js"></script>
 </head>
 
 <body>
-<div ng-controller="HedgeController as hedgeCtrl">
-    <stock-pane></stock-pane>
-</div>
+    <div ng-controller="HedgeController">
+        <table class="table borderless">
+            <tr>
+                <td>
+                    Stocks held
+                </td>
+                <td>
+                    {{stocksHeld}}
+                </td>
+            </tr>
+            <tr ng-show="isConnected">
+                <td>
+                    Stocks need for hedging
+                </td>
+                <td>
+                    {{stocksNeeded}}
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <button id="buyStock" type="button" class="hoverable btn  btn-primary btn-lg btn-block"
+                            ng-click="updateStocks(10);">
+                        {{buyCover}} TEN STOCKS
+                    </button>
+                </td>
+                <td>
+                    <button id="sellStock" type="button" class="hoverable btn btn-primary btn-lg btn-block"
+                            ng-click="updateStocks(-10);">
+                        {{sellShort}} TEN STOCKS
+                    </button>
+                </td>
+            </tr>
+            <tr ng-show="isConnected">
+                <td id="riskInd">
+                    <button type="button" class="btn btn btn-primary btn-lg btn-block" ng-style="riskLevel">
+                        RISK
+                    </button>
+                </td>
+                <td >
+                    <button type="button" class="hoverable btn btn-primary btn-lg btn-block" ng-click="hedge()">
+                        HEDGE THE OPTION
+                    </button>
+                </td>
+
+            </tr>
+
+        </table>
+    </div>
 </body>
 
 </html>

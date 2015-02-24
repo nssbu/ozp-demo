@@ -1,50 +1,27 @@
 (function () {
     'use strict';
 
-    var app = angular.module('appTitude', ['ozpIwc','ngAnimate']);
+    var app = angular.module('appTitude', [,'ngAnimate', 'ozpIwcClient']);
 
-    app.directive("stockPane", function(){
-        return {
-            restrict: 'E',
-            templateUrl: "partials/stock-pane.html",
-            controller: [ '$scope','iwcClient',function(scope, client) {
-                scope.connected = false;
+    app.controller("HedgeController", [ '$scope','iwcClient',function(scope, iwcClient) {
+        scope.isConnected = false;
 
-                this.isConnected = function () {
-                    return scope.connected;
-                };
+        var client = new iwcClient.Client({peerUrl: '../bower_components/ozp-iwc/dist'});
+        client.connect().then(function(){
+            scope.isConnected = true;
+            client.api('data.api').watch('/data/option', function (reply) {
+                    scope.optionData = reply.entity.newValue;
+            });
+        });
 
-                var watchRequest = {
-                    dst: 'data.api',
-                    action: 'watch',
-                    resource: '/data/option'
-                };
+        scope.riskLevel = {"background-color": "#008000"};
+        scope.buyCover = "BUY";
+        scope.sellShort = "SHORT";
+        scope.deltaNeutral = 0;
+        scope.stocksHeld = 0;
+        scope.stocksNeeded = 0;
 
-
-                client.send(watchRequest, function (reply) {
-                        if(reply.src!==null){
-                            scope.optionData = reply.entity.newValue;
-                            scope.connected = true;
-                        }
-                        scope.$apply();
-                    return true;
-                });
-
-               
-            }],
-            controllerAs: "iwcCtrl"
-        };
-    });
-
-    app.controller("HedgeController", [ '$scope','iwcClient',function(scope, client) {
-        this.riskLevel = {"background-color": "#008000"};
-        this.buyCover = "BUY";
-        this.sellShort = "SHORT";
-        this.deltaNeutral = 0;
-        this.stocksHeld = 0;
-        this.stocksNeeded = 0;
-
-        this.updateRiskColor = function (val) {
+        scope.updateRiskColor = function (val) {
             var R,G;
             var R,G;
             R = parseInt((255*val).toFixed(0));
@@ -60,65 +37,64 @@
             return ("#"+R+G+"00");
         };
 
-        this.updateRisk = function () {
+        scope.updateRisk = function () {
             var currentRisk = 0;
 
             if(scope.optionData){
-                var gran = (Math.abs(this.deltaNeutral)>255) ? 255 : this.deltaNeutral;
-                currentRisk = Math.abs((this.deltaNeutral - this.stocksHeld) / gran);
+                var gran = (Math.abs(scope.deltaNeutral)>255) ? 255 : scope.deltaNeutral;
+                currentRisk = Math.abs((scope.deltaNeutral - scope.stocksHeld) / gran);
                 console.log(currentRisk);
             }
             if (currentRisk > 1)
                 currentRisk = 1;
 
-            this.riskLevel = {"background-color": this.updateRiskColor(currentRisk),"color":"white"};
+            scope.riskLevel = {"background-color": scope.updateRiskColor(currentRisk),"color":"white"};
 
         };
 
 
-        this.updateStocks = function (val) {
-            this.stocksHeld += val;
+        scope.updateStocks = function (val) {
+            scope.stocksHeld += val;
 
-            if(this.stocksHeld < 0) {
-                this.buyCover = "COVER";
-                this.sellShort = "SHORT";
-            } else if(this.stocksHeld === 0) {
-                this.buyCover = "BUY";
-                this.sellShort = "SHORT";
+            if(scope.stocksHeld < 0) {
+                scope.buyCover = "COVER";
+                scope.sellShort = "SHORT";
+            } else if(scope.stocksHeld === 0) {
+                scope.buyCover = "BUY";
+                scope.sellShort = "SHORT";
             } else {
-                this.buyCover = "BUY";
-                this.sellShort = "SELL";
+                scope.buyCover = "BUY";
+                scope.sellShort = "SELL";
             }
 
-            this.updateStocksNeeded();
+            scope.updateStocksNeeded();
         };
 
-        this.updateStocksNeeded = function () {
+        scope.updateStocksNeeded = function () {
             try {
-                this.stocksNeeded = scope.optionData.deltaNeutral - this.stocksHeld;
-                this.deltaNeutral = scope.optionData.deltaNeutral;
+                scope.stocksNeeded = scope.optionData.deltaNeutral - scope.stocksHeld;
+                scope.deltaNeutral = scope.optionData.deltaNeutral;
             } catch (err) {
-                this.stocksNeeded = 0;
+                scope.stocksNeeded = 0;
             }
-            this.updateRisk();
+            scope.updateRisk();
         };
 
 
-        this.newDataUpdate = function () {
+        scope.newDataUpdate = function () {
             console.log("updated");
-            this.updateStocksNeeded();
-            this.updateRisk();
+            scope.updateStocksNeeded();
+            scope.updateRisk();
 
         };
 
-        this.hedge = function () {
-            this.updateStocks(this.stocksNeeded);
+        scope.hedge = function () {
+            scope.updateStocks(scope.stocksNeeded);
         };
 
-        var that = this;
 
         scope.$watch('optionData', function () {
-            that.newDataUpdate();
+            scope.newDataUpdate();
         });
 
 
