@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    var app = angular.module('appManager', ['ozpIwc']);
+    var app = angular.module('appManager', ['ozpIwcClient']);
 
 //    app.service('ozpClient', [ 'ozpIwc', '$rootScope', function (ozpIwc, $rootScope) {
 //        var client = new ozpIwc.Client({peerUrl: "http://" + window.location.hostname + ":8080/peer"});
@@ -41,7 +41,9 @@
         }
     });
 
-    app.controller("DataController", [ '$scope','iwcClient',function(scope,client) {
+    app.controller("DataController", [ '$scope','iwcClient',function(scope,iwcClient) {
+
+        scope.client = new iwcClient.Client({peerUrl: '../bower_components/ozp-iwc/dist'});
 
         this.data = {
             optionType: 'c',
@@ -128,7 +130,6 @@
 
 
         scope.$watch('payoutData', function () {
-            scope.address = client.address;
 
             var setRequest = {
                 dst: "data.api",
@@ -143,16 +144,12 @@
                 resource: "/data/option",
                 entity: scope.optionData
             };
-
-            client.send(setRequest, function (reply) {
-                console.log("sent plot data");
-                return true;
+            scope.client.connect()
+               .then(scope.client.send(setRequest))
+               .then(scope.client.send(setRequest2))
+               .then(function (reply) {
+                    console.log("sent option data");
             });
-            client.send(setRequest2, function (reply) {
-                console.log("sent option data");
-                return true;
-            });
-
         });
 
     }]);

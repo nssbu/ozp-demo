@@ -6,13 +6,18 @@
     app.controller("HedgeController", [ '$scope','iwcClient',function(scope, iwcClient) {
         scope.isConnected = false;
 
-        var client = new iwcClient.Client({peerUrl: '../bower_components/ozp-iwc/dist'});
-        client.connect().then(function(){
-            scope.isConnected = true;
-            client.api('data.api').watch('/data/option', function (reply) {
-                    scope.optionData = reply.entity.newValue;
+        scope.client = new iwcClient.Client({peerUrl: '../bower_components/ozp-iwc/dist'});
+
+        scope.client.connect().then(function(){
+                scope.client.api('data.api').watch('/data/option', function (reply) {
+                    scope.$apply(function() {
+                        scope.optionData = reply.entity.newValue;
+                    });
+                });
+                scope.$apply(function() {
+                    scope.isConnected = true;
+                });
             });
-        });
 
         scope.riskLevel = {"background-color": "#008000"};
         scope.buyCover = "BUY";
