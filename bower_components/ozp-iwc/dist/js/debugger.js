@@ -8585,11 +8585,10 @@ ozpIwc.CommonApiBase.prototype.findNodeForServerResource=function(object,objectP
  * @method loadFromServer
  */
 ozpIwc.CommonApiBase.prototype.loadFromServer=function() {
-    var promises = [];
-    for(var i in this.endpointUrls){
-        promises.push(this.loadFromEndpoint(this.endpointUrls[i]));
-    }
-    return Promise.all(promises);
+    // Do nothing by default, resolve to prevent clashing with overridden promise implementations.
+    return new Promise(function(resolve,reject){
+        resolve();
+    });
 };
 
 /**
@@ -9700,9 +9699,18 @@ ozpIwc.initEndpoints=function(apiRoot) {
  */
 ozpIwc.DataApi = ozpIwc.util.extend(ozpIwc.CommonApiBase,function(config) {
     ozpIwc.CommonApiBase.apply(this,arguments);
+    this.endpointUrl=ozpIwc.linkRelPrefix+":user-data";
     this.endpointUrls.push(ozpIwc.linkRelPrefix+":user-data");
 });
 
+/**
+ * Loads data from the server.
+ *
+ * @method loadFromServer
+ */
+ozpIwc.DataApi.prototype.loadFromServer=function() {
+    return this.loadFromEndpoint(this.endpointUrl);
+};
 
 /**
  * Creates a DataApiValue from the given packet.
@@ -10133,6 +10141,14 @@ ozpIwc.IntentsApi = ozpIwc.util.extend(ozpIwc.CommonApiBase, function (config) {
     }
 });
 
+/**
+ * Loads data from the server.
+ *
+ * @method loadFromServer
+ */
+ozpIwc.IntentsApi.prototype.loadFromServer=function() {
+    return this.loadFromEndpoint(ozpIwc.linkRelPrefix + ":intent");
+};
 /**
  * Takes the resource of the given packet and creates an empty value in the IntentsApi. Chaining of creation is
  * accounted for (A handler requires a definition, which requires a capability).
@@ -11313,7 +11329,7 @@ ozpIwc.SystemApi.prototype.rootHandleInvoke = function(node,packetContext) {
         ];
 
         ozpIwc.util.openWindow(packetContext.packet.entity.inFlightIntentEntity.entity.url,launchParams.join("&"));
-        this.launchApplication(node,packetContext.packet.entity.inFlightIntent);
+//        this.launchApplication(node,packetContext.packet.entity.inFlightIntent);
         packetContext.replyTo({'response': "ok"});
     } else{
         packetContext.replyTo({'response': "badResource"});
@@ -90000,12 +90016,13 @@ debuggerModule.factory("iwcClient",function() {
                         dst: "names.api",
                         action: "get",
                         resource: "/api"
-                    },function(reply){
+                    },function(reply,done){
                         if(reply.response === 'ok'){
                             resolve(reply.entity);
                         } else{
                             reject(reply.response);
                         }
+                        done();
                     });
 
                 }).then(function(apis) {
@@ -90016,7 +90033,7 @@ debuggerModule.factory("iwcClient",function() {
                                 dst: "names.api",
                                 action: "get",
                                 resource: api
-                            }, function (res) {
+                            }, function (res,done) {
                                 if (res.response === 'ok') {
                                     var name = api.replace('/api/', '');
                                     self.apiMap[name] = {
@@ -90028,6 +90045,7 @@ debuggerModule.factory("iwcClient",function() {
                                 } else {
                                     reject(res.response);
                                 }
+                                done();
                             });
                         }));
                     });
@@ -90305,7 +90323,7 @@ debuggerModule.controller("ApiDisplayCtrl",["$scope", "$attrs", "iwcClient","api
         client.send({
             'dst': scope.api,
             'action': "list"
-        },function(response) {
+        },function(response,done) {
             scope.keys=response.entity.map(function(k) {
                 var key={
                     'resource': k,
@@ -90315,6 +90333,7 @@ debuggerModule.controller("ApiDisplayCtrl",["$scope", "$attrs", "iwcClient","api
                 scope.loadKey(key);
                 return key;
             });
+            done();
         });
 
         client.connect().then(function(){
@@ -90325,11 +90344,7 @@ debuggerModule.controller("ApiDisplayCtrl",["$scope", "$attrs", "iwcClient","api
 
     scope.watchKey=function(key) {
         if(key.isWatched) {
-            client.send({
-                'dst': scope.api,
-                'action': "watch",
-                'resource': key.resource
-            },function(response) {
+            client.api(scope.api).watch(key.resource,function(response) {
                 if(response.response === 'changed') {
                     scope.$evalAsync(function() {
                         key.entity=response.entity.newValue;
@@ -90337,8 +90352,9 @@ debuggerModule.controller("ApiDisplayCtrl",["$scope", "$attrs", "iwcClient","api
                         key.contentType=response.contentType;
                     });
                 }
-                return key.isWatched;
             });
+        } else {
+            client.api(scope.api).unwatch(key.resource);
         }
     };
 
@@ -90843,85 +90859,6 @@ debuggerModule.directive('visTimeline', function() {
     };
 });
 
-
-/* global debuggerModule */
-debuggerModule.controller("apiDisplayController",["$scope","iwcClient",function(scope,client) {
-    scope.keys=[];
-    scope.query = function() {
-				scope.refresh();
-    };
-    scope.loadKey = function (key) {
-            client.send({
-                    'dst': scope.api.address,
-                    'action': "get",
-                    'resource': key.resource
-            }, function (response, done) {
-                    for (var i in response) {
-                            key[i] = response[i];
-                    }
-                    key.isLoaded = true;
-                    done();
-            });
-            client.send({
-                    'dst': scope.api.address,
-                    'action': "list",
-                    'resource': key.resource
-            }, function (response, done) {
-                    if (response.response === "ok") {
-                            key.children = response.entity;
-                    } else {
-                            key.children = "Not Supported: " + response.response;
-                    }
-                    done();
-            });
-    };
-    scope.performAction = function(action,key) {
-        client.send({
-            'dst': scope.api.address,
-            'action': action,
-            'resource': key.resource
-        });
-    };
-
-    scope.refresh=function() {
-        client.send({
-            'dst': scope.api.address,
-            'action': "list"
-        },function(response) {
-            scope.keys=response.entity.map(function(k) {
-                var key={
-                    'resource': k,
-                    'isLoaded':false,
-                    'isWatched':false
-                };
-                scope.loadKey(key);
-                return key;
-            });
-        });
-    };
-    
-
-    
-    scope.watchKey=function(key) {
-        if(key.isWatched) {
-            client.send({
-                'dst': scope.api.address,
-                'action': "watch",
-                'resource': key.resource
-            },function(response) {
-                if(response.response === 'changed') {
-                    scope.$evalAsync(function() {
-                        key.entity=response.entity.newValue;
-                        key.permissions=response.permissions;
-                        key.contentType=response.contentType;
-                    });
-                }
-                return key.isWatched;
-            });
-        }
-    };
-    scope.refresh();
-}]);
 
 /* global debuggerModule */
 
