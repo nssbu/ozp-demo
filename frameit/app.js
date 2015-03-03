@@ -6,6 +6,7 @@ angular.module('FrameIt').controller('MainController', ['ozpIwcClient']);
 angular.module('FrameIt').controller('MainController', function($scope, $rootScope,
                                                                 $http, $interval,
                                                                 $sce, $location,
+                                                                $window,
                                                                 iwcClient) {
 
   var ozpIwcPeerUrl = '';
@@ -14,7 +15,7 @@ angular.module('FrameIt').controller('MainController', function($scope, $rootSco
     ozpIwcPeerUrl = queryParams['ozpIwc.peer'];
     console.log('found IWC bus in query param: ' + ozpIwcPeerUrl);
   } else {
-    ozpIwcPeerUrl = 'http://ozone-development.github.io/iwc';
+    ozpIwcPeerUrl = $window.OzoneConfig.iwcUrl;
   }
   console.log('FrameIt query params: ' + JSON.stringify(queryParams));
 

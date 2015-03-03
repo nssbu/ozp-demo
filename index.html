@@ -3,6 +3,7 @@
 <head>
   <link rel="stylesheet" href="./bower_components/bootstrap/dist/css/bootstrap.css">
   <link rel="stylesheet" href="./bower_components/bootstrap/dist/css/bootstrap-theme.css">
+  <script src="OzoneConfig.js"></script>
 </head>
 <body>
   <div class="container-fluid">
@@ -30,7 +31,7 @@
             <li><a href="greekAnalysis/index.html">Greek Analysis</a></li>
             <li><a href="stockTrader/index.html">Stock Trader</a></li>
             <li><a href="chart/index.html">Chart</a></li>
-            <li><a href="frameit/#/?ozpIwc.peer=http://ozone-development.github.io/iwc/">FrameIt</a></li>
+            <li><a id="frameItLink" href="#">FrameIt</a></li>
           </ul>
         </p>
         <p>
@@ -76,5 +77,8 @@
       </div>
     </div>
   </div>
+  <script type="text/javascript">
+      document.getElementById('frameItLink').href = 'frameit/#/?ozpIwc.peer=' + window.OzoneConfig.iwcUrl;
+  </script>
 </body>
 </html>
