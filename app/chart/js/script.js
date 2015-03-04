@@ -12,12 +12,20 @@ app.controller('LineChartController', [ '$scope','iwcClient',function(scope, iwc
 
     client.connect().then(function(){
         scope.address = client.address;
-        client.api("data.api").watch('/data/plot',function(reply){
-            scope.$apply(function () {
-                scope.data = reply.entity.newValue;
+        // set the initial value
+        client.api("data.api").get('/data/plot').then(function(reply){
+            scope.$apply(function(){
+                scope.data = reply.entity || [{'x':0, 'y': 0}, {'x': 100, 'y':0}];
             });
 
+            // then watch for any changes
+            return client.api("data.api").watch('/data/plot',function(reply){
+                scope.$apply(function () {
+                    scope.data = reply.entity.newValue;
+                });
+            });
         });
+
 
     });
 
