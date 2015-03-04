@@ -41,9 +41,9 @@
         }
     });
 
-    app.controller("DataController", [ '$scope','iwcClient',function(scope,iwcClient) {
+    app.controller("DataController", [ '$scope', '$window', 'iwcClient',function(scope, $window, iwcClient) {
 
-        scope.client = new iwcClient.Client({peerUrl: '../bower_components/ozp-iwc/dist'});
+        scope.client = new iwcClient.Client({peerUrl: $window.OzoneConfig.iwcUrl});
 
         this.data = {
             optionType: 'c',
