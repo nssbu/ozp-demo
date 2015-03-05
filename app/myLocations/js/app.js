@@ -102,6 +102,11 @@ myLocations.controller('MainController', function($scope, $log, iwcConnectedClie
 
     $scope.handleLocationSelect = function(key) {
         $scope.currentLocation = $scope.locations[key];
+        $scope.currentLocationId = key;
+    };
+
+    $scope.deleteSelectedLocation = function() {
+        delete $scope.locations[$scope.currentLocationId];
     };
 
     $scope.getListings()
