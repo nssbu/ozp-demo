@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+    <script src="../OzoneConfig.js"></script>
+    <script src="../bower_components/angular/angular.js"></script>
+    <script src="../bower_components/ozp-iwc-angular/dist/js/ozpIwc-client-angular.js"></script>
+    <script src="js/app.js"></script>
+</head>
+
+<body ng-app="MyLocations" ng-controller="MainController">
+<div class="container">
+    <div class="row" id="locationList">
+        <location-listing ng-repeat="loc in locations" location="loc"></location-listing>
+    </div>
+    <div class="row" style="margin-bottom: 5px;" id="footer">
+        <div class="col-xs-2">
+            <button type="button" class="btn btn-default" ng-click="">Add Location</button>
+        </div>
+    </div>
+</div>
+</body>
+</html>
