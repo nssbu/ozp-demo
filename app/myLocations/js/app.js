@@ -26,54 +26,72 @@ myLocations.factory("iwcConnectedClient",function($location,$window, iwcClient) 
 });
 
 myLocations.controller('MainController', function($scope, iwcConnectedClient) {
-    iwcConnectedClient.connect().then(function(){
+    $scope.id = 0;
+    $scope.locations = {};
+    $scope.client = iwcConnectedClient;
+    $scope.client.connect().then(function(){
         console.log("Connected! address:", iwcConnectedClient.address);
-        $scope.locations = {
-            'id001': {
-                'title': "My first location",
-                'coords': {
-                    'lat': -23.493,
-                    'long': 45.324
-                },
-                'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
-            },
-            'id002': {
-                'title': "My second location",
-                'coords': {
-                    'lat': 12.345,
-                    'long': -34.390
-                },
-                'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
-            },
-            'id003': {
-                'title': "My third location",
-                'coords': {
-                    'lat': 38.873,
-                    'long': 5.432
-                },
-                'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
-            },
-            'id004': {
-                'title': "My fourth location",
-                'coords': {
-                    'lat': 48.394,
-                    'long': -23.295
-                },
-                'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
-            },
-            'id005': {
-                'title': "My fifth location",
-                'coords': {
-                    'lat': 16.873,
-                    'long': -54.394
-                },
-                'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
-            }
-        };
-
-        $scope.$apply();
+        $scope.watchListings();
     });
 
+    $scope.getListings = function(){
+        return $scope.client.api('data.api').list('/myLocations/listings').then(function(reply){
+            if(Array.isArray(reply.entity) && reply.entity.length > 0){
+                var promises = [];
+                reply.entity.forEach(function(listing){
+                    var curPromise = $scope.client.api('data.api').get(listing).then(function(reply){
+                        console.log(listing, reply);
+                        $scope.locations[listing] = reply.entity;
+                    });
+                    promises.push(curPromise);
+                });
+                return Promise.all(promises);
+            }
+        });
+    };
+
+    $scope.watchListings = function(){
+        var handleAddition = function(listingResource) {
+            return $scope.client.api('data.api').get(listingResource).then(function(reply){
+                $scope.locations[listingResource] = reply.entity;
+           });
+        };
+
+        var handleRemoval = function(listingResource) {
+            delete $scope.locations[listingResource];
+        };
+
+        var onChange = function(reply) {
+            var promises = [];
+            reply.entity.addedChildren.forEach(function(listing){
+                promises.push(handleAddition(listing));
+            });
+            reply.entity.removedChildren.forEach(function(listing){
+                promises.push(handleRemoval(listing));
+            });
+            console.log(reply);
+            Promise.all(promises).then(function(){
+                $scope.$apply();
+            })
+        };
+
+        return $scope.client.api('data.api').watch('/myLocations/listings',onChange);
+    };
+
+    $scope.addListing = function(){
+        var listing = {
+            'title': " Location id:" + $scope.id++,
+            'coords': {
+                'lat': Math.random() * 100,
+                'long': Math.random() * 100
+            },
+            'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
+        };
+
+        return $scope.client.api('data.api').addChild('/myLocations/listings',{
+            entity: listing
+        });
+    };
 
 });
 
