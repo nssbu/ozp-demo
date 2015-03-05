@@ -5,6 +5,11 @@
             <h4 class="list-group-item-heading">{{location.title}}</h4>
             <p>Lat/Long: {{location.coords.lat}}, {{location.coords.long}}</p>
             <p>{{location.description}}</p>
+            <div class="btn-group btn-group-xs">
+                <button class="btn btn-primary" ng-click="invokeMap(location)">
+                    <span class="glyphicon glyphicon-map-marker"></span>
+                </button>
+            </div>
         </li>
     </div>
 </ul>
