@@ -1,0 +1,12 @@
+
+<ul class="list-group">
+    <div ng-repeat="location in locations">
+        <li class="list-group-item">
+            <h4 class="list-group-item-heading">{{location.title}}</h4>
+            <p>Lat/Long: {{location.coords.lat}}, {{location.coords.long}}</p>
+            <p>{{location.description}}</p>
+        </li>
+    </div>
+</ul>
+
+

@@ -30,18 +30,42 @@ myLocations.controller('MainController', function($scope, iwcConnectedClient) {
         console.log("Connected! address:", iwcConnectedClient.address);
         $scope.locations = {
             'id001': {
-                'title': "My first location!",
+                'title': "My first location",
                 'coords': {
-                    'lat': 100,
-                    'long': 100
+                    'lat': -23.493,
+                    'long': 45.324
                 },
                 'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
             },
             'id002': {
-                'title': "My second location!",
+                'title': "My second location",
                 'coords': {
-                    'lat': 10,
-                    'long': 10
+                    'lat': 12.345,
+                    'long': -34.390
+                },
+                'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
+            },
+            'id003': {
+                'title': "My third location",
+                'coords': {
+                    'lat': 38.873,
+                    'long': 5.432
+                },
+                'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
+            },
+            'id004': {
+                'title': "My fourth location",
+                'coords': {
+                    'lat': 48.394,
+                    'long': -23.295
+                },
+                'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
+            },
+            'id005': {
+                'title': "My fifth location",
+                'coords': {
+                    'lat': 16.873,
+                    'long': -54.394
                 },
                 'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
             }
@@ -54,12 +78,12 @@ myLocations.controller('MainController', function($scope, iwcConnectedClient) {
 });
 
 
-myLocations.directive( "locationListing", function() {
+myLocations.directive( "locationList", function() {
     return {
         restrict: 'E',
         scope :{
-            location : "=location"
+            locations : "=locations"
         },
-        templateUrl: 'templates/locationListing.tpl.html'
+        templateUrl: 'templates/locationList.tpl.html'
     };
 });
