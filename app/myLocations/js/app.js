@@ -28,21 +28,24 @@ myLocations.factory("iwcConnectedClient",function($location,$window, iwcClient) 
 myLocations.controller('MainController', function($scope, iwcConnectedClient) {
     iwcConnectedClient.connect().then(function(){
         console.log("Connected! address:", iwcConnectedClient.address);
-        $scope.locations = [{
-            'title': "My first location!",
-            'coords': {
-                'lat': 100,
-                'long': 100
+        $scope.locations = {
+            'id001': {
+                'title': "My first location!",
+                'coords': {
+                    'lat': 100,
+                    'long': 100
+                },
+                'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
             },
-            'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
-        }, {
-            'title': "My second location!",
-            'coords': {
-                'lat': 10,
-                'long': 10
-            },
-            'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
-        }];
+            'id002': {
+                'title': "My second location!",
+                'coords': {
+                    'lat': 10,
+                    'long': 10
+                },
+                'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
+            }
+        };
 
         $scope.$apply();
     });

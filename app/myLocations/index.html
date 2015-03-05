@@ -11,7 +11,7 @@
 <body ng-app="MyLocations" ng-controller="MainController">
 <div class="container">
     <div class="row" id="locationList">
-        <location-listing ng-repeat="loc in locations" location="loc"></location-listing>
+        <location-listing ng-repeat="(key,value) in locations" location="value"></location-listing>
     </div>
     <div class="row" style="margin-bottom: 5px;" id="footer">
         <div class="col-xs-2">
