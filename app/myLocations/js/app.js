@@ -25,11 +25,12 @@ myLocations.factory("iwcConnectedClient",function($location,$window, iwcClient) 
     });
 });
 
-myLocations.controller('MainController', function($scope, iwcConnectedClient) {
+myLocations.controller('MainController', function($scope, $log, iwcConnectedClient) {
     iwcConnectedClient.connect().then(function(){
         console.log("Connected! address:", iwcConnectedClient.address);
-        $scope.locations = {
-            'id001': {
+        $scope.locations = [
+            {
+                'id': '0',
                 'title': "My first location",
                 'coords': {
                     'lat': -23.493,
@@ -37,7 +38,8 @@ myLocations.controller('MainController', function($scope, iwcConnectedClient) {
                 },
                 'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
             },
-            'id002': {
+            {
+                'id': '1',
                 'title': "My second location",
                 'coords': {
                     'lat': 12.345,
@@ -45,7 +47,8 @@ myLocations.controller('MainController', function($scope, iwcConnectedClient) {
                 },
                 'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
             },
-            'id003': {
+            {
+                'id': '2',
                 'title': "My third location",
                 'coords': {
                     'lat': 38.873,
@@ -53,7 +56,8 @@ myLocations.controller('MainController', function($scope, iwcConnectedClient) {
                 },
                 'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
             },
-            'id004': {
+            {
+                'id': '3',
                 'title': "My fourth location",
                 'coords': {
                     'lat': 48.394,
@@ -61,7 +65,8 @@ myLocations.controller('MainController', function($scope, iwcConnectedClient) {
                 },
                 'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
             },
-            'id005': {
+            {
+                'id': '4',
                 'title': "My fifth location",
                 'coords': {
                     'lat': 16.873,
@@ -69,11 +74,17 @@ myLocations.controller('MainController', function($scope, iwcConnectedClient) {
                 },
                 'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
             }
-        };
-
+        ];
         $scope.$apply();
     });
 
+    $scope.handleLocationSelect = function(id) {
+        for (var i=0; i < $scope.locations.length; i++) {
+            if ($scope.locations[i].id === id) {
+                $scope.currentLocation = $scope.locations[i];
+            }
+        }
+    };
 
 });
 
@@ -82,7 +93,8 @@ myLocations.directive( "locationList", function() {
     return {
         restrict: 'E',
         scope :{
-            locations : "=locations"
+            locations : "=locations",
+            onselect: "=onselect"
         },
         templateUrl: 'templates/locationList.tpl.html'
     };

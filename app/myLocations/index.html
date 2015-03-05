@@ -2,6 +2,7 @@
 <html>
 <head>
     <link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
     <script src="../OzoneConfig.js"></script>
     <script src="../bower_components/angular/angular.js"></script>
     <script src="../bower_components/ozp-iwc-angular/dist/js/ozpIwc-client-angular.js"></script>
@@ -9,20 +10,43 @@
 </head>
 
 <body ng-app="MyLocations" ng-controller="MainController">
-<div class="container">
-    <div class="row">
-        <div class="col-md-12">
-            <h3>My Locations</h3>
+    <header>
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12">
+                    <h4>My Locations
+                        <button style="display: inline-block" type="button"
+                                class="btn btn-default btn-xs pull-right" ng-click="">Add Location</button>
+                        </h4>
+                </div>
+            </div>
+        </div>
+    </header>
+    <div id="content">
+        <div class="container">
+            <div class="row" id="locationList">
+                <location-list locations="locations" onselect="handleLocationSelect"></location-list>
+            </div>
         </div>
     </div>
-    <div class="row" id="locationList">
-        <location-list locations="locations"></location-list>
-    </div>
-    <div class="row" style="margin-bottom: 5px;" id="footer">
-        <div class="col-xs-2">
-            <button type="button" class="btn btn-default" ng-click="">Add Location</button>
+    <footer>
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12">
+                    <div style="margin-top: 10px;">
+                        {{currentLocation.title}}:
+                        <span class="pull-right">
+                            <button style="display: inline-block; margin-right: 10px;" type="button"
+                                    class="btn btn-primary btn-xs" ng-click="">Map</button>
+                            <button style="display: inline-block; margin-right: 10px;" type="button"
+                                    class="btn btn-default btn-xs" ng-click="">Edit</button>
+                            <button style="display: inline-block" type="button"
+                                    class="btn btn-default btn-xs" ng-click="">Delete</button>
+                        </span>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
-</div>
+    </footer>
 </body>
 </html>

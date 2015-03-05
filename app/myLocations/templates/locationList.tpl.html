@@ -1,11 +1,11 @@
 
-<ul class="list-group">
+<ul id="location-listings" class="list-group">
     <div ng-repeat="location in locations">
-        <li class="list-group-item">
-            <h4 class="list-group-item-heading">{{location.title}}</h4>
+        <a href="#" ng-click="onselect(location.id)" class="list-group-item">
+            <h5 class="list-group-item-heading">{{location.title}}</h5>
             <p>Lat/Long: {{location.coords.lat}}, {{location.coords.long}}</p>
             <p>{{location.description}}</p>
-        </li>
+        </a>
     </div>
 </ul>
 
