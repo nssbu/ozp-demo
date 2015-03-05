@@ -100,14 +100,8 @@ myLocations.controller('MainController', function($scope, $log, iwcConnectedClie
         });
     };
 
-    // TODO: broken
-    $scope.handleLocationSelect = function(title) {
-        $log.debug('$scope.locations: ' + JSON.stringify($scope.locations));
-        for (var i=0; i < $scope.locations.length; i++) {
-            if ($scope.locations[i].title === title) {
-                $scope.currentLocation = $scope.locations[i];
-            }
-        }
+    $scope.handleLocationSelect = function(key) {
+        $scope.currentLocation = $scope.locations[key];
     };
 
     $scope.getListings()

@@ -1,10 +1,10 @@
 
 <ul id="location-listings" class="list-group">
-    <div ng-repeat="location in locations">
-        <a href="#" ng-click="onselect(location.title)" class="list-group-item">
-            <h5 class="list-group-item-heading">{{location.title}}</h5>
-            <p>Lat/Long: {{location.coords.lat}}, {{location.coords.long}}</p>
-            <p>{{location.description}}</p>
+    <div ng-repeat="(key, value) in locations">
+        <a href="#" ng-click="onselect(key)" class="list-group-item">
+            <h5 class="list-group-item-heading">{{value.title}}</h5>
+            <p>Lat/Long: {{value.coords.lat}}, {{value.coords.long}}</p>
+            <p>{{value.description}}</p>
         </a>
     </div>
 </ul>
