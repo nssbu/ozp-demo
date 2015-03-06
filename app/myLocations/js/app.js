@@ -97,6 +97,8 @@ myLocations.controller('MainController', function($scope, $log, iwcConnectedClie
     $scope.invokeMap = function(listingResource) {
         return $scope.client.connect().then(function () {
             return $scope.client.api('intents.api').invoke("/json/coord/map", {entity: listingResource});
+        })['catch'](function(er){
+            console.log(er);
         });
     };
 

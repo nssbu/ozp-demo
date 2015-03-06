@@ -10,6 +10,12 @@ var vectorLayer = new ol.layer.Vector({
 
 var addMarker = function(location,featId){
     var coords = ol.proj.transform([location.coords.long, location.coords.lat], 'EPSG:4326', 'EPSG:3857');
+    for(var i in coords){
+        if(!coords[i]) {
+            return;
+        }
+    }
+
     //create icon
     var iconFeature = new ol.Feature({
         geometry: new ol.geom.Point(coords),
@@ -91,13 +97,15 @@ $(document).ready(function() {
             client.api('data.api').get(resource).then(function(resp){
                 console.log(resp);
                 var id = addMarker(resp.entity);
-                return client.api('data.api').watch(resource,function(event){
-                    var feature = map.getLayers().item(1).getSource().getFeatureById(id);
-                    map.getLayers().item(1).getSource().removeFeature(feature);
-                    if(event.entity.newValue){
-                        addMarker(event.entity,id)
-                    }
-                });
+                if(id) {
+                    return client.api('data.api').watch(resource, function (event) {
+                        var feature = map.getLayers().item(1).getSource().getFeatureById(id);
+                        map.getLayers().item(1).getSource().removeFeature(feature);
+                        if (event.entity.newValue) {
+                            addMarker(event.entity, id)
+                        }
+                    });
+                }
             })['catch'](function(e){
                 console.error(e);
             });
