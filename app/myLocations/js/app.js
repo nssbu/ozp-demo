@@ -82,18 +82,25 @@ myLocations.controller('MainController', function($scope, $log, iwcConnectedClie
     };
 
     $scope.addListing = function(){
-        var listing = {
-            'title': " Location id:" + $scope.id++,
-            'coords': {
-                'lat': Math.random() * 170 - 85,
-                'long': Math.random() * 360 - 180
-            },
-            'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
-        };
 
-        return $scope.client.connect().then(function() {
-            return $scope.client.api('data.api').addChild('/myLocations/listings', {entity: listing});
+        return ModalService.showModal({
+            templateUrl: "templates/modal.html",
+            controller: "EditController",
+            inputs: {
+                listing: {}
+            }
+        }).then(function (modal) {
+            modal.element.modal();
+            modal.close.then(function (result) {
+                if (result) {
+                    return $scope.client.connect().then(function() {
+                        return $scope.client.api('data.api').addChild('/myLocations/listings', {entity: result.listing});
+                    });
+                }
+            });
         });
+
+
     };
     $scope.invokeMap = function(listingResource) {
         return $scope.client.connect().then(function () {
@@ -148,6 +155,7 @@ myLocations.controller('MainController', function($scope, $log, iwcConnectedClie
         .then($scope.watchListings)
         .then(function(){
             console.log("Connected! address:", iwcConnectedClient.address);
+            $scope.$apply();
         });
 });
 
@@ -168,6 +176,7 @@ myLocations.controller('EditController', ['$scope', 'listing', 'close', function
     $scope.listing = listing;
     $scope.close = function(result) {
         if(result){
+
             close({listing: $scope.listing}, 500); // close, but give 500ms for bootstrap to animate
         } else {
             close(result,500);
