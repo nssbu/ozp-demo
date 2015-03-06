@@ -8,21 +8,22 @@ var vectorLayer = new ol.layer.Vector({
     source: vectorSource
 });
 
-var addMarker = function(location){
-    var coords = ol.proj.transform([location.coords.long, location.coords.lat], 'EPSG:4326', 'EPSG:3857')
+var addMarker = function(location,featId){
+    var coords = ol.proj.transform([location.coords.long, location.coords.lat], 'EPSG:4326', 'EPSG:3857');
     //create icon
     var iconFeature = new ol.Feature({
         geometry: new ol.geom.Point(coords),
         name: location.title,
         data: location
     });
-    var featId = featureId++;
+    featId = featId || featureId++;
     iconFeature.setId(featId);
     locationData[featId] = location;
     //add icon to vector source
     map.getLayers().item(1).getSource().addFeatures([iconFeature]);
     map.getView().setCenter(coords);
 
+    return featId;
 };
 
 function spawnPopup(coord,data){
@@ -75,21 +76,31 @@ $(document).ready(function() {
     });
 
 
-
-    addMarker({
-        title: "FOO",
-        coords: {
-            lat: 0,
-            long: 0
-        }
-    });
-
     var client=new ozpIwc.Client({peerUrl: window.OzoneConfig.iwcUrl});
     client.connect().then(function(){
-        client.api('intents.api').register("/json/coord/map",function(event){
-            addMarker(event.entity);
-        }).then(function(rsp){
-            console.log(rsp);
+
+        var onChange = function(reply) {
+           if(reply.entity.newValue){
+
+           }
+        };
+
+
+        client.api('intents.api').register("/json/coord/map",function(event) {
+            var resource = event.entity;
+            client.api('data.api').get(resource).then(function(resp){
+                console.log(resp);
+                var id = addMarker(resp.entity);
+                return client.api('data.api').watch(resource,function(event){
+                    var feature = map.getLayers().item(1).getSource().getFeatureById(id);
+                    map.getLayers().item(1).getSource().removeFeature(feature);
+                    if(event.entity.newValue){
+                        addMarker(event.entity,id)
+                    }
+                });
+            })['catch'](function(e){
+                console.error(e);
+            });
         });
     });
 

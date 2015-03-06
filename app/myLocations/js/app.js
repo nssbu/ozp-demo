@@ -94,9 +94,9 @@ myLocations.controller('MainController', function($scope, $log, iwcConnectedClie
             return $scope.client.api('data.api').addChild('/myLocations/listings', {entity: listing});
         });
     };
-    $scope.invokeMap = function(listing) {
+    $scope.invokeMap = function(listingResource) {
         return $scope.client.connect().then(function () {
-            return $scope.client.api('intents.api').invoke("/json/coord/map", {entity: listing});
+            return $scope.client.api('intents.api').invoke("/json/coord/map", {entity: listingResource});
         });
     };
 
@@ -106,7 +106,15 @@ myLocations.controller('MainController', function($scope, $log, iwcConnectedClie
     };
 
     $scope.deleteSelectedLocation = function() {
+        var removeResource = {
+            resource: $scope.currentLocationId
+        };
         delete $scope.locations[$scope.currentLocationId];
+        return $scope.client.connect().then(function() {
+            return $scope.client.api('data.api').removeChild('/myLocations/listings', {entity: removeResource});
+        }).then(function(){
+            return $scope.client.api('data.api').delete($scope.currentLocationId);
+        });
     };
 
     $scope.getListings()
