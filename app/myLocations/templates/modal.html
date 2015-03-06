@@ -1,0 +1,43 @@
+<div class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" ng-click="close(false)" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <h4 class="modal-title">Location Edit</h4>
+            </div>
+            <div class="modal-body">
+                <form class="form-horizontal">
+                    <div class="form-group">
+                        <label for="inputTitle" class="control-label col-xs-2">Title</label>
+                        <div class="col-xs-10">
+                            <input class="form-control" id="inputTitle" ng-model="listing.title" placeholder="Title">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="inputLat" class="control-label col-xs-2">Latitude</label>
+                        <div class="col-xs-5">
+                            <input type="number" class="form-control" id="inputLat" ng-model="listing.coords.lat" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="inputLong" class="control-label col-xs-2">Longitude</label>
+                        <div class="col-xs-5">
+                            <input type="number" class="form-control" id="inputLong" ng-model="listing.coords.long" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="inputDesc" class="control-label col-xs-2">Description</label>
+                        <div class="col-xs-10">
+                            <textarea class="form-control" id="inputDesc" cols="40" rows="5"
+                                      ng-model="listing.description" placeholder="Description" ></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" ng-click="close(false)" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" ng-click="close(true)" class="btn btn-primary" data-dismiss="modal">Save</button>
+            </div>
+        </div>
+    </div>
+</div>

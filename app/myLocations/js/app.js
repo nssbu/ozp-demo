@@ -1,7 +1,8 @@
 var myLocations = angular.module('MyLocations', [
-    'ozpIwcClient'
+    'ozpIwcClient',
+    'angularModalService'
 ]);
-myLocations.controller('MainController', ['ozpIwcClient']);
+myLocations.controller('MainController', ['ozpIwcClient','angularModalService']);
 
 myLocations.factory("iwcConnectedClient",function($location,$window, iwcClient) {
     var ozpIwcPeerUrl = '';
@@ -25,7 +26,7 @@ myLocations.factory("iwcConnectedClient",function($location,$window, iwcClient) 
     });
 });
 
-myLocations.controller('MainController', function($scope, $log, iwcConnectedClient) {
+myLocations.controller('MainController', function($scope, $log, iwcConnectedClient,ModalService) {
     $scope.id = 0;
     $scope.locations = {};
     $scope.client = iwcConnectedClient;
@@ -84,8 +85,8 @@ myLocations.controller('MainController', function($scope, $log, iwcConnectedClie
         var listing = {
             'title': " Location id:" + $scope.id++,
             'coords': {
-                'lat': Math.random() * 100,
-                'long': Math.random() * 100
+                'lat': Math.random() * 170 - 85,
+                'long': Math.random() * 360 - 180
             },
             'description': "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut..."
         };
@@ -107,16 +108,40 @@ myLocations.controller('MainController', function($scope, $log, iwcConnectedClie
         $scope.currentLocationId = key;
     };
 
+    $scope.editSelectedLocation = function() {
+        if($scope.currentLocationId) {
+            var id = $scope.currentLocationId;
+            // Just provide a template url, a controller and call 'showModal'.
+            ModalService.showModal({
+                templateUrl: "templates/modal.html",
+                controller: "EditController",
+                inputs: {
+                    listing: $scope.currentLocation
+                }
+            }).then(function (modal) {
+                modal.element.modal();
+                modal.close.then(function (result) {
+                    if (result) {
+                        //$scope.locations[id] = result.listing;
+                        $scope.client.api('data.api').set(id,{entity: result.listing});
+                        //$scope.$apply();
+                    }
+                });
+            });
+        }
+
+    };
+
     $scope.deleteSelectedLocation = function() {
         var removeResource = {
             resource: $scope.currentLocationId
         };
-        delete $scope.locations[$scope.currentLocationId];
         return $scope.client.connect().then(function() {
             return $scope.client.api('data.api').removeChild('/myLocations/listings', {entity: removeResource});
         }).then(function(){
             return $scope.client.api('data.api').delete($scope.currentLocationId);
         });
+        delete $scope.locations[$scope.currentLocationId];
     };
 
     $scope.getListings()
@@ -137,3 +162,16 @@ myLocations.directive( "locationList", function() {
         templateUrl: 'templates/locationList.tpl.html'
     };
 });
+
+
+myLocations.controller('EditController', ['$scope', 'listing', 'close', function($scope, listing, close) {
+    $scope.listing = listing;
+    $scope.close = function(result) {
+        if(result){
+            close({listing: $scope.listing}, 500); // close, but give 500ms for bootstrap to animate
+        } else {
+            close(result,500);
+        }
+    };
+
+}]);

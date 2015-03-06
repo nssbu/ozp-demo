@@ -1,6 +1,7 @@
 var map,popup;
 var featureId = 0;
 var locationData = {};
+var currentPopup = {};
 //create a vector source to add the icon(s) to.
 var vectorSource = new ol.source.Vector({});
 
@@ -16,6 +17,7 @@ var addMarker = function(location,featId){
         }
     }
 
+    location.mapCoords = coords;
     //create icon
     var iconFeature = new ol.Feature({
         geometry: new ol.geom.Point(coords),
@@ -30,14 +32,18 @@ var addMarker = function(location,featId){
     map.getView().setCenter(coords);
 
     return featId;
+
+
 };
 
-function spawnPopup(coord,data){
+function spawnPopup(coord,id,data){
     console.log(data);
     if(popup!=null) return;
-
+    currentPopup.coords = coord;
+    currentPopup.data= data;
+    currentPopup.id = id;
     popup = $('<div class="popup"><b><p>' + data.title + '</p></b>' +
-    '<p>Lat/Long:'  +  data.coords.lat + ',' + data.coords.lat +'</p></div>');
+    '<p>Lat/Long:'  +  data.coords.lat + ',' + data.coords.long +'</p></div>');
 
     var overlay = new ol.Overlay({
         element:popup
@@ -50,6 +56,7 @@ function spawnPopup(coord,data){
 function destroyPopup(){
     $(popup).remove();
     popup = null;
+    currentPopup = {};
 }
 
 $(document).ready(function() {
@@ -77,7 +84,8 @@ $(document).ready(function() {
 
         destroyPopup();
         if(feature) {
-            spawnPopup(coord,locationData[feature.getId()]);
+            var id = feature.getId();
+            spawnPopup(coord,id, locationData[id]);
         }
     });
 
@@ -96,13 +104,26 @@ $(document).ready(function() {
             var resource = event.entity;
             client.api('data.api').get(resource).then(function(resp){
                 console.log(resp);
-                var id = addMarker(resp.entity);
-                if(id) {
+                var id = addMarker(resp.entity,resource);
+                if(typeof id !== "undefined") {
                     return client.api('data.api').watch(resource, function (event) {
-                        var feature = map.getLayers().item(1).getSource().getFeatureById(id);
+                        var feature = map.getLayers().item(1).getSource().getFeatureById(resource);
                         map.getLayers().item(1).getSource().removeFeature(feature);
+
+                        //If this marker is currently popped up close it!
+                        var needsUpdate = false;
+                        if(currentPopup.id === resource){
+                            needsUpdate = true;
+                            destroyPopup();
+                        }
+
                         if (event.entity.newValue) {
-                            addMarker(event.entity, id)
+                            addMarker(event.entity.newValue,resource);
+
+                            //Redraw the popup with the new data/location if needed
+                            if(needsUpdate){
+                                spawnPopup(locationData[resource].mapCoords,resource ,locationData[resource]);
+                            }
                         }
                     });
                 }
