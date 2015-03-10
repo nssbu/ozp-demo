@@ -2,13 +2,13 @@
 
 var app = angular.module("myApp", ['ozpIwcClient']);
 
-app.controller('LineChartController', [ '$scope','iwcClient',function(scope, iwcClient) {
+app.controller('LineChartController', [ '$scope', '$window', 'iwcClient',function(scope, $window, iwcClient) {
 
     scope.data = {};
 
     scope.address = null;
 
-    var client = new iwcClient.Client({peerUrl: '../bower_components/ozp-iwc/dist'});
+    var client = new iwcClient.Client({peerUrl: $window.OzoneConfig.iwcUrl});
 
     client.connect().then(function(){
         scope.address = client.address;
@@ -25,7 +25,6 @@ app.controller('LineChartController', [ '$scope','iwcClient',function(scope, iwc
                 });
             });
         });
-
 
     });
 

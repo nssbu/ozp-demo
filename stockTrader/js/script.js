@@ -1,12 +1,12 @@
 (function () {
     'use strict';
 
-    var app = angular.module('appTitude', ['ngAnimate', 'ozpIwcClient']);
+    var app = angular.module('appTitude', ['ozpIwcClient']);
 
-    app.controller("HedgeController", [ '$scope','iwcClient',function(scope, iwcClient) {
+    app.controller("HedgeController", [ '$scope', '$window', 'iwcClient',function(scope, theWindow, iwcClient) {
         scope.isConnected = false;
 
-        scope.client = new iwcClient.Client({peerUrl: '../bower_components/ozp-iwc/dist'});
+        scope.client = new iwcClient.Client({peerUrl: theWindow.OzoneConfig.iwcUrl});
 
         scope.client.connect().then(function(){
                 scope.client.api('data.api').watch('/data/option', function (reply) {
