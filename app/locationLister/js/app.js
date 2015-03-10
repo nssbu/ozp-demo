@@ -1,10 +1,10 @@
-var myLocations = angular.module('MyLocations', [
+var locationLister = angular.module('LocationLister', [
     'ozpIwcClient',
     'angularModalService'
 ]);
-myLocations.controller('MainController', ['ozpIwcClient','angularModalService']);
+locationLister.controller('MainController', ['ozpIwcClient','angularModalService']);
 
-myLocations.factory("iwcConnectedClient",function($location,$window, iwcClient) {
+locationLister.factory("iwcConnectedClient",function($location,$window, iwcClient) {
     var ozpIwcPeerUrl = '';
     var queryParams = $location.search();
     if (queryParams.hasOwnProperty('ozpIwc.peer')) {
@@ -20,20 +20,20 @@ myLocations.factory("iwcConnectedClient",function($location,$window, iwcClient) 
     };
 
     ozpBusInfo.connected = false;
-    console.log('MyLocations using IWC bus: ' + ozpBusInfo.url);
+    console.log('LocationLister using IWC bus: ' + ozpBusInfo.url);
     return new iwcClient.Client({
         peerUrl: ozpBusInfo.url
     });
 });
 
-myLocations.controller('MainController', function($scope, $log, iwcConnectedClient,ModalService) {
+locationLister.controller('MainController', function($scope, $log, iwcConnectedClient,ModalService) {
     $scope.id = 0;
     $scope.locations = {};
     $scope.client = iwcConnectedClient;
 
     $scope.getListings = function(){
         return $scope.client.connect().then(function(){
-            return $scope.client.api('data.api').list('/myLocations/listings');
+            return $scope.client.api('data.api').list('/locationLister/listings');
         }).then(function(reply) {
             if (Array.isArray(reply.entity) && reply.entity.length > 0) {
                 var promises = [];
@@ -77,7 +77,7 @@ myLocations.controller('MainController', function($scope, $log, iwcConnectedClie
         };
 
         return $scope.client.connect().then(function() {
-            return $scope.client.api('data.api').watch('/myLocations/listings',onChange);
+            return $scope.client.api('data.api').watch('/locationLister/listings',onChange);
         });
     };
 
@@ -94,7 +94,7 @@ myLocations.controller('MainController', function($scope, $log, iwcConnectedClie
             modal.close.then(function (result) {
                 if (result) {
                     return $scope.client.connect().then(function() {
-                        return $scope.client.api('data.api').addChild('/myLocations/listings', {entity: result.listing});
+                        return $scope.client.api('data.api').addChild('/locationLister/listings', {entity: result.listing});
                     });
                 }
             });
@@ -144,7 +144,7 @@ myLocations.controller('MainController', function($scope, $log, iwcConnectedClie
             resource: $scope.currentLocationId
         };
         return $scope.client.connect().then(function() {
-            return $scope.client.api('data.api').removeChild('/myLocations/listings', {entity: removeResource});
+            return $scope.client.api('data.api').removeChild('/locationLister/listings', {entity: removeResource});
         }).then(function(){
             return $scope.client.api('data.api').delete($scope.currentLocationId);
         });
@@ -160,7 +160,7 @@ myLocations.controller('MainController', function($scope, $log, iwcConnectedClie
 });
 
 
-myLocations.directive( "locationList", function() {
+locationLister.directive( "locationList", function() {
     return {
         restrict: 'E',
         scope :{
@@ -172,7 +172,7 @@ myLocations.directive( "locationList", function() {
 });
 
 
-myLocations.controller('EditController', ['$scope', 'listing', 'close', function($scope, listing, close) {
+locationLister.controller('EditController', ['$scope', 'listing', 'close', function($scope, listing, close) {
     $scope.listing = listing;
     $scope.close = function(result) {
         if(result){
