@@ -1,3 +1,3 @@
 window.OzoneConfig = {
-  iwcUrl: 'http://ozone-development.github.io/iwc'
+  iwcUrl: 'https://10.10.10.175:8443/marketplace'
 };
