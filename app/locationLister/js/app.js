@@ -32,9 +32,7 @@ locationLister.controller('MainController', function($scope, $log, iwcConnectedC
     $scope.client = iwcConnectedClient;
 
     $scope.getListings = function(){
-        return $scope.client.connect().then(function(){
-            return $scope.client.api('data.api').list('/locationLister/listings');
-        }).then(function(reply) {
+        return $scope.client.api('data.api').list('/locationLister/listings').then(function(reply) {
             if (Array.isArray(reply.entity) && reply.entity.length > 0) {
                 var promises = [];
                 reply.entity.forEach(function (listing) {
@@ -51,9 +49,7 @@ locationLister.controller('MainController', function($scope, $log, iwcConnectedC
 
     $scope.watchListings = function(){
         var handleAddition = function(listingResource) {
-            return $scope.client.connect().then(function() {
-                return $scope.client.api('data.api').get(listingResource)
-            }).then(function(reply){
+            return $scope.client.api('data.api').get(listingResource).then(function(reply){
                 $scope.locations[listingResource] = reply.entity;
             });
         };
@@ -76,9 +72,7 @@ locationLister.controller('MainController', function($scope, $log, iwcConnectedC
             })
         };
 
-        return $scope.client.connect().then(function() {
-            return $scope.client.api('data.api').watch('/locationLister/listings',onChange);
-        });
+        return $scope.client.api('data.api').watch('/locationLister/listings',onChange);
     };
 
     $scope.addListing = function(){
@@ -93,9 +87,7 @@ locationLister.controller('MainController', function($scope, $log, iwcConnectedC
             modal.element.modal();
             modal.close.then(function (result) {
                 if (result) {
-                    return $scope.client.connect().then(function() {
-                        return $scope.client.api('data.api').addChild('/locationLister/listings', {entity: result.listing});
-                    });
+                    return $scope.client.api('data.api').addChild('/locationLister/listings', {entity: result.listing});
                 }
             });
         });
@@ -103,9 +95,7 @@ locationLister.controller('MainController', function($scope, $log, iwcConnectedC
 
     };
     $scope.invokeMap = function(listingResource) {
-        return $scope.client.connect().then(function () {
-            return $scope.client.api('intents.api').invoke("/json/coord/map", {entity: listingResource});
-        })['catch'](function(er){
+        return $scope.client.api('intents.api').invoke("/json/coord/map", {entity: listingResource})['catch'](function(er){
             console.log(er);
         });
     };
@@ -143,9 +133,7 @@ locationLister.controller('MainController', function($scope, $log, iwcConnectedC
         var removeResource = {
             resource: $scope.currentLocationId
         };
-        return $scope.client.connect().then(function() {
-            return $scope.client.api('data.api').removeChild('/locationLister/listings', {entity: removeResource});
-        }).then(function(){
+        return $scope.client.api('data.api').removeChild('/locationLister/listings', {entity: removeResource}).then(function(){
             return $scope.client.api('data.api').delete($scope.currentLocationId);
         });
         delete $scope.locations[$scope.currentLocationId];
