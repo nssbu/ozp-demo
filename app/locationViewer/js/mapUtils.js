@@ -5,26 +5,55 @@
  * @param mapId the DOM div element ID of the map
  * @constructor
  */
-var CustomMap = function(mapId){
+var CustomMap = function(mapId,offline,tilePath){
     //create a vector source to add the icon(s) to.
     this.vectorSource = new ol.source.Vector({});
 
     this.vectorLayer = new ol.layer.Vector({
         source: this.vectorSource
     });
+    var view,tile;
+    var center = ol.proj.transform([-25, 25], 'EPSG:4326', 'EPSG:3857');
+    var maxExtent = [-18827791,-18128219, 21364632,17994085];
+    if(offline){
+        view = new ol.View({
+            center: center,
+            zoom:3,
+            maxZoom: 4,
+            extent: maxExtent
+        });
+
+        tile = new ol.layer.Tile({
+            source: new ol.source.OSM({
+                attributions: [
+                    new ol.Attribution({
+                        html: 'Tiles Courtesy of <a href="http://www.mapquest.com/" target="_blank">MapQuest</a> ' +
+                        '<img src=tilePath+"/mq_logo.png">'
+                    }),
+                    ol.source.OSM.ATTRIBUTION
+                ],
+                crossOrigin: null,
+                url: tilePath + '/{z}/{x}/{y}.png'
+            }),
+            extent: maxExtent
+        })
+    } else {
+        view = new ol.View({
+            center: center,
+            zoom: 3,
+            extent: maxExtent
+        });
+
+        tile = new ol.layer.Tile({
+            source: new ol.source.MapQuest({layer: 'sat'}),
+            extent: maxExtent
+        });
+    }
 
     this.map =  new ol.Map({
         target: mapId,
-        layers: [
-            new ol.layer.Tile({
-                source: new ol.source.MapQuest({layer: 'sat'})
-            }),
-            this.vectorLayer
-        ],
-        view: new ol.View({
-            center: [0, 0],
-            zoom: 3
-        })
+        layers: [tile,this.vectorLayer],
+        view: view
     });
     this.locationData = {};
     this.popup = null;
@@ -49,11 +78,6 @@ var CustomMap = function(mapId){
  */
 CustomMap.prototype.addMarker = function(location,featId){
     var coords = ol.proj.transform([location.coords.long, location.coords.lat], 'EPSG:4326', 'EPSG:3857');
-    for(var i in coords){
-        if(!coords[i]) {
-            return;
-        }
-    }
 
     location.mapCoords = coords;
     //create icon
@@ -126,6 +150,7 @@ CustomMap.prototype.updateMarker = function(featId, location) {
  * @param evt {Event} the singleclick event on the map element
  */
 CustomMap.prototype.singleClickPopupHandler = function(evt){
+    console.log(evt.coordinate);
     //If there were any features where clicked, return the first one.
     var feature = this.map.forEachFeatureAtPixel(evt.pixel, function(feature, layer) {
         return feature;

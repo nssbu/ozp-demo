@@ -1,5 +1,9 @@
 $(document).ready(function() {
-    var map = new CustomMap("map");
+    var mode = ozpIwc.util.parseQueryParams().offline || false;
+    if(mode === "false"){
+        mode = false;
+    }
+    var map = new CustomMap("map",mode, '/locationViewer/tiles');
 
 
     //Create the IWC Client
