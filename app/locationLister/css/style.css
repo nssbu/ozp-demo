@@ -30,3 +30,10 @@ footer {
     bottom: 0;
     color: #e5e5e5;
 }
+.css-form input.ng-invalid.ng-touched {
+    background-color: #FA787E;
+}
+
+.css-form input.ng-valid.ng-touched {
+    background-color: #78FA89;
+}

@@ -3,7 +3,7 @@ $(document).ready(function() {
     if(mode === "false"){
         mode = false;
     }
-    var map = new CustomMap("map",mode, '/locationViewer/tiles');
+    var map = new CustomMap("map",mode, 'tiles');
 
 
     //Create the IWC Client

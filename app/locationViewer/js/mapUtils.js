@@ -14,13 +14,11 @@ var CustomMap = function(mapId,offline,tilePath){
     });
     var view,tile;
     var center = ol.proj.transform([-25, 25], 'EPSG:4326', 'EPSG:3857');
-    var maxExtent = [-18827791,-18128219, 21364632,17994085];
     if(offline){
         view = new ol.View({
             center: center,
             zoom:3,
-            maxZoom: 4,
-            extent: maxExtent
+            maxZoom: 4
         });
 
         tile = new ol.layer.Tile({
@@ -34,19 +32,16 @@ var CustomMap = function(mapId,offline,tilePath){
                 ],
                 crossOrigin: null,
                 url: tilePath + '/{z}/{x}/{y}.png'
-            }),
-            extent: maxExtent
+            })
         })
     } else {
         view = new ol.View({
             center: center,
-            zoom: 3,
-            extent: maxExtent
+            zoom: 3
         });
 
         tile = new ol.layer.Tile({
-            source: new ol.source.MapQuest({layer: 'sat'}),
-            extent: maxExtent
+            source: new ol.source.MapQuest({layer: 'sat'})
         });
     }
 
@@ -61,6 +56,34 @@ var CustomMap = function(mapId,offline,tilePath){
     this.featureId = 0;
 
     this.map.on('singleclick',this.singleClickPopupHandler,this);
+};
+
+
+/**
+ * A default marker styling for this custom map
+ * @method getMarkerStyle
+ * @returns {Object}
+ */
+CustomMap.prototype.getMarkerStyle = function(){
+
+    var fill = new ol.style.Fill({
+        color: '#0FE500'
+    });
+
+    var stroke = new ol.style.Stroke({
+        color: '#3399CC',
+        width: 1.25
+    });
+
+    return new ol.style.Style({
+        image: new ol.style.Circle({
+            fill: fill,
+            stroke: stroke,
+            radius: 6
+        }),
+        fill: fill,
+        stroke: stroke
+    });
 };
 
 /**
@@ -87,6 +110,9 @@ CustomMap.prototype.addMarker = function(location,featId){
         data: location
     });
     featId = featId || this.featureId++;
+
+    iconFeature.setStyle(this.getMarkerStyle());
+
     iconFeature.setId(featId);
 
     this.locationData[featId] = location;
