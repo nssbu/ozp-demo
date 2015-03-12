@@ -1,0 +1,67 @@
+
+html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: #DBDCDD;
+}
+
+header {
+    width: 100%;
+    height: 40px;
+    position: fixed;
+    background: #323232;
+    top: 0;
+    z-index: 20;
+    color: #e5e5e5;
+}
+#content {
+    width: 100%;
+    /*margin: 0 auto;*/
+    padding: 40px 0;
+    z-index: 1;
+}
+footer {
+    width: 100%;
+    height: 40px;
+    background: #323232;
+    position: fixed;
+    bottom: 0;
+    color: #e5e5e5;
+}
+.css-form {
+    padding-top: 4px;
+}
+.css-form input.ng-invalid.ng-touched {
+    background-color: #FA787E;
+}
+
+.css-form input.ng-valid.ng-touched {
+    background-color: #78FA89;
+}
+.table{
+    border-color:  #323232;
+}
+.table-striped > tbody > tr:nth-child(2n) > td, .table-striped > tbody > tr:nth-child(2n) > th {
+    background: #707070;
+    border-bottom: 1px solid #323232;
+    border-left: 1px solid #323232;
+    border-right: 1px solid #323232;
+}
+.table-striped > tbody > tr:nth-child(2n+1) > td, .table-striped > tbody > tr:nth-child(2n+1) > th {
+    background: #DBDCDD;
+    border-bottom: 1px solid #323232;
+    border-left: 1px solid #323232;
+    border-right: 1px solid #323232;
+}
+
+.table > thead > tr > th {
+    border-bottom: 2px solid #323232;
+}
+.table th {
+    background: #323232;
+    color: #e5e5e5;
+    border-left: 1px solid #323232;
+    border-right: 1px solid #323232;
+}
