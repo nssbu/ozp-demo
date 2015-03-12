@@ -2924,32 +2924,16 @@ ozpIwc.util.parseQueryParams=function(query) {
 };
 
 /**
- * Determines the origin of a given url.  
+ * Determines the origin of a given url
  * @method determineOrigin
  * @param url
  * @returns {String}
  */
-ozpIwc.util.protocolPorts={
-    "http:" : "80",
-    "https:" : "443",
-    "ws:" : "80",
-    "wss:" : "443"
-};
 ozpIwc.util.determineOrigin=function(url) {
     var a=document.createElement("a");
     a.href = url;
-    if(a.origin) {
-        return a.origin;
-    }
     var origin=a.protocol + "//" + a.hostname;
-    /* Internet Explorer adds the port to urls in <a> tags created by a script, even
-     * if it wasn't there to start with.  Thanks, IE!
-     * https://connect.microsoft.com/IE/feedback/details/817343/ie11-scripting-value-of-htmlanchorelement-host-differs-between-script-created-link-and-link-from-document
-     * 
-     * Other browsers seem to drop the port if it's the default, so we'll do the same.
-    */
-   
-    if(ozpIwc.util.protocolPorts[a.protocol] !== a.port) {
+    if(a.port) {
         origin+= ":" + a.port;
     }
     return origin;
@@ -4848,16 +4832,12 @@ ozpIwc.util.openWindow=function(url,windowName,features) {
     if(typeof windowName === "object") {
         var str="";
         for(var k in windowName) {
-            str+=k+"="+encodeURIComponent(windowName[k]) +"&";
+            str+=k+"="+encodeURIComponent(windowName[k])+"&";
         }
         windowName=str;
     }
-    try {
-        window.open(url, windowName, features);
-    } catch (e){
-        //fallback for IE
-        window.open(url + "?" + windowName,null,features);
-    }
+    
+    window.open(url,windowName,features);
 };
 
 
@@ -7046,7 +7026,7 @@ ozpIwc.Participant.prototype.receiveFromRouter=function(packetContext) {
         self.forbiddenPacketsMeter.mark();
         /** @todo do we send a "denied" message to the destination?  drop?  who knows? */
         ozpIwc.metrics.counter("transport.packets.forbidden").inc();
-        console.error("failure",err);
+        console.error("failure");
     };
 
     ozpIwc.authorization.isPermitted(request,this)
@@ -11536,7 +11516,7 @@ ozpIwc.IntentsApi.prototype.handleInFlightChoose = function (node, packetContext
         return null;
     }
 
-    var updateNodeEntity = node.serialize();
+    var updateNodeEntity = ozpIwc.util.clone(node);
 
     updateNodeEntity.entity.handlerChosen = {
         'resource' : packetContext.packet.entity.resource,
@@ -11561,7 +11541,7 @@ ozpIwc.IntentsApi.prototype.handleInFlightChoose = function (node, packetContext
  * @param packetContext
  */
 ozpIwc.IntentsApi.prototype.handleInFlightRunning = function (node, packetContext) {
-    var updateNodeEntity = node.serialize();
+    var updateNodeEntity = ozpIwc.util.clone(node);
     updateNodeEntity.entity.state = "running";
     updateNodeEntity.entity.handler.address = packetContext.packet.entity.address;
     updateNodeEntity.entity.handler.resource = packetContext.packet.entity.resource;
@@ -11583,7 +11563,7 @@ ozpIwc.IntentsApi.prototype.handleInFlightRunning = function (node, packetContex
  */
 ozpIwc.IntentsApi.prototype.handleInFlightFail = function (node, packetContext) {
     var invokePacket = node.invokePacket;
-    var updateNodeEntity = node.serialize();
+    var updateNodeEntity = ozpIwc.util.clone(node);
 
     updateNodeEntity.entity.state = packetContext.packet.entity.state;
     updateNodeEntity.entity.reply.contentType = packetContext.packet.entity.reply.contentType;
@@ -11622,7 +11602,7 @@ ozpIwc.IntentsApi.prototype.handleInFlightFail = function (node, packetContext) 
  */
 ozpIwc.IntentsApi.prototype.handleInFlightComplete = function (node, packetContext) {
     var invokePacket = node.invokePacket;
-    var updateNodeEntity = node.serialize();
+    var updateNodeEntity = ozpIwc.util.clone(node);
 
     updateNodeEntity.entity.state = packetContext.packet.entity.state;
     updateNodeEntity.entity.reply.contentType = packetContext.packet.entity.reply.contentType;
@@ -12005,10 +11985,6 @@ ozpIwc.NamesApi = ozpIwc.util.extend(ozpIwc.CommonApiBase, function(config) {
      * @default 3
      */
     this.heartbeatDropCount = config.heartbeatDropCount || 3;
-
-
-    this.apiMap = config.apiMap || ozpIwc.apiMap || {};
-
     // map the alias "/me" to "/address/{packet.src}" upon receiving the packet
     this.on("receive", function (packetContext) {
         var packet = packetContext.packet;
@@ -12037,18 +12013,35 @@ ozpIwc.NamesApi = ozpIwc.util.extend(ozpIwc.CommonApiBase, function(config) {
         pattern: /^\/api\/.*$/,
         contentType: "application/vnd.ozp-iwc-api-list-v1+json"
     }));
-
-    for(var key in this.apiMap){
-        var api = this.apiMap[key];
-        var packet = {
-            resource: '/api/' + api.address,
-            entity: {'actions': api.actions},
-            contentType: 'application/vnd.ozp-iwc-api-v1+json'
-        };
-        var node=this.findOrMakeValue(packet);
-        node.set(packet);
-    }
-
+    //temporary injector code. Remove when api loader is implemented
+    var packet = {
+        resource: '/api/data.api',
+        entity: {'actions': ['get', 'set', 'delete', 'watch', 'unwatch', 'addChild', 'removeChild', 'list']},
+        contentType: 'application/vnd.ozp-iwc-api-v1+json'
+    };
+    var node=this.findOrMakeValue(packet);
+    node.set(packet);
+    packet = {
+        resource: '/api/intents.api',
+        entity: {'actions': ['get','set','delete','watch','unwatch','register','invoke','broadcast', 'list']},
+        contentType: 'application/vnd.ozp-iwc-api-v1+json'
+    };
+    node=this.findOrMakeValue(packet);
+    node.set(packet);
+    packet = {
+        resource: '/api/names.api',
+        entity: {'actions': ['get','set','delete','watch','unwatch', 'list']},
+        contentType: 'application/vnd.ozp-iwc-api-v1+json'
+    };
+    node=this.findOrMakeValue(packet);
+    node.set(packet);
+    packet = {
+        resource: '/api/system.api',
+        entity: { 'actions': ['get','set','delete','watch','unwatch', 'list', 'launch']},
+        contentType: 'application/vnd.ozp-iwc-api-v1+json'
+    };
+    node=this.findOrMakeValue(packet);
+    node.set(packet);
     var self = this;
     this.dynamicNodes.forEach(function(resource) {
         self.updateDynamicNode(self.data[resource]);

@@ -1,5 +1,9 @@
 $(document).ready(function() {
-    var map = new CustomMap("map");
+    var mode = ozpIwc.util.parseQueryParams().offline || false;
+    if(mode === "false"){
+        mode = false;
+    }
+    var map = new CustomMap("map",mode, 'tiles');
 
 
     //Create the IWC Client
@@ -29,8 +33,16 @@ $(document).ready(function() {
                 }
             });
         };
+        var removeAt = window.location.href.indexOf('/index.html');
+        var newPath = window.location.href.substring(0,removeAt);
 
-        intents.register("/json/coord/map",mappingIntent);
+        intents.register("/json/coord/map",{
+
+            entity: {
+                icon : newPath + "/icon.png",
+                label: "Location Viewer"
+            }
+        },mappingIntent);
     });
 });
 

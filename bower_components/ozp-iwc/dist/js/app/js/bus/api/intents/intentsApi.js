@@ -403,7 +403,7 @@ ozpIwc.IntentsApi.prototype.handleInFlightChoose = function (node, packetContext
         return null;
     }
 
-    var updateNodeEntity = node.serialize();
+    var updateNodeEntity = ozpIwc.util.clone(node);
 
     updateNodeEntity.entity.handlerChosen = {
         'resource' : packetContext.packet.entity.resource,
@@ -428,7 +428,7 @@ ozpIwc.IntentsApi.prototype.handleInFlightChoose = function (node, packetContext
  * @param packetContext
  */
 ozpIwc.IntentsApi.prototype.handleInFlightRunning = function (node, packetContext) {
-    var updateNodeEntity = node.serialize();
+    var updateNodeEntity = ozpIwc.util.clone(node);
     updateNodeEntity.entity.state = "running";
     updateNodeEntity.entity.handler.address = packetContext.packet.entity.address;
     updateNodeEntity.entity.handler.resource = packetContext.packet.entity.resource;
@@ -450,7 +450,7 @@ ozpIwc.IntentsApi.prototype.handleInFlightRunning = function (node, packetContex
  */
 ozpIwc.IntentsApi.prototype.handleInFlightFail = function (node, packetContext) {
     var invokePacket = node.invokePacket;
-    var updateNodeEntity = node.serialize();
+    var updateNodeEntity = ozpIwc.util.clone(node);
 
     updateNodeEntity.entity.state = packetContext.packet.entity.state;
     updateNodeEntity.entity.reply.contentType = packetContext.packet.entity.reply.contentType;
@@ -489,7 +489,7 @@ ozpIwc.IntentsApi.prototype.handleInFlightFail = function (node, packetContext) 
  */
 ozpIwc.IntentsApi.prototype.handleInFlightComplete = function (node, packetContext) {
     var invokePacket = node.invokePacket;
-    var updateNodeEntity = node.serialize();
+    var updateNodeEntity = ozpIwc.util.clone(node);
 
     updateNodeEntity.entity.state = packetContext.packet.entity.state;
     updateNodeEntity.entity.reply.contentType = packetContext.packet.entity.reply.contentType;

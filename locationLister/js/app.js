@@ -161,7 +161,18 @@ locationLister.directive( "locationList", function() {
 
 
 locationLister.controller('EditController', ['$scope', 'listing', 'close', function($scope, listing, close) {
-    $scope.listing = listing;
+    if(listing && listing.title && listing.coords){
+        $scope.listing = listing;
+    } else {
+        $scope.listing = {
+            title: '',
+            coords: {
+                lat: 0,
+                long: 0
+            },
+            description: ''
+        };
+    }
     $scope.close = function(result) {
         if(result){
 
