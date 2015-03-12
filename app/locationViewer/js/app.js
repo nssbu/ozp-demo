@@ -33,10 +33,13 @@ $(document).ready(function() {
                 }
             });
         };
+        var removeAt = window.location.href.indexOf('/index.html');
+        var newPath = window.location.href.substring(0,removeAt);
 
         intents.register("/json/coord/map",{
+
             entity: {
-                icon : "icon.png",
+                icon : newPath + "/icon.png",
                 label: "Location Viewer"
             }
         },mappingIntent);
