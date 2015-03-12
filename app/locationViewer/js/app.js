@@ -34,7 +34,12 @@ $(document).ready(function() {
             });
         };
 
-        intents.register("/json/coord/map",mappingIntent);
+        intents.register("/json/coord/map",{
+            entity: {
+                icon : "icon.png",
+                label: "Location Viewer"
+            }
+        },mappingIntent);
     });
 });
 
