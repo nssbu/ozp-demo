@@ -75,13 +75,13 @@ locationLister.controller('MainController', function($scope, $log, iwcConnectedC
         return $scope.client.api('data.api').watch('/locationLister/listings',onChange);
     };
 
-    $scope.addListing = function(){
-
+    $scope.addListing = function(listing){
+        listing = listing || {};
         return ModalService.showModal({
             templateUrl: "templates/modal.html",
             controller: "EditController",
             inputs: {
-                listing: {}
+                listing: listing
             }
         }).then(function (modal) {
             modal.element.modal();
@@ -145,6 +145,28 @@ locationLister.controller('MainController', function($scope, $log, iwcConnectedC
             console.log("Connected! address:", iwcConnectedClient.address);
             $scope.$apply();
         });
+
+
+    var savingIntent = function(event){
+        // This intent is expected to receive a JSON Object to prefill its add location modal.
+        var payload = event.entity;
+        if(payload && payload.title && payload.coords) {
+            $scope.addListing(payload);
+        }
+
+    };
+    var removeAt = window.location.href.indexOf('/index.html');
+    var newPath = window.location.href.substring(0,removeAt);
+    if(removeAt < 0 &&window.location.href[window.location.href.length-1] === '/'){
+        newPath = window.location.href.substring(0,window.location.href.length-1);
+    }
+
+    $scope.client.api('intents.api').register("/json/coord/save",{
+        entity: {
+            icon : newPath + "/icon.png",
+            label: "Location Lister"
+        }
+    },savingIntent);
 });
 
 
