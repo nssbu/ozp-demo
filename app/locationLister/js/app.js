@@ -4,12 +4,12 @@ var locationLister = angular.module('LocationLister', [
 ]);
 locationLister.controller('MainController', ['ozpIwcClient','angularModalService']);
 
-locationLister.factory("iwcConnectedClient",function($location,$window, iwcClient) {
+locationLister.factory("iwcConnectedClient",function($location, $window, $log, iwcClient) {
     var ozpIwcPeerUrl = '';
     var queryParams = $location.search();
     if (queryParams.hasOwnProperty('ozpIwc.peer')) {
         ozpIwcPeerUrl = queryParams['ozpIwc.peer'];
-        console.log('found IWC bus in query param: ' + ozpIwcPeerUrl);
+        $log.debug('found IWC bus in query param: ' + ozpIwcPeerUrl);
     } else {
         ozpIwcPeerUrl = $window.OzoneConfig.iwcUrl;
     }
@@ -20,7 +20,7 @@ locationLister.factory("iwcConnectedClient",function($location,$window, iwcClien
     };
 
     ozpBusInfo.connected = false;
-    console.log('LocationLister using IWC bus: ' + ozpBusInfo.url);
+    $log.debug('LocationLister using IWC bus: ' + ozpBusInfo.url);
     return new iwcClient.Client({
         peerUrl: ozpBusInfo.url
     });
@@ -37,7 +37,7 @@ locationLister.controller('MainController', function($scope, $log, iwcConnectedC
                 var promises = [];
                 reply.entity.forEach(function (listing) {
                     var curPromise = $scope.client.api('data.api').get(listing).then(function (reply) {
-                        console.log(listing, reply);
+                        $log.debug(listing, reply);
                         $scope.locations[listing] = reply.entity;
                     });
                     promises.push(curPromise);
@@ -66,7 +66,7 @@ locationLister.controller('MainController', function($scope, $log, iwcConnectedC
             reply.entity.removedChildren.forEach(function(listing){
                 promises.push(handleRemoval(listing));
             });
-            console.log(reply);
+            $log.debug(reply);
             Promise.all(promises).then(function(){
                 $scope.$apply();
             })
@@ -96,7 +96,7 @@ locationLister.controller('MainController', function($scope, $log, iwcConnectedC
     };
     $scope.invokeMap = function(listingResource) {
         return $scope.client.api('intents.api').invoke("/json/coord/map", {entity: listingResource})['catch'](function(er){
-            console.log(er);
+            $log.debug(er);
         });
     };
 
@@ -142,7 +142,7 @@ locationLister.controller('MainController', function($scope, $log, iwcConnectedC
     $scope.getListings()
         .then($scope.watchListings)
         .then(function(){
-            console.log("Connected! address:", iwcConnectedClient.address);
+            $log.debug("Connected! address:", iwcConnectedClient.address);
             $scope.$apply();
         });
 
