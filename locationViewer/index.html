@@ -5,6 +5,11 @@
     <meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
     <link href="css/style.css" rel="stylesheet">
     <link rel="stylesheet" href="css/ol.css" type="text/css">
+    <!-- cuz IE -->
+    <script>
+      if (!window.console) { window.console = {}; }
+      if (!window.console.log) { window.console.log = function () { }; }
+    </script>
     <script src="js/ol.js" type="text/javascript"></script>
     <script src="../bower_components/jquery/dist/jquery.min.js"> </script>
     <script src="../OzoneConfig.js"></script>
