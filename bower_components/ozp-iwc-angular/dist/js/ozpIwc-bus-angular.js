@@ -2618,6 +2618,22 @@ define("promise/utils",
   });
 requireModule('promise/polyfill').polyfill();
 }());
+ozpIwc = ozpIwc || {};
+
+ozpIwc.apiMap = {
+    "data.api" : { 'address': 'data.api',
+        'actions': ["get","set","delete","watch","unwatch","list","bulkGet","addChild","removeChild"]
+    },
+    "intents.api" : { 'address': 'intents.api',
+        'actions': ["get","set","delete","watch","unwatch","list","bulkGet","register","invoke","broadcast"]
+    },
+    "names.api" : { 'address': 'names.api',
+        'actions': ["get","set","delete","watch","unwatch","list","bulkGet"]
+    },
+    "system.api" : { 'address': 'system.api',
+        'actions': ["get","set","delete","watch","unwatch","list","bulkGet","launch"]
+    }
+};
 var ozpIwc=ozpIwc || {};
 /**
  * Common classes used between both the Client and the Bus.
@@ -3109,6 +3125,24 @@ ozpIwc.util.rejectWith = function(obj){
     return new Promise(function(resolve,reject){
         reject(obj);
     });
+};
+
+/**
+ * Returns the version of Internet Explorer or a -1
+ * (indicating the use of another browser).
+ * @returns {number}
+ */
+ozpIwc.util.getInternetExplorerVersion= function() {
+    var rv = -1; // Return value assumes failure.
+    if (navigator.appName === 'Microsoft Internet Explorer')
+    {
+        var ua = navigator.userAgent;
+        var re  = new RegExp("MSIE ([0-9]{1,}[\.0-9]{0,})");
+        if (re.exec(ua) !== null) {
+            rv = parseFloat(RegExp.$1);
+        }
+    }
+    return rv;
 };
 /*
  * The MIT License (MIT) Copyright (c) 2012 Mike Ihbe
@@ -6102,7 +6136,13 @@ ozpIwc.KeyBroadcastLocalStorageLink = function (config) {
             }
         }
     };
-    window.addEventListener('storage', receiveStorageEvent, false);
+    if(ozpIwc.util.getInternetExplorerVersion() >= 0) {
+        window.setTimeout(function () {
+            window.addEventListener('storage', receiveStorageEvent, false);
+        }, 500);
+    } else {
+        window.addEventListener('storage', receiveStorageEvent, false);
+    }
 
     this.peer.on("send", function (event) {
         self.send(event.packet);
@@ -10246,6 +10286,32 @@ ozpIwc.CommonApiBase.prototype.defaultHandler=function(node,packetContext) {
  */
 ozpIwc.CommonApiBase.prototype.handleGet=function(node,packetContext) {
     packetContext.replyTo(node.toPacket({'response': 'ok'}));
+};
+
+/**
+ * Common handler for packet contexts with `bulkGet` actions.
+ *
+ * @method handleBulkget
+ * @param {ozpIwc.CommonApiValue} node The api node to retrieve.  (Not used, bulk get searches the api's data object instead)
+ * @param {ozpIwc.TransportPacketContext} packetContext The packet context containing the bulk get action.
+ */
+ozpIwc.CommonApiBase.prototype.handleBulkget=function(node,packetContext) {
+	// scan local data set for resource link(?) contains prefix
+	// return list of nodes of matches
+	var matchingNodes = [];
+	
+	if (this.data !== {}) {
+		for (var i in this.data) {
+			if (this.data[i].resource.indexOf(packetContext.packet.resource) === 0) {
+				matchingNodes.push(this.data[i].toPacket());
+			}
+		}
+	}
+	
+	packetContext.replyTo({
+		'response': 'ok',
+		'entity': matchingNodes
+	});
 };
 
 /**
