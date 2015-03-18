@@ -20,16 +20,18 @@ $(document).ready(function() {
 
             // Gather the resource
             data.get(resource).then(function(resp){
+                // If this resource isn't already mapped
+                if(!map.locationData[resource]){
+                    // Attempt to add the resource to the map as a marker
+                    var id = map.addMarker(resp.entity,resource);
 
-                // Attempt to add the resource to the map as a marker
-                var id = map.addMarker(resp.entity,resource);
-
-                // If the marker was successfully created, watch the resource for further changes
-                if(typeof id !== "undefined") {
-                    return data.watch(resource, function (event) {
-                        var newValue = event.entity.newValue;
-                        map.updateMarker(resource,newValue);
-                    });
+                    // If the marker was successfully created, watch the resource for further changes
+                    if(typeof id !== "undefined") {
+                        return data.watch(resource, function (event) {
+                            var newValue = event.entity.newValue;
+                            map.updateMarker(resource,newValue);
+                        });
+                    }
                 }
             });
         };
