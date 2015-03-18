@@ -52,6 +52,14 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwcCo
         $scope.currentLocationId = "";
     };
 
+    $scope.isValidListing = function(listing){
+        if(listing && typeof listing.title !== 'undefined' && listing.coords
+            && typeof listing.coords.lat !== 'undefined' && typeof listing.coords.long !== 'undefined'){
+            return true;
+        } else {
+            return false;
+        }
+    };
 /**
  * IWC Non-Recurring Actions
  */
@@ -62,7 +70,9 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwcCo
                 reply.entity.forEach(function (listing) {
                     var curPromise = $scope.client.api('data.api').get(listing).then(function (reply) {
                         $log.debug(listing, reply);
-                        $scope.locations[listing] = reply.entity;
+                        if($scope.isValidListing(reply.entity)) {
+                            $scope.locations[listing] = reply.entity;
+                        }
                     });
                     promises.push(curPromise);
                 });
@@ -106,8 +116,6 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwcCo
         var removeResource = {
             resource: $scope.currentLocationId
         };
-        delete $scope.locations[$scope.currentLocationId];
-        $scope.clearLocationSelect();
         return $scope.client.api('data.api').removeChild('/locationLister/listings', {entity: removeResource}).then(function(){
             return $scope.client.api('data.api').delete($scope.currentLocationId);
         });
