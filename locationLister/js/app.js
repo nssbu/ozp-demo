@@ -116,8 +116,8 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwcCo
         var removeResource = {
             resource: $scope.currentLocationId
         };
-        return $scope.client.api('data.api').removeChild('/locationLister/listings', {entity: removeResource}).then(function(){
-            return $scope.client.api('data.api').delete($scope.currentLocationId);
+        return $scope.client.api('data.api').delete($scope.currentLocationId).then(function(){
+            return $scope.client.api('data.api').removeChild('/locationLister/listings', {entity: removeResource});
         });
     };
 
