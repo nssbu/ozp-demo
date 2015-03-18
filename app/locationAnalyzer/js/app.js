@@ -1,5 +1,6 @@
 var locationAnalyzer = angular.module('LocationAnalyzer', [
-    'ozpIwcClient'
+    'ozpIwcClient',
+    'ui.bootstrap'
 ]);
 locationAnalyzer.controller('MainController', ['ozpIwcClient']);
 
@@ -119,9 +120,45 @@ locationAnalyzer.controller('MainController', function($scope, $log, iwcConnecte
     };
 
 
-    $scope.id = 0;
-    $scope.locations = {};
+    $scope.registerAnalyzing = function(){
+        var analyzingIntent = function(event){
+            // This intent is expected to receive a JSON Object to prefill its add location modal.
+            var payload = event.entity;
+            if(payload && (typeof payload.lat !== "undefined") && (typeof payload.long !== "undefined")) {
+                $scope.lat = payload.lat;
+                $scope.long = payload.long;
+                $scope.$apply($scope.update);
+            } else {
+                console.log("Invalid format received for /json/coord/analyze");
+            }
+
+        };
+        var removeAt = window.location.href.indexOf('/index.html');
+        var newPath = window.location.href.substring(0,removeAt);
+        if(removeAt < 0 &&window.location.href[window.location.href.length-1] === '/'){
+            newPath = window.location.href.substring(0,window.location.href.length-1);
+        }
+        return $scope.client.api('intents.api').register("/json/coord/analyze",{
+            entity: {
+                icon : newPath + "/icon.png",
+                label: "Location Viewer"
+            }
+        },analyzingIntent);
+
+    };
+    $scope.regulateSaves = function(){
+        $scope.client.api('intents.api').get("/json/coord/save").then(function(response){
+            $scope.saveHandlers = response.entity.handlers;
+            $scope.$apply();
+            return $scope.client.api('intents.api').watch("/json/coord/save",function(event){
+                $scope.saveHandlers = event.entity.newValue.handlers;
+                $scope.$apply();
+            });
+        });
+    };
+
     $scope.client = iwcConnectedClient;
+    $scope.saveHandlers =[];
     $scope.lat = 0;
     $scope.long = 0;
     $scope.output = {
@@ -132,4 +169,6 @@ locationAnalyzer.controller('MainController', function($scope, $log, iwcConnecte
         'Distance from North Pole': $scope.getDistance(90,0),
         'Distance from South Pole': $scope.getDistance(-90,0)
     };
+
+    $scope.registerAnalyzing().then($scope.regulateSaves);
 });

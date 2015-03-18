@@ -1,45 +1,42 @@
-<div class="modal fade">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <button type="button" class="close" ng-click="close(false)" data-dismiss="modal" aria-hidden="true">&times;</button>
-                <h4 class="modal-title">Location Edit</h4>
-            </div>
-            <div class="modal-body">
-                <form name="myForm" class="form-horizontal css-form">
-                    <div class="form-group">
-                        <label for="inputTitle" class="control-label col-xs-2" >Title</label>
-                        <div class="col-xs-10">
-                            <input class="form-control" id="inputTitle" ng-model="listing.title" placeholder="Title" required>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="inputLat" class="control-label col-xs-2">Latitude</label>
-                        <div class="col-xs-5">
-                            <input type="number" class="form-control" id="inputLat"
-                                   max="85" min="-85" ng-model="listing.coords.lat" title="Decimal notation range [-90,90]."  placeholder="0">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="inputLong" class="control-label col-xs-2">Longitude</label>
-                        <div class="col-xs-5">
-                            <input type="number" class="form-control" id="inputLong"
-                                   max="180" min="-180" ng-model="listing.coords.long" title="Decimal notation range [-180,180]." placeholder="0">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="inputDesc" class="control-label col-xs-2">Description</label>
-                        <div class="col-xs-10">
-                            <textarea class="form-control" id="inputDesc" cols="40" rows="5"
-                                      ng-model="listing.description" placeholder="Description" ></textarea>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" ng-click="close(false)" class="btn btn-default" data-dismiss="modal">Cancel</button>
-                <button type="button" ng-disabled="myForm.$invalid" ng-click="close(true)" class="btn btn-primary" data-dismiss="modal">Save</button>
+<div class="modal-header">
+    <h4 class="modal-title">Location Edit</h4>
+</div>
+<div class="modal-body">
+    <form name="myForm" class="form-horizontal css-form">
+        <div class="form-group">
+            <label for="inputTitle" class="control-label col-xs-2" >Title</label>
+            <div class="col-xs-10">
+                <input class="form-control" id="inputTitle" ng-model="listing.title" placeholder="Title" required>
             </div>
         </div>
-    </div>
+        <div class="form-group">
+            <label for="inputLat" class="control-label col-xs-2">Latitude</label>
+            <div class="col-xs-5">
+                <input type="number" class="form-control" id="inputLat"
+                       max="90" min="-90" ng-model="listing.coords.lat"
+                       tooltip-trigger tooltip-placement="right" tooltip="Decimal range [-90,90]."
+                       placeholder="0">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="inputLong" class="control-label col-xs-2">Longitude</label>
+            <div class="col-xs-5">
+                <input type="number" class="form-control" id="inputLong"
+                       max="180" min="-180" ng-model="listing.coords.long"
+                       tooltip-trigger tooltip-placement="right" tooltip="Decimal range [-180,180]."
+                        placeholder="0">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="inputDesc" class="control-label col-xs-2">Description</label>
+            <div class="col-xs-10">
+                <textarea class="form-control" id="inputDesc" cols="40" rows="5"
+                          ng-model="listing.description" placeholder="Description" ></textarea>
+            </div>
+        </div>
+    </form>
+</div>
+<div class="modal-footer">
+    <button type="button" ng-click="cancel()" class="btn btn-default" data-dismiss="modal">Cancel</button>
+    <button type="button" ng-disabled="myForm.$invalid" ng-click="ok()" class="btn btn-primary" data-dismiss="modal">Save</button>
 </div>
