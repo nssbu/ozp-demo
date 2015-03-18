@@ -52,7 +52,7 @@ var CustomMap = function(mapId,offline,tilePath){
     });
     this.locationData = {};
     this.popup = null;
-    this.currentPopup = null;
+    this.currentPopup = {};
     this.featureId = 0;
 
     this.map.on('singleclick',this.singleClickPopupHandler,this);
@@ -117,7 +117,7 @@ CustomMap.prototype.addMarker = function(location,featId){
 
     this.locationData[featId] = location;
     // add icon to vector source
-    this.map.getLayers().item(1).getSource().addFeatures([iconFeature]);
+    this.map.getLayers().item(1).getSource().addFeature(iconFeature);
     this.map.getView().setCenter(coords);
 
     return featId;
