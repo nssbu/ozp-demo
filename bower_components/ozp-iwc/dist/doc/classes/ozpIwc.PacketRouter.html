@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>ozpIwc.PacketRouter - ozpIwc</title>
+    <title>ozpIwc.packetRouter - ozpIwc</title>
     <link rel="stylesheet" href="http://yui.yahooapis.com/3.9.1/build/cssgrids/cssgrids-min.css">
     <link rel="stylesheet" href="../assets/vendor/prettify/prettify-min.css">
     <link rel="stylesheet" href="../assets/css/main.css" id="site_styles">
@@ -218,7 +218,7 @@
             <div class="apidocs">
                 <div id="docs-main">
                     <div class="content">
-                        <h1>ozpIwc.PacketRouter Class</h1>
+                        <h1>ozpIwc.packetRouter Class</h1>
 <div class="box meta">
     
 
@@ -226,7 +226,7 @@
 
     
         <div class="foundat">
-            Defined in: <a href="../files/app_js_common_packetRouter.js.html#l47"><code>app&#x2F;js&#x2F;common&#x2F;packetRouter.js:47</code></a>
+            Defined in: <a href="../files/app_js_common_packetRouter.js.html#l1"><code>app&#x2F;js&#x2F;common&#x2F;packetRouter.js:1</code></a>
         </div>
     
 
@@ -242,8 +242,7 @@
 
 
 <div class="box intro">
-    <p>A routing module for packet controlling via template matching and filtering.</p>
-
+    
 </div>
 
 
@@ -255,8 +254,6 @@
         
             <li class="api-class-tab methods"><a href="#methods">Methods</a></li>
         
-        
-            <li class="api-class-tab properties"><a href="#properties">Properties</a></li>
         
         
         
@@ -273,22 +270,10 @@
                     <ul class="index-list methods">
                         
                             <li class="index-item method">
-                                <a href="#method_declareRoute">declareRoute</a>
+                                <a href="#method_uriTemplate">uriTemplate</a>
 
                                 
-                                
-                            </li>
-                        
-                            <li class="index-item method">
-                                <a href="#method_filterChain">filterChain</a>
-
-                                
-                                
-                            </li>
-                        
-                            <li class="index-item method">
-                                <a href="#method_routePacket">routePacket</a>
-
+                                    <span class="flag static">static</span>
                                 
                                 
                             </li>
@@ -297,28 +282,6 @@
                 </div>
             
 
-            
-                <div class="index-section properties">
-                    <h3>Properties</h3>
-
-                    <ul class="index-list properties">
-                        
-                            <li class="index-item property">
-                                <a href="#property_defaultRoute">defaultRoute</a>
-
-                                
-                                
-                            </li>
-                        
-                            <li class="index-item property">
-                                <a href="#property_routes">routes</a>
-
-                                
-                                
-                            </li>
-                        
-                    </ul>
-                </div>
             
 
             
@@ -331,8 +294,8 @@
                 <h2 class="off-left">Methods</h2>
 
                 
-                    <div id="method_declareRoute" class="method item">
-    <h3 class="name"><code>declareRoute</code></h3>
+                    <div id="method_uriTemplate" class="method item">
+    <h3 class="name"><code>uriTemplate</code></h3>
 
     
         <div class="args">
@@ -340,19 +303,7 @@
             
                 <li class="arg">
                     
-                        <code>config</code>
-                    
-                </li>
-            
-                <li class="arg">
-                    
-                        <code>handler</code>
-                    
-                </li>
-            
-                <li class="arg">
-                    
-                        <code>handlerSelf</code>
+                        <code>pattern</code>
                     
                 </li>
             
@@ -362,7 +313,7 @@
 
     
         <span class="returns-inline">
-            <span class="type"><a href="../classes/ozpIwc.PacketRouter.html" class="crosslink">ozpIwc.PacketRouter</a></span>
+            <span class="type">Function</span>
         </span>
     
 
@@ -372,6 +323,8 @@
 
     
 
+    
+        <span class="flag static">static</span>
     
 
     
@@ -389,7 +342,7 @@
             
         
         
-        <a href="../files/app_js_common_packetRouter.js.html#l82"><code>app&#x2F;js&#x2F;common&#x2F;packetRouter.js:82</code></a>
+        <a href="../files/app_js_common_packetRouter.js.html#l9"><code>app&#x2F;js&#x2F;common&#x2F;packetRouter.js:9</code></a>
         
         </p>
 
@@ -400,9 +353,7 @@
     </div>
 
     <div class="description">
-        <p>Assigns a route to the Packet Router for the specific action. This route is taken by a packet if its resource matches
-the routes resource template, passes any assigned filters. Additionally, a packet may only take one route, if
-multiple possible routes are possible, the route which was declared earliest will handle the packet.</p>
+        <p>Generates a template function to deserialize a uri string based on the RegExp pattern provided.</p>
 
     </div>
 
@@ -414,274 +365,8 @@ multiple possible routes are possible, the route which was declared earliest wil
             
                 <li class="param">
                     
-                        <code class="param-name">config</code>
-                        <span class="type">Object</span>
-                    
-
-                    
-
-                    <div class="param-description">
-                         
-                    </div>
-
-                    
-                        <ul class="params-list">
-                            
-                            <li class="param">
-                                
-                                    <code class="param-name">action</code>
-                                    <span class="type">String</span>
-                                
-
-                                <div class="param-description">
-                                    <p>The action this route is defined to (ex. &quot;get&quot;, &quot;set&quot;, &quot;list&quot;, ...)</p>
-
-                                </div>
-
-                                
-                            </li>
-                            
-                            <li class="param">
-                                
-                                    <code class="param-name">resource</code>
-                                    <span class="type">String</span>
-                                
-
-                                <div class="param-description">
-                                    <p>The serialized uri template definition pertaining to the route (ex. &quot;/foo&quot;, &quot;/{id:\d+}&quot;, &quot;/{param1}/{param2}&quot;)</p>
-
-                                </div>
-
-                                
-                            </li>
-                            
-                            <li class="param">
-                                
-                                    <code class="param-name">filters</code>
-                                    <span class="type">Array</span>
-                                
-
-                                <div class="param-description">
-                                    <p>Any filters that better isolate the packet routing based on the context and packet properties</p>
-
-                                </div>
-
-                                
-                            </li>
-                            
-                        </ul>
-                    
-                </li>
-            
-                <li class="param">
-                    
-                        <code class="param-name">handler</code>
-                        <span class="type">Function</span>
-                    
-
-                    
-
-                    <div class="param-description">
-                        <p>The resulting action to be taken should this route handle a packet.</p>
-
-                    </div>
-
-                    
-                </li>
-            
-                <li class="param">
-                    
-                        <code class="param-name">handlerSelf</code>
-                        <span class="type">Object</span>
-                    
-
-                    
-
-                    <div class="param-description">
-                        <p>The scope of the handler, the PacketRouter object holds the default scope if none is provided.</p>
-
-                    </div>
-
-                    
-                </li>
-            
-            </ul>
-        </div>
-    
-
-    
-        <div class="returns">
-            <h4>Returns:</h4>
-
-            <div class="returns-description">
-                
-                    
-                        <span class="type"><a href="../classes/ozpIwc.PacketRouter.html" class="crosslink">ozpIwc.PacketRouter</a></span>:
-                    
-                
-            </div>
-        </div>
-    
-
-    
-</div>
-
-                
-                    <div id="method_filterChain" class="method item">
-    <h3 class="name"><code>filterChain</code></h3>
-
-    
-        <div class="args">
-            <span class="paren">(</span><ul class="args-list inline commas">
-            
-                <li class="arg">
-                    
-                        <code>packet</code>
-                    
-                </li>
-            
-                <li class="arg">
-                    
-                        <code>context</code>
-                    
-                </li>
-            
-                <li class="arg">
-                    
-                        <code>pathParams</code>
-                    
-                </li>
-            
-                <li class="arg">
-                    
-                        <code>routeSpec</code>
-                    
-                </li>
-            
-                <li class="arg">
-                    
-                        <code>filters</code>
-                    
-                </li>
-            
-            </ul><span class="paren">)</span>
-        </div>
-    
-
-    
-        <span class="returns-inline">
-            <span class="type">Function | Null</span>
-        </span>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    <div class="meta">
-        
-            
-                
-                <p>
-                
-                Defined in
-                
-            
-        
-        
-        <a href="../files/app_js_common_packetRouter.js.html#l114"><code>app&#x2F;js&#x2F;common&#x2F;packetRouter.js:114</code></a>
-        
-        </p>
-
-
-        
-
-        
-    </div>
-
-    <div class="description">
-        <p>Recursively passes through all filters for the packet, calling the handler only if all filters pass.</p>
-
-    </div>
-
-    
-        <div class="params">
-            <h4>Parameters:</h4>
-
-            <ul class="params-list">
-            
-                <li class="param">
-                    
-                        <code class="param-name">packet</code>
-                        <span class="type">Object</span>
-                    
-
-                    
-
-                    <div class="param-description">
-                         
-                    </div>
-
-                    
-                </li>
-            
-                <li class="param">
-                    
-                        <code class="param-name">context</code>
-                        <span class="type">Object</span>
-                    
-
-                    
-
-                    <div class="param-description">
-                         
-                    </div>
-
-                    
-                </li>
-            
-                <li class="param">
-                    
-                        <code class="param-name">pathParams</code>
-                        <span class="type">Object</span>
-                    
-
-                    
-
-                    <div class="param-description">
-                         
-                    </div>
-
-                    
-                </li>
-            
-                <li class="param">
-                    
-                        <code class="param-name">routeSpec</code>
-                        <span class="type">Object</span>
-                    
-
-                    
-
-                    <div class="param-description">
-                         
-                    </div>
-
-                    
-                </li>
-            
-                <li class="param">
-                    
-                        <code class="param-name">filters</code>
-                        <span class="type">Array</span>
+                        <code class="param-name">pattern</code>
+                        <span class="type">String</span>
                     
 
                     
@@ -704,137 +389,10 @@ multiple possible routes are possible, the route which was declared earliest wil
             <div class="returns-description">
                 
                     
-                        <span class="type">Function | Null</span>:
+                        <span class="type">Function</span>:
                     
-                    <p>The handler function should all filters pass.</p>
-
-                
-            </div>
-        </div>
-    
-
-    
-</div>
-
-                
-                    <div id="method_routePacket" class="method item">
-    <h3 class="name"><code>routePacket</code></h3>
-
-    
-        <div class="args">
-            <span class="paren">(</span><ul class="args-list inline commas">
-            
-                <li class="arg">
-                    
-                        <code>packet</code>
-                    
-                </li>
-            
-                <li class="arg">
-                    
-                        <code>context</code>
-                    
-                </li>
-            
-            </ul><span class="paren">)</span>
-        </div>
-    
-
-    
-        <span class="returns-inline">
-            <span class="type"> | False</span>
-        </span>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    <div class="meta">
-        
-            
-                
-                <p>
-                
-                Defined in
-                
-            
-        
-        
-        <a href="../files/app_js_common_packetRouter.js.html#l136"><code>app&#x2F;js&#x2F;common&#x2F;packetRouter.js:136</code></a>
-        
-        </p>
-
-
-        
-
-        
-    </div>
-
-    <div class="description">
-        <p>Routes the given packet based on the context provided.</p>
-
-    </div>
-
-    
-        <div class="params">
-            <h4>Parameters:</h4>
-
-            <ul class="params-list">
-            
-                <li class="param">
-                    
-                        <code class="param-name">packet</code>
-                        <span class="type">Object</span>
-                    
-
-                    
-
-                    <div class="param-description">
-                         
-                    </div>
-
-                    
-                </li>
-            
-                <li class="param">
-                    
-                        <code class="param-name">context</code>
-                        <span class="type">Object</span>
-                    
-
-                    
-
-                    <div class="param-description">
-                         
-                    </div>
-
-                    
-                </li>
-            
-            </ul>
-        </div>
-    
-
-    
-        <div class="returns">
-            <h4>Returns:</h4>
-
-            <div class="returns-description">
-                
-                    
-                        <span class="type"> | False</span>:
-                    
-                    <p>The output of the route&#39;s handler. If the specified action does not have any routes false is
-                   returned. If the specified action does not have a matching route the default route is applied</p>
+                    <p>If the uri does not meet the template criteria, null will be returned when the returned
+                    function is invoked.</p>
 
                 
             </div>
@@ -848,108 +406,6 @@ multiple possible routes are possible, the route which was declared earliest wil
             </div>
         
 
-        
-            <div id="properties" class="api-class-tabpanel">
-                <h2 class="off-left">Properties</h2>
-
-                
-                    <div id="property_defaultRoute" class="property item">
-    <h3 class="name"><code>defaultRoute</code></h3>
-    <span class="type">Unknown</span>
-
-    
-
-    
-
-    
-
-    
-
-    <div class="meta">
-        
-            
-                
-                <p>
-                
-                Defined in
-                
-            
-        
-        
-        <a href="../files/app_js_common_packetRouter.js.html#l65"><code>app&#x2F;js&#x2F;common&#x2F;packetRouter.js:65</code></a>
-        
-        </p>
-
-        
-
-        
-    </div>
-
-    <div class="description">
-        <p>The route that matches all packet handling requests. Should defined route be able to handle a packet, this route
-is called. Can be changed using the declareDefaultRoute method.</p>
-
-    </div>
-
-    
-
-    
-
-    
-</div>
-
-                
-                    <div id="property_routes" class="property item">
-    <h3 class="name"><code>routes</code></h3>
-    <span class="type">Object</span>
-
-    
-
-    
-
-    
-
-    
-
-    <div class="meta">
-        
-            
-                
-                <p>
-                
-                Defined in
-                
-            
-        
-        
-        <a href="../files/app_js_common_packetRouter.js.html#l53"><code>app&#x2F;js&#x2F;common&#x2F;packetRouter.js:53</code></a>
-        
-        </p>
-
-        
-
-        
-    </div>
-
-    <div class="description">
-        <p>The key on this table is the route action.
-The value is an array of config objects of the form:
-   action: from the route declaration
-   resource: from the route declaration
-   handler: the function from the route declaration
-   uriTemplate: uriTemplate function</p>
-
-    </div>
-
-    
-
-    
-
-    
-</div>
-
-                
-            </div>
         
 
         
