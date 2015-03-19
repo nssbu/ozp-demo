@@ -11,15 +11,14 @@
     "angular-mocks": "~1.2.x",
     "angular-bootstrap": "~0.11.x",
     "angular-gridster": "~0.9.11",
-    "angular-animate": "latest",
+    "angular-animate": "1.2.x",
     "bootstrap": "~3.1.x",
     "d3": "latest",
     "html5-boilerplate": "~4.3.0",
     "ozp-iwc": "ozone-development/ozp-iwc",
     "ozp-iwc-angular": "ozone-development/ozp-iwc-angular",
     "ozp-data-schemas": "ozone-development/ozp-data-schemas",
-    "ol3": "hastebrot/ol3-dist#3.1.1",
-    "angular-modal-service": "~0.6.3"
+    "ol3": "hastebrot/ol3-dist#3.1.1"
   },
   "resolutions": {
     "angular": "1.2.26"
