@@ -33,6 +33,13 @@ module.exports = function(grunt) {
       ]
     }
   },
+  shell: {
+    tarDate: {
+      command: [
+        './packageRelease.sh demo-apps app'
+      ].join('&&')
+    }
+  },
   clean: {
     mockapi: ['app/bower_components/ozp-iwc/dist/api']
   }
@@ -43,6 +50,7 @@ module.exports = function(grunt) {
 	grunt.loadNpmTasks('grunt-contrib-connect');
   grunt.loadNpmTasks('grunt-contrib-copy');
   grunt.loadNpmTasks('grunt-gh-pages');
+  grunt.loadNpmTasks('grunt-shell');
 	
   // Default task(s).
   grunt.registerTask('default', ['clean', 'copy', 'connect']);

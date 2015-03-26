@@ -50,3 +50,5 @@ dist/
 
 #sftp configuration file
 sftp-config.json
+
+*.tar.gz
