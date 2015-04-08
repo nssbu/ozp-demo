@@ -2617,7 +2617,7 @@ define("promise/utils",
   });
 requireModule('promise/polyfill').polyfill();
 }());
-ozpIwc = ozpIwc || {};
+var ozpIwc = ozpIwc || {};
 
 ozpIwc.apiMap = {
     "data.api" : { 'address': 'data.api',

@@ -19,7 +19,7 @@
             
         </div>
         <div class="yui3-u-1-4 version">
-            <em>API Docs for: 0.2.4</em>
+            <em>API Docs for: 0.2.5</em>
         </div>
     </div>
     <div id="bd" class="yui3-g">
@@ -269,18 +269,11 @@ ozpIwc.SystemApi.prototype.loadFromServer=function() {
     var headers = [
         {name: &quot;Accept&quot;, value: &quot;application/vnd.ozp-application-v1+json&quot;}
     ];
-    return new Promise(function(resolve, reject) {
-        self.loadFromEndpoint(ozpIwc.linkRelPrefix + &quot;:application&quot;, headers)
-            .then(function() {
-                return self.loadFromEndpoint(ozpIwc.linkRelPrefix + &quot;:user&quot;);
-            }).then(function() {
-                return self.loadFromEndpoint(ozpIwc.linkRelPrefix + &quot;:system&quot;);
-            }).then(function() {
-                resolve(&quot;system.api load complete&quot;);
-            })[&#x27;catch&#x27;](function(error) {
-                reject(error);
-            });
-    });
+	var loadEndpoints = [];
+	loadEndpoints.push((self.loadFromEndpointIterative(ozpIwc.linkRelPrefix + &quot;:application&quot;, headers)).then(&quot;system.api:application load complete&quot;));
+	loadEndpoints.push((self.loadFromEndpointIterative(ozpIwc.linkRelPrefix + &quot;:user&quot;, headers)).then(&quot;system.api:user load complete&quot;));
+	loadEndpoints.push((self.loadFromEndpointIterative(ozpIwc.linkRelPrefix + &quot;:system&quot;, headers)).then(&quot;system.api:system load complete&quot;));
+	return Promise.all(loadEndpoints).then(&quot;system.api load complete&quot;);
 };
 
 /**

@@ -2,7 +2,7 @@
     "project": {
         "name": "ozpIwc",
         "description": "",
-        "version": "0.2.4",
+        "version": "0.2.5",
         "url": ""
     },
     "files": {
@@ -2383,7 +2383,7 @@
         },
         {
             "file": "app/js/bus/api/data/dataApi.js",
-            "line": 35,
+            "line": 36,
             "description": "Creates a DataApiValue from the given packet.",
             "itemtype": "method",
             "name": "makeValue",
@@ -2404,7 +2404,7 @@
         },
         {
             "file": "app/js/bus/api/data/dataApi.js",
-            "line": 47,
+            "line": 48,
             "description": "A middleware function used to format server data to be deserialized into Api nodes",
             "itemtype": "method",
             "name": "formatServerData",
@@ -2424,7 +2424,7 @@
         },
         {
             "file": "app/js/bus/api/data/dataApi.js",
-            "line": 57,
+            "line": 58,
             "description": "Creates a child node of a given Data Api node. The child's key will be automatically generated based on its\nparents key.",
             "itemtype": "method",
             "name": "createChild",
@@ -2452,7 +2452,7 @@
         },
         {
             "file": "app/js/bus/api/data/dataApi.js",
-            "line": 78,
+            "line": 79,
             "description": "Sends a list of children of the specified node to the sender of the packet context.\n\nThe sender of the packet context will receive a responding message with the following parameters:\n```\n{\n    response: 'ok',\n    entity: [ <array of child node resources (String)> ]\n}\n```",
             "itemtype": "method",
             "name": "handleList",
@@ -2474,7 +2474,7 @@
         },
         {
             "file": "app/js/bus/api/data/dataApi.js",
-            "line": 99,
+            "line": 100,
             "description": "Creates a child node of the given Data Api node. Creates a reference to the child node in the parent node's children\nproperty.\n\n\nA responding message is sent back to the sender of the packet context with the following parameters:\n```\n{\n    response: 'ok',\n    entity: {\n       resource: <resource(String) of the new child node>\n    }\n}\n```",
             "itemtype": "method",
             "name": "handleAddchild",
@@ -2496,7 +2496,7 @@
         },
         {
             "file": "app/js/bus/api/data/dataApi.js",
-            "line": 138,
+            "line": 139,
             "description": "Removes a child node from a given parent node.\n\nA responding message is sent back to the sender of the packet context with the following parameters:\n```\n{\n    response: 'ok'\n}\n```",
             "itemtype": "method",
             "name": "handleRemovechild",
@@ -2518,7 +2518,7 @@
         },
         {
             "file": "app/js/bus/api/data/dataApi.js",
-            "line": 169,
+            "line": 170,
             "description": "Overrides the implementation of ozpIwc.CommonApiBase.handleSet\nto add a node to persistent storage after setting it's value.",
             "itemtype": "method",
             "name": "handleSet",
@@ -2540,7 +2540,7 @@
         },
         {
             "file": "app/js/bus/api/data/dataApi.js",
-            "line": 184,
+            "line": 185,
             "description": "Overrides the implementation of ozpIwc.CommonApiBase.handleDelete\nto delete a node from persistent storage before deleting it's value.",
             "itemtype": "method",
             "name": "handleDelete",
@@ -2557,7 +2557,7 @@
         },
         {
             "file": "app/js/bus/api/data/dataApi.js",
-            "line": 198,
+            "line": 199,
             "description": "Saves an individual node to the persistent data store",
             "itemtype": "method",
             "name": "persistNode",
@@ -2574,7 +2574,7 @@
         },
         {
             "file": "app/js/bus/api/data/dataApi.js",
-            "line": 214,
+            "line": 215,
             "description": "Deletes an individual node from the persistent data store",
             "itemtype": "method",
             "name": "deleteNode",
@@ -2591,7 +2591,7 @@
         },
         {
             "file": "app/js/bus/api/data/dataApi.js",
-            "line": 225,
+            "line": 226,
             "description": "Collect list of nodes to persist, send to server, reset persist flag.\nCurrently sends every dirty node with a separate ajax call.",
             "itemtype": "method",
             "name": "persistNodes",
@@ -3419,7 +3419,7 @@
         },
         {
             "file": "app/js/bus/api/system/systemApi.js",
-            "line": 62,
+            "line": 55,
             "description": "Update all intents registered to the given System Api node.",
             "itemtype": "method",
             "name": "updateIntents",
@@ -3441,7 +3441,7 @@
         },
         {
             "file": "app/js/bus/api/system/systemApi.js",
-            "line": 102,
+            "line": 95,
             "description": "Creates a System Api Application or Mailbox value from the given packet.",
             "itemtype": "method",
             "name": "makeValue",
@@ -3462,7 +3462,7 @@
         },
         {
             "file": "app/js/bus/api/system/systemApi.js",
-            "line": 128,
+            "line": 121,
             "description": "Handles System api requests with an action of \"set\"",
             "itemtype": "method",
             "name": "handleSet",
@@ -3472,7 +3472,7 @@
         },
         {
             "file": "app/js/bus/api/system/systemApi.js",
-            "line": 142,
+            "line": 135,
             "description": "Handles System api requests with an action of \"delete\"",
             "itemtype": "method",
             "name": "handleDelete",
@@ -3482,7 +3482,7 @@
         },
         {
             "file": "app/js/bus/api/system/systemApi.js",
-            "line": 157,
+            "line": 150,
             "description": "Handles System api requests with an action of \"launch\"",
             "itemtype": "method",
             "name": "handleLaunch",
@@ -3492,7 +3492,7 @@
         },
         {
             "file": "app/js/bus/api/system/systemApi.js",
-            "line": 178,
+            "line": 171,
             "description": "Handles System api requests with an action of \"invoke\"",
             "itemtype": "method",
             "name": "handleInvoke",
@@ -3637,7 +3637,7 @@
         {
             "file": "app/js/bus/api/commonApiBase.js",
             "line": 147,
-            "description": "Loads api data from a specific endpoint.",
+            "description": "TO BE DEPRECATED - This is the recursive tree scanning approach.  Replaced by iterative loadFromEndpointIterative.\nLoads api data from a specific endpoint.",
             "itemtype": "method",
             "name": "loadFromEndpoint",
             "params": [
@@ -3669,7 +3669,35 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 189,
+            "line": 265,
+            "description": "Updates an Api node with server loaded HAL data.  (Was updateResourceFromServer, modified to be iterative, not recursive)",
+            "itemtype": "method",
+            "name": "updateResourceFromServerIterative",
+            "params": [
+                {
+                    "name": "object",
+                    "description": "The object retrieved from the server to store.",
+                    "type": "ozpIwc.TransportPacket"
+                },
+                {
+                    "name": "path",
+                    "description": "The path of the resource retrieved.",
+                    "type": "String"
+                },
+                {
+                    "name": "endpoint",
+                    "description": "the endpoint of the HAL data.",
+                    "type": "ozpIwc.Endpoint"
+                }
+            ],
+            "class": "ozpIwc.CommonApiBase",
+            "module": "bus.api",
+            "submodule": "bus.api.Type",
+            "namespace": "ozpIwc"
+        },
+        {
+            "file": "app/js/bus/api/commonApiBase.js",
+            "line": 301,
             "description": "Updates an Api node with server loaded HAL data.",
             "itemtype": "method",
             "name": "updateResourceFromServer",
@@ -3697,7 +3725,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 226,
+            "line": 338,
             "description": "A middleware function used to format server data to be deserialized into Api nodes",
             "itemtype": "method",
             "name": "formatServerData",
@@ -3719,7 +3747,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 239,
+            "line": 351,
             "description": "Traverses through HAL data from the server and updates api resources based on the data it finds.",
             "itemtype": "method",
             "name": "loadLinkedObjectsFromServer",
@@ -3756,7 +3784,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 337,
+            "line": 449,
             "description": "Creates a new value for the given packet's request.  Subclasses must override this\nfunction to return the proper value based upon the packet's resource, content type, or\nother parameters.",
             "itemtype": "method",
             "name": "makeValue",
@@ -3779,7 +3807,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 352,
+            "line": 464,
             "description": "Determines whether the action implied by the packet is permitted to occur on\nnode in question.",
             "todo": [
                 "the refactoring of security to allow action-level permissions",
@@ -3813,7 +3841,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 404,
+            "line": 516,
             "description": "Turn an event into a list of change packets to be sent to the watchers.",
             "itemtype": "method",
             "name": "notifyWatchers",
@@ -3836,7 +3864,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 432,
+            "line": 544,
             "description": "For a given packet, return the value if it already exists, otherwise create the value\nusing makeValue()",
             "itemtype": "method",
             "name": "findOrMakeValue",
@@ -3856,7 +3884,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 453,
+            "line": 565,
             "description": "Determines if the given resource exists.",
             "itemtype": "method",
             "name": "hasKey",
@@ -3878,7 +3906,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 465,
+            "line": 577,
             "description": "Generates a key name that does not already exist and starts with a given prefix.",
             "itemtype": "method",
             "name": "createKey",
@@ -3900,7 +3928,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 481,
+            "line": 593,
             "description": "Route a packet to the appropriate handler.  The routing path is based upon\nthe action and whether a resource is defined. If the handler does not exist, it is routed\nto defaultHandler(node,packetContext)\n\nHas Resource: handleAction(node,packetContext)\n\nNo resource: rootHandleAction(node,packetContext)\n\nWhere \"Action\" is replaced with the packet's action, lowercase with first letter capitalized\n(e.g. \"doSomething\" invokes \"handleDosomething\")\nNote that node will usually be null for the rootHandlerAction calls.\n<ul>\n<li> Pre-routing checks\t<ul>\n\t\t<li> Permission check</li>\n\t\t<li> ACL Checks (todo)</li>\n\t\t<li> Precondition checks</li>\n</ul></li>\n<li> Post-routing actions <ul>\n\t\t<li> Reply to requester </li>\n\t\t<li> If node version changed, notify all watchers </li>\n</ul></li>",
             "itemtype": "method",
             "name": "routePacket",
@@ -3918,7 +3946,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 565,
+            "line": 677,
             "description": "Routes event channel messages.",
             "itemtype": "method",
             "name": "routeEventChannel",
@@ -3936,7 +3964,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 589,
+            "line": 701,
             "description": "Handles disconnect messages received over the $bus.multicast group.",
             "itemtype": "method",
             "name": "handleEventChannelDisconnect",
@@ -3954,7 +3982,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 606,
+            "line": 718,
             "description": "Handles connect messages received over the $bus.multicast group.",
             "itemtype": "method",
             "name": "handleEventChannelConnect",
@@ -3972,7 +4000,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 616,
+            "line": 728,
             "description": "Intended to be overridden by subclass.",
             "abstract": "",
             "itemtype": "method",
@@ -3991,7 +4019,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 625,
+            "line": 737,
             "description": "Intended to be overridden by subclass.",
             "abstract": "",
             "itemtype": "method",
@@ -4010,7 +4038,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 634,
+            "line": 746,
             "description": "Determines which handler in the api is needed to process the given packet.",
             "itemtype": "method",
             "name": "findHandler",
@@ -4032,7 +4060,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 667,
+            "line": 779,
             "description": "Checks that the given packet context's resource meets the requirements of the api. Subclasses should override this\nmethod as it performs no check by default.",
             "itemtype": "method",
             "name": "validateResource",
@@ -4059,7 +4087,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 681,
+            "line": 793,
             "description": "Checks the given packet context's `ifTag` against the desired api node's `version`. Throws ApiError if ifTag exists\nand doesn't match.",
             "itemtype": "method",
             "name": "validatePreconditions",
@@ -4080,7 +4108,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 696,
+            "line": 808,
             "description": "Checks that the given packet context's contextType meets the requirements of the api. Subclasses should override this\nmethod as it performs no check by default.",
             "itemtype": "method",
             "name": "validateContextType",
@@ -4107,7 +4135,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 710,
+            "line": 822,
             "todo": [
                 "(DOC)"
             ],
@@ -4127,7 +4155,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 734,
+            "line": 846,
             "todo": [
                 "(DOC)"
             ],
@@ -4147,7 +4175,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 745,
+            "line": 857,
             "description": "The default handler for the api when receiving packets. This handler is called when no handler was found for the\ngiven packet context's action.",
             "itemtype": "method",
             "name": "defaultHandler",
@@ -4170,7 +4198,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 764,
+            "line": 876,
             "description": "Common handler for packet contexts with `get` actions.",
             "itemtype": "method",
             "name": "handleGet",
@@ -4193,7 +4221,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 775,
+            "line": 887,
             "description": "Common handler for packet contexts with `bulkGet` actions.",
             "itemtype": "method",
             "name": "handleBulkget",
@@ -4216,7 +4244,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 801,
+            "line": 913,
             "description": "Common handler for packet contexts with `set` actions.",
             "itemtype": "method",
             "name": "handleSet",
@@ -4239,7 +4267,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 813,
+            "line": 925,
             "description": "Common handler for packet contexts with `delete` actions.",
             "todo": [
                 "(DOC)"
@@ -4265,7 +4293,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 826,
+            "line": 938,
             "description": "Common handler for packet contexts with `watch` actions.",
             "itemtype": "method",
             "name": "handleWatch",
@@ -4288,7 +4316,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 840,
+            "line": 952,
             "description": "Common handler for packet contexts with `unwatch` actions.",
             "itemtype": "method",
             "name": "handleUnwatch",
@@ -4311,7 +4339,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 853,
+            "line": 965,
             "description": "Called when the leader participant fires its beforeUnload state. Releases the Api's data property\nto be consumed by all, then used by the new leader.",
             "itemtype": "method",
             "name": "unloadState",
@@ -4322,7 +4350,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 878,
+            "line": 990,
             "description": "Sets the APIs data property. Removes current values, then constructs each API value anew.",
             "itemtype": "method",
             "name": "setState",
@@ -4340,7 +4368,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 910,
+            "line": 1022,
             "description": "Common handler for packet contexts with a `list` action but no resource.",
             "itemtype": "method",
             "name": "rootHandleList",
@@ -4363,7 +4391,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 924,
+            "line": 1036,
             "description": "Puts the API's participant into it's election state.",
             "itemtype": "method",
             "name": "startElection",
@@ -4374,7 +4402,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 940,
+            "line": 1052,
             "description": "Handles taking over control of the API's participant group as the leader.\n    <li>If this API instance's participant was the leader prior to election and won, normal functionality resumes.</li>\n    <li>If this API instance's participant received state from a leaving leader participant, it will consume said participants state</li>",
             "itemtype": "method",
             "name": "becameLeader",
@@ -4385,7 +4413,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 962,
+            "line": 1074,
             "description": "Handles a new leader being assigned to this API's participant group.\n     <li>@TODO: If this API instance was leader prior to the election, its state will be sent off to the new leader.</li>\n     <li>If this API instance wasn't the leader prior to the election it will resume normal functionality.</li>\n\nFires:\n  - {{#crossLink \"ozpIwc.leaderGroupParticipant/#newLeader:event\"}}{{/crossLink}}",
             "itemtype": "method",
             "name": "newLeader",
@@ -4396,7 +4424,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 983,
+            "line": 1095,
             "description": "Handles setting the API's participant to the leader state.\n\nFires:\n  - {{#crossLink \"ozpIwc.leaderGroupParticipant/#becameLeader:event\"}}{{/crossLink}}",
             "itemtype": "method",
             "name": "setToLeader",
@@ -4407,7 +4435,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 1000,
+            "line": 1112,
             "description": "Handles the syncronizing of API data from previous leaders.\n<li> If this API's participant has a state stored from the election it is set </li>\n<li> If no state present but expected, a listener is set to retrieve the state if acquired within 250ms </li>",
             "itemtype": "method",
             "name": "leaderSync",
@@ -4418,7 +4446,7 @@
         },
         {
             "file": "app/js/bus/api/commonApiBase.js",
-            "line": 1063,
+            "line": 1175,
             "todo": [
                 "DOC"
             ],
@@ -9212,6 +9240,29 @@
             "namespace": "ozpIwc"
         },
         {
+            "file": "app/js/bus/util/util.js",
+            "line": 150,
+            "description": "Solves a common pattern to handle data from a function which may return a single object or an array of objects\nIf given an array, returns the array.\nIf given a single object, returns the object as a single element in a list.",
+            "itemtype": "method",
+            "name": "ensureArray",
+            "static": 1,
+            "params": [
+                {
+                    "name": "obj",
+                    "description": "The object may be an array or single object",
+                    "type": "Object"
+                }
+            ],
+            "return": {
+                "description": "",
+                "type": "Array"
+            },
+            "class": "ozpIwc.util",
+            "module": "bus",
+            "submodule": "bus.util",
+            "namespace": "ozpIwc"
+        },
+        {
             "file": "app/js/client/client.js",
             "line": 21,
             "description": "The address assigned to this client.",
@@ -10390,7 +10441,7 @@
         },
         {
             "file": "app/js/debugger/debugger.js",
-            "line": 57,
+            "line": 59,
             "description": "Promise to chain off of for client connection asynchronous actions.",
             "itemtype": "property",
             "name": "connectPromise",
@@ -10401,7 +10452,7 @@
         },
         {
             "file": "app/js/debugger/debugger.js",
-            "line": 82,
+            "line": 84,
             "description": "Fired when the client is connected to the IWC bus.",
             "itemtype": "event",
             "name": "#connected",
@@ -11404,15 +11455,15 @@
         },
         {
             "message": "replacing incorrect tag: returns with return",
-            "line": " app/js/bus/api/data/dataApi.js:35"
+            "line": " app/js/bus/api/data/dataApi.js:36"
         },
         {
             "message": "replacing incorrect tag: returns with return",
-            "line": " app/js/bus/api/data/dataApi.js:47"
+            "line": " app/js/bus/api/data/dataApi.js:48"
         },
         {
             "message": "replacing incorrect tag: returns with return",
-            "line": " app/js/bus/api/data/dataApi.js:57"
+            "line": " app/js/bus/api/data/dataApi.js:58"
         },
         {
             "message": "replacing incorrect tag: returns with return",
@@ -11472,7 +11523,7 @@
         },
         {
             "message": "replacing incorrect tag: returns with return",
-            "line": " app/js/bus/api/system/systemApi.js:102"
+            "line": " app/js/bus/api/system/systemApi.js:95"
         },
         {
             "message": "replacing incorrect tag: returns with return",
@@ -11488,51 +11539,51 @@
         },
         {
             "message": "replacing incorrect tag: returns with return",
-            "line": " app/js/bus/api/commonApiBase.js:226"
+            "line": " app/js/bus/api/commonApiBase.js:338"
         },
         {
             "message": "replacing incorrect tag: parm with param",
-            "line": " app/js/bus/api/commonApiBase.js:239"
+            "line": " app/js/bus/api/commonApiBase.js:351"
         },
         {
             "message": "unknown tag: abstract",
-            "line": " app/js/bus/api/commonApiBase.js:337"
+            "line": " app/js/bus/api/commonApiBase.js:449"
         },
         {
             "message": "replacing incorrect tag: returns with return",
-            "line": " app/js/bus/api/commonApiBase.js:337"
+            "line": " app/js/bus/api/commonApiBase.js:449"
         },
         {
             "message": "replacing incorrect tag: returns with return",
-            "line": " app/js/bus/api/commonApiBase.js:352"
+            "line": " app/js/bus/api/commonApiBase.js:464"
         },
         {
             "message": "replacing incorrect tag: returns with return",
-            "line": " app/js/bus/api/commonApiBase.js:453"
+            "line": " app/js/bus/api/commonApiBase.js:565"
         },
         {
             "message": "replacing incorrect tag: returns with return",
-            "line": " app/js/bus/api/commonApiBase.js:465"
+            "line": " app/js/bus/api/commonApiBase.js:577"
         },
         {
             "message": "unknown tag: abstract",
-            "line": " app/js/bus/api/commonApiBase.js:616"
+            "line": " app/js/bus/api/commonApiBase.js:728"
         },
         {
             "message": "unknown tag: abstract",
-            "line": " app/js/bus/api/commonApiBase.js:625"
+            "line": " app/js/bus/api/commonApiBase.js:737"
         },
         {
             "message": "replacing incorrect tag: returns with return",
-            "line": " app/js/bus/api/commonApiBase.js:634"
+            "line": " app/js/bus/api/commonApiBase.js:746"
         },
         {
             "message": "replacing incorrect tag: returns with return",
-            "line": " app/js/bus/api/commonApiBase.js:667"
+            "line": " app/js/bus/api/commonApiBase.js:779"
         },
         {
             "message": "replacing incorrect tag: returns with return",
-            "line": " app/js/bus/api/commonApiBase.js:696"
+            "line": " app/js/bus/api/commonApiBase.js:808"
         },
         {
             "message": "unknown tag: oaram",
@@ -11885,6 +11936,10 @@
         {
             "message": "replacing incorrect tag: returns with return",
             "line": " app/js/bus/util/util.js:79"
+        },
+        {
+            "message": "replacing incorrect tag: returns with return",
+            "line": " app/js/bus/util/util.js:150"
         },
         {
             "message": "replacing incorrect tag: returns with return",

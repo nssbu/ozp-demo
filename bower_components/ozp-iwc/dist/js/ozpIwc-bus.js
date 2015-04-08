@@ -2617,7 +2617,7 @@ define("promise/utils",
   });
 requireModule('promise/polyfill').polyfill();
 }());
-ozpIwc = ozpIwc || {};
+var ozpIwc = ozpIwc || {};
 
 ozpIwc.apiMap = {
     "data.api" : { 'address': 'data.api',
@@ -5103,6 +5103,21 @@ ozpIwc.util.alert = function (message, errorObject) {
         this.alerts[message].silence = true;
         ozpIwc.log.log(message,errorObject);
     }
+};
+
+/**
+ * Solves a common pattern to handle data from a function which may return a single object or an array of objects
+ * If given an array, returns the array.
+ * If given a single object, returns the object as a single element in a list.
+ *
+ * @method ensureArray
+ * @static
+ * @param {Object} obj The object may be an array or single object
+ *
+ * @returns {Array}
+ */
+ozpIwc.util.ensureArray=function(obj) { 
+	return Array.isArray(obj)?obj:[obj];
 };
 
 ozpIwc = ozpIwc || {};
@@ -9830,6 +9845,7 @@ ozpIwc.CommonApiBase.prototype.loadFromServer=function() {
 };
 
 /**
+ * TO BE DEPRECATED - This is the recursive tree scanning approach.  Replaced by iterative loadFromEndpointIterative.
  * Loads api data from a specific endpoint.
  *
  * @method loadFromEndpoint
@@ -9871,6 +9887,117 @@ ozpIwc.CommonApiBase.prototype.loadFromEndpoint=function(endpointName, requestHe
     return p;
 };
 
+/*
+ * REPLACES loadFromEndpoint with an iterative approach
+ * 
+ * Loads api data from a specific endpoint.
+ *
+ * @method loadFromEndpointIterative
+ * @param {String} endpointName The name of the endpoint to load from the server.
+ * @param [Object] requestHeaders
+ * @param {String} requestHeaders.name
+ * @param {String} requestHeaders.value
+ *
+ */
+ozpIwc.CommonApiBase.prototype.loadFromEndpointIterative=function(endpointName, requestHeaders) {
+    // fetch the base endpoint. it should be a HAL Json object with all of the
+    // resources and keys in it
+    var endpoint=ozpIwc.endpoint(endpointName);
+
+	var self=this;
+    return endpoint.get("/")
+        .then(function(data) {
+			var embeddedList = {};
+			var unresolvedLinks = [];
+			// if any embedded items exist, convert them to a list (primarily to cover the single element case
+			if (data.response._embedded && data.response._embedded.item) {
+				var items = ozpIwc.util.ensureArray(data.response._embedded.item);
+				for (var i in items) {
+					if (items[i]._links && items[i]._links.self && items[i]._links.self.href) {
+						embeddedList[items[i]._links.self.href] = items[i];
+					} else {
+						ozpIwc.log.info("Unable to load embedded item " + JSON.stringify(items[i]));
+					}
+				}
+				
+				for (var path in embeddedList) {
+					self.updateResourceFromServerIterative(embeddedList[path], path, endpoint, requestHeaders);
+				}
+			}
+			
+			// Follow up here with loop on _links section, creating a promise to load each link if it is not in the _embedded section
+			// At end, return promise.all to activate when all outstanding loads are completed.
+			if (data.response._links && data.response._links.item) {
+				var links = ozpIwc.util.ensureArray(data.response._links.item);
+				// scan the list of links.  If there is no href match to an embedded item, push a promise to load the link into the list
+				links.forEach(function(link) {
+					if (embeddedList[link.href] === undefined) {  // if undefined
+						unresolvedLinks.push(
+							endpoint.get(link.href, requestHeaders)
+								.then(function(data){
+									if (!data || !data.header || !data.response) {
+										ozpIwc.log.info("Unable to load link item " + link.href);
+										return null;
+									}
+									return data;
+								})
+						);
+					}
+				});
+			}
+			return Promise.all(unresolvedLinks);
+		}).then(function(unresolvedLinks) {
+			unresolvedLinks.forEach(function(payload) {
+				if (payload !== null) {
+					var header = payload.header;
+					var response = payload.response;
+					self.updateResourceFromServerIterative(response, response._links.self.href, endpoint, header);
+				}
+			});
+
+			// update all the collection values
+			self.dynamicNodes.forEach(function(resource) {
+				self.updateDynamicNode(self.data[resource]);
+			});
+		});
+};
+					
+/**
+ * Updates an Api node with server loaded HAL data.  (Was updateResourceFromServer, modified to be iterative, not recursive)
+ *
+ * @method updateResourceFromServerIterative
+ * @param {ozpIwc.TransportPacket} object The object retrieved from the server to store.
+ * @param {String} path The path of the resource retrieved.
+ * @param {ozpIwc.Endpoint} endpoint the endpoint of the HAL data.
+ */
+ozpIwc.CommonApiBase.prototype.updateResourceFromServerIterative=function(item,path,endpoint,requestHeaders) {
+    //TODO where should we get content-type?
+    var header = requestHeaders || {};
+    item.contentType = item.contentType || header['Content-Type'] || 'application/json';
+
+    var parseEntity;
+    if(typeof item.entity === "string"){
+        try{
+            parseEntity = JSON.parse(item.entity);
+            item.entity = parseEntity;
+        }catch(e){
+            // fail silently for now
+        }
+    }
+    var node = this.findNodeForServerResource(item,path,endpoint);
+
+    if (node) {
+        var snapshot = node.snapshot();
+
+        var halLess = ozpIwc.util.clone(item);
+        delete halLess._links;
+        delete halLess._embedded;
+        node.deserialize(this.formatServerData(halLess));
+
+        this.notifyWatchers(node, node.changesSince(snapshot));
+    }
+};
+
 /**
  * Updates an Api node with server loaded HAL data.
  *
@@ -9881,8 +10008,8 @@ ozpIwc.CommonApiBase.prototype.loadFromEndpoint=function(endpointName, requestHe
  */
 ozpIwc.CommonApiBase.prototype.updateResourceFromServer=function(object,path,endpoint,res,header) {
     //TODO where should we get content-type?
-    header = header || {};
-    object.contentType = object.contentType || header['Content-Type'] || 'application/json';
+    var lheader = header || {};
+    object.contentType = object.contentType || lheader['Content-Type'] || 'application/json';
 
     var parseEntity;
     if(typeof object.entity === "string"){
@@ -9947,7 +10074,7 @@ ozpIwc.CommonApiBase.prototype.loadLinkedObjectsFromServer=function(endpoint,dat
     if(data._embedded && data._embedded.item) {
         data._embedded.item = Array.isArray(data._embedded.item) ? data._embedded.item : [data._embedded.item];
         noEmbedded = false;
-        if (Object.prototype.toString.call(data._embedded.item) === '[object Array]' ) {
+        if (Array.isArray(data._embedded.item)) {
             itemLength=data._embedded.item.length;
         } else {
             itemLength=1;
@@ -9958,7 +10085,7 @@ ozpIwc.CommonApiBase.prototype.loadLinkedObjectsFromServer=function(endpoint,dat
     if(data._links && data._links.item) {
         data._links.item = Array.isArray(data._links.item) ? data._links.item : [data._links.item];
         noLinks = false;
-        if (Object.prototype.toString.call(data._links.item) === '[object Array]' ) {
+        if (Array.isArray(data._links.item)) {
             itemLength=data._links.item.length;
         } else {
             itemLength=1;
@@ -9980,7 +10107,7 @@ ozpIwc.CommonApiBase.prototype.loadLinkedObjectsFromServer=function(endpoint,dat
         if(data._embedded && data._embedded.item) {
             var object = {};
 
-            if( Object.prototype.toString.call(data._embedded.item) === '[object Array]' ) {
+            if (Array.isArray(data._embedded.item)) {
                 for (var i in data._embedded.item) {
                     object = data._embedded.item[i];
                     this.updateResourceFromServer(object, object._links.self.href, endpoint, res);
@@ -9993,7 +10120,7 @@ ozpIwc.CommonApiBase.prototype.loadLinkedObjectsFromServer=function(endpoint,dat
 
         if(data._links && data._links.item) {
 
-            if( Object.prototype.toString.call(data._links.item) === '[object Array]' ) {
+            if (Array.isArray(data._links.item)) {
                 data._links.item.forEach(function (object) {
                     var href = object.href;
                     endpoint.get(href, requestHeaders).then(function (objectResource) {
@@ -10989,7 +11116,8 @@ ozpIwc.DataApi = ozpIwc.util.extend(ozpIwc.CommonApiBase,function(config) {
  * @method loadFromServer
  */
 ozpIwc.DataApi.prototype.loadFromServer=function() {
-    return this.loadFromEndpoint(this.endpointUrl);
+	return this.loadFromEndpointIterative(this.endpointUrl)
+			.then("Load complete from " + this.endpointUrl);
 };
 
 /**
@@ -11427,7 +11555,7 @@ ozpIwc.IntentsApi = ozpIwc.util.extend(ozpIwc.CommonApiBase, function (config) {
  * @method loadFromServer
  */
 ozpIwc.IntentsApi.prototype.loadFromServer=function() {
-    return this.loadFromEndpoint(ozpIwc.linkRelPrefix + ":intent");
+	return this.loadFromEndpointIterative(ozpIwc.linkRelPrefix + ":intent").then("intents.api load complete");
 };
 /**
  * Takes the resource of the given packet and creates an empty value in the IntentsApi. Chaining of creation is
@@ -12454,18 +12582,11 @@ ozpIwc.SystemApi.prototype.loadFromServer=function() {
     var headers = [
         {name: "Accept", value: "application/vnd.ozp-application-v1+json"}
     ];
-    return new Promise(function(resolve, reject) {
-        self.loadFromEndpoint(ozpIwc.linkRelPrefix + ":application", headers)
-            .then(function() {
-                return self.loadFromEndpoint(ozpIwc.linkRelPrefix + ":user");
-            }).then(function() {
-                return self.loadFromEndpoint(ozpIwc.linkRelPrefix + ":system");
-            }).then(function() {
-                resolve("system.api load complete");
-            })['catch'](function(error) {
-                reject(error);
-            });
-    });
+	var loadEndpoints = [];
+	loadEndpoints.push((self.loadFromEndpointIterative(ozpIwc.linkRelPrefix + ":application", headers)).then("system.api:application load complete"));
+	loadEndpoints.push((self.loadFromEndpointIterative(ozpIwc.linkRelPrefix + ":user", headers)).then("system.api:user load complete"));
+	loadEndpoints.push((self.loadFromEndpointIterative(ozpIwc.linkRelPrefix + ":system", headers)).then("system.api:system load complete"));
+	return Promise.all(loadEndpoints).then("system.api load complete");
 };
 
 /**
