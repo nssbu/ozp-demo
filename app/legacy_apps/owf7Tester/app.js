@@ -2,7 +2,11 @@ angular.module('Owf7Tester', [
   'ui.router',
   'ui.bootstrap',
   'owf7Tester.preferences',
-  'owf7Tester.launcher'
+  'owf7Tester.launcher',
+  'owf7Tester.rpc',
+  'owf7Tester.intents',
+  'owf7Tester.eventing',
+  'owf7Tester.other'
 ])
 .config(function($stateProvider, $urlRouterProvider,
                  $logProvider) {
@@ -26,6 +30,42 @@ angular.module('Owf7Tester', [
       controller: 'LauncherCtrl'
     };
     states.push(launcherState);
+
+    var eventingState = {
+      name: 'eventing',
+      url: '/eventing',
+      templateUrl: 'eventing/eventing.tpl.html',
+      controller: 'EventingCtrl'
+    };
+
+    states.push(eventingState);
+
+    var rpcState = {
+      name: 'rpc',
+      url: '/rpc',
+      templateUrl: 'rpc/rpc.tpl.html',
+      controller: 'RpcCtrl'
+    };
+
+    states.push(rpcState);
+
+    var intentsState = {
+      name: 'intents',
+      url: '/intents',
+      templateUrl: 'intents/intents.tpl.html',
+      controller: 'IntentsCtrl'
+    };
+
+    states.push(intentsState);
+
+    var otherState = {
+      name: 'other',
+      url: '/other',
+      templateUrl: 'other/other.tpl.html',
+      controller: 'OtherCtrl'
+    };
+
+    states.push(otherState);
 
     angular.forEach(states, function(state) { $stateProvider.state(state); });
     $urlRouterProvider.otherwise('/');
