@@ -32,6 +32,8 @@ angular.module('owf7Tester.preferences')
                     },
                     onFailure: function (err) {
                     	$log.error('Error invoking findWidgets: ' + err)
+                        $scope.findWidgetsResponse = 'Failure: ' + err;
+                        $rootScope.$apply();
                     }
                 });
 		};
