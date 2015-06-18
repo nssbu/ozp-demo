@@ -1,6 +1,6 @@
 var client;
 function startClient(){
-	client = new ozpIwc.Client({ peerUrl: "http://localhost:13000"})
+	client = new ozpIwc.Client({ peerUrl: window.OzoneConfig.iwcUrl})
 	connect()
 }
 function connect(){

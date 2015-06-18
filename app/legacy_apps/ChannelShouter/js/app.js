@@ -2,7 +2,6 @@ var client
 var dropControl
 
 function startClient(){
-	debugger;
 	client = new ozpIwc.Client({ peerUrl: window.OzoneConfig.iwcUrl})
 	connect()
 }
