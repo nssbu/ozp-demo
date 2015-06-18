@@ -2,6 +2,7 @@ var client
 var dropControl
 
 function startClient(){
+	debugger;
 	client = new ozpIwc.Client({ peerUrl: "http://localhost:13000"})
 	connect()
 }
