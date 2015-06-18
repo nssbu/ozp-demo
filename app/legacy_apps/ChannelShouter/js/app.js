@@ -3,7 +3,7 @@ var dropControl
 
 function startClient(){
 	debugger;
-	client = new ozpIwc.Client({ peerUrl: "http://localhost:13000"})
+	client = new ozpIwc.Client({ peerUrl: window.OzoneConfig.iwcUrl})
 	connect()
 }
 function connect(){
