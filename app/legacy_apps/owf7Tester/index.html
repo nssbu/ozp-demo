@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
+    <title> OWF7 Tester</title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="../../bower_components/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="style.css" rel="stylesheet">
+    <!-- cuz IE -->
+    <script>
+      if (!window.console) { window.console = {}; }
+      if (!window.console.log) { window.console.log = function () { }; }
+    </script>
+    <script type="text/javascript" src="../js/owf-widget-debug.js"></script>
+    <script src="../../bower_components/angular/angular.js"></script>
+    <script src="../../bower_components/angular-bootstrap/ui-bootstrap-tpls.js"></script>
+    <script src="../../bower_components/angular-ui-router/release/angular-ui-router.min.js"></script>
+
+    <script src="app.js"></script>
+    <script src="preferences/preferences.js"></script>
+    <script src="launcher/launcher.js"></script>
+    <script src="rpc/rpc.js"></script>
+    <script src="intents/intents.js"></script>
+    <script src="eventing/eventing.js"></script>
+    <script src="other/other.js"></script>
+
+    <script>
+    function initPage() {
+
+         msg = 'Running in OWF: ' + (OWF.Util.isRunningInOWF()?"Yes":"No");
+         console.log(msg);
+      }
+      owfdojo.addOnLoad(function() {
+        console.log('inside addOnLoad');
+        OWF.ready(initPage);
+      });
+
+      </script>
+
+</head>
+
+<body ng-app="Owf7Tester">
+<header>
+</header>
+<div id="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <nav class="navbar navbar-default">
+                    <!-- Brand and toggle get grouped for better mobile display -->
+                    <div class="navbar-header">
+                      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                      </button>
+                      <a class="navbar-brand" href="#">OWF7 Tester</a>
+                    </div>
+
+                    <!-- Collect the nav links, forms, and other content for toggling -->
+                    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                      <ul class="nav navbar-nav">
+                        <li><a ui-sref="preferences">Preferences</a></li>
+                        <li><a ui-sref="launcher">Launcher</a></li>
+                        <li><a ui-sref="rpc">RPC</a></li>
+                        <li><a ui-sref="eventing">Eventing</a></li>
+                        <li><a ui-sref="intents">Intents</a></li>
+                        <li><a ui-sref="other">Other</a></li>
+                      </ul>
+                    </div><!-- /.navbar-collapse -->
+                </nav>
+            </div>
+        </div>
+        <div ui-view>
+</div>
+<footer>
+    <div class="container">
+        <div class="row">
+        </div>
+    </div>
+</footer>
+</body>
+</html>

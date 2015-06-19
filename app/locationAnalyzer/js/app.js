@@ -139,6 +139,7 @@ locationAnalyzer.controller('MainController', function($scope, $log, iwcConnecte
             newPath = window.location.href.substring(0,window.location.href.length-1);
         }
         return $scope.client.api('intents.api').register("/json/coord/analyze",{
+            contentType: "application/vnd.ozp-iwc-intent-handler-v1+json",
             entity: {
                 icon : newPath + "/icon.png",
                 label: "Location Viewer"
@@ -147,7 +148,7 @@ locationAnalyzer.controller('MainController', function($scope, $log, iwcConnecte
 
     };
     $scope.regulateSaves = function(){
-        $scope.client.api('intents.api').get("/json/coord/save").then(function(response){
+        $scope.client.api('intents.api').list("/json/coord/save/").then(function(response){
             $scope.saveHandlers = response.entity.handlers;
             $scope.$apply();
             return $scope.client.api('intents.api').watch("/json/coord/save",function(event){

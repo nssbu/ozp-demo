@@ -116,65 +116,64 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwcCo
         var removeResource = {
             resource: $scope.currentLocationId
         };
-        return $scope.client.api('data.api').delete($scope.currentLocationId).then(function(){
-            return $scope.client.api('data.api').removeChild('/locationLister/listings', {entity: removeResource});
-        });
+        return $scope.client.api('data.api').removeChild('/locationLister/listings', {entity: removeResource});
     };
 
 /**
  * IWC Recurring Actions
  */
     $scope.regulateMapping = function(){
-        $scope.client.api('intents.api').get("/json/coord/map").then(function(response){
-            $scope.mapHandlers = response.entity.handlers;
+         $scope.client.api('intents.api').watch("/json/coord/map",function(event){
+            $scope.mapHandlers = event.entity.newCollection;
             $scope.$apply();
-            return $scope.client.api('intents.api').watch("/json/coord/map",function(event){
-                $scope.mapHandlers = event.entity.newValue.handlers;
-                $scope.$apply();
-            });
-        });
+         }).then(function(response) {
+             if (response.entity) {
+                 $scope.mapHandlers = response.collection;
+                 $scope.$apply();
+             }
+         });
     };
+
     $scope.regulateAnalyzing = function(){
-        $scope.client.api('intents.api').get("/json/coord/analyze").then(function(response){
-            $scope.analyzeHandlers = response.entity.handlers;
+        $scope.client.api('intents.api').watch("/json/coord/analyze",function(event){
+            $scope.analyzeHandlers = event.entity.newCollection;
             $scope.$apply();
-            return $scope.client.api('intents.api').watch("/json/coord/analyze",function(event){
-                $scope.analyzeHandlers = event.entity.newValue.handlers;
+        }).then(function(response){
+            if(response.entity) {
+                $scope.analyzeHandlers = response.collection;
                 $scope.$apply();
-            });
+            }
         });
     };
 
     $scope.watchListings = function(){
-        var handleAddition = function(listingResource) {
-            return $scope.client.api('data.api').get(listingResource).then(function(reply){
-                $scope.locations[listingResource] = reply.entity;
-            });
-        };
-
-        var handleRemoval = function(listingResource) {
-            delete $scope.locations[listingResource];
-            if(listingResource === $scope.currentLocationId){
-                $scope.currentLocationId = '';
-                $scope.currentLocation = {};
-            }
-        };
 
         var onChange = function(reply) {
             var promises = [];
-            reply.entity.addedChildren.forEach(function(listing){
-                promises.push(handleAddition(listing));
-            });
-            reply.entity.removedChildren.forEach(function(listing){
-                promises.push(handleRemoval(listing));
+
+            reply.entity.newCollection.forEach(function(listing){
+                promises.push($scope.client.data().get(listing));
             });
             $log.debug(reply);
-            Promise.all(promises).then(function(){
+
+            Promise.all(promises).then(function(listings){
+                $scope.locations = {};
+                for(var i in listings) {
+                    $scope.locations[listings[i].resource] = listings[i].entity;
+                }
                 $scope.$apply();
             })
         };
 
-        return $scope.client.api('data.api').watch('/locationLister/listings',onChange);
+        return $scope.client.data().watch('/locationLister/listings',onChange).then(function(response){
+            console.log(response);
+            onChange({
+                entity: {
+                    newCollection: response.collection || []
+                }
+            });
+
+        });
     };
 
     $scope.regulateListings = function(){
@@ -198,6 +197,7 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwcCo
         }
 
         return $scope.client.api('intents.api').register("/json/coord/save",{
+            contentType: "application/vnd.ozp-iwc-intent-handler-v1+json",
             entity: {
                 icon : newPath + "/icon.png",
                 label: "Location Lister"

@@ -7,9 +7,10 @@
   "dependencies": {
     "angular": "1.2.x",
     "angular-route": "1.2.x",
+    "angular-ui-router": "~0.2.14",
     "angular-loader": "1.2.x",
     "angular-mocks": "~1.2.x",
-    "angular-bootstrap": "~0.11.x",
+    "angular-bootstrap": "~0.13.x",
     "angular-gridster": "~0.9.11",
     "angular-animate": "1.2.x",
     "bootstrap": "~3.1.x",
