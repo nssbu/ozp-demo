@@ -39,7 +39,7 @@ $(document).ready(function() {
         var newPath = window.location.href.substring(0,removeAt);
 
         intents.register("/json/coord/map",{
-
+            contentType: "application/vnd.ozp-iwc-intent-handler-v1+json",
             entity: {
                 icon : newPath + "/icon.png",
                 label: "Location Viewer"
