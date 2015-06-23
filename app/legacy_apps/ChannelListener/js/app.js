@@ -1,29 +1,3 @@
-var client;
-function startClient(){
-	client = new ozpIwc.Client({ peerUrl: window.OzoneConfig.iwcUrl})
-	connect()
-}
-function connect(){
-	client.connect().then(
-		function(){
-			console.log("client connected")
-		}
-	)
-}
-function registerIntent(intent, doFunc, checkKill){
-	client.data().watch(
-		intent,
-		function(res,done){
-			doFunc(res.entity.newValue,intent,new Date())
-		}
-	)
-}
-function unregisterIntent(intent){
-	client.data().unwatch(
-		intent,
-		null
-	)
-}
 function getDate(now){
 	//var now = new Date()
 	var yyyy = now.getFullYear()
