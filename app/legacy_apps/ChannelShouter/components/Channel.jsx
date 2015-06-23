@@ -7,11 +7,11 @@ var Channel = React.createClass({
 	},
 	render: function(){
 		return (
-				<tr>
-					<td>{this.props.value}</td>
-					<td><input onChange={this.onChange} type="checkbox" name="channelBox" checked={this.props.checked}/></td>	
-					<td><input type="button" onClick={this.onKill} value="x"/></td>
-				</tr>
+			<div className="DataRow">
+				<div className="ch1"><input type="button" className="icon-cross-white" onClick={this.onKill}/></div>
+				<div className="ch2"><input onChange={this.onChange} type="checkbox" name="channelBox" checked={this.props.checked}/></div>	
+				<div className="ch3">{this.props.value}</div>
+			</div>
 		)
 	}
 })
