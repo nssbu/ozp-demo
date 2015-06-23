@@ -1,11 +1,11 @@
 var Message = React.createClass({
 	render: function(){
 		return (
-				<tr>
-					<td>{this.props.date}</td>
-					<td>{this.props.channel}</td>
-					<td>{this.props.value}</td>
-				</tr>
+				<div className="DataRow">
+					<div className="M1">{this.props.date}</div>
+					<div className="M2">{this.props.channel}</div>
+					<div className="M3">{this.props.value}</div>
+				</div>
 		)
 	}
 })

@@ -1,51 +1,65 @@
 var ChannelListener = React.createClass({
-	getInitialState: function(){
-		startClient()
-		return {value: ''}
+	getInitialState: function () {
+		return {
+			value: '', client: this.startClient()
+		}
+	},
+
+	startClient: function(){
+		client = new ozpIwc.Client({ peerUrl: window.OzoneConfig.iwcUrl})
+		client.connect().then(
+			function(){
+				console.log("client connected")
+			}
+		)
+		return client
 	},
 	inputChange: function(event){//done
 		this.setState({value: event.currentTarget.value })
 	},
-	onAddChannel: function(){//done
-		var me = this
-		var input = me.refs.chInput.props.value
-		if(input.length>0&&!me.refs.chl.isInList(input)){
-			registerIntent(input,this.onGetMessage,this.findOrKill)
-			me.refs.chl.state.cList.push({value:input,checked:true})
-			me.refs.chl.forceUpdate()
-		}
+	onAddChannelClick: function(){
+		var input = this.refs.ChannelInput.props.value
+		this.AddChannel(input)
 	},
 	onClearChannels: function(){//done
 		var me = this
-		me.refs.chl.state.cList = []
-		me.refs.chl.forceUpdate()
+		me.refs.ChannelList.state.chList = []
+		me.refs.ChannelList.forceUpdate()
 	},
 	onClearMessages: function(){//done
 		var me = this
-		me.refs.msgl.state.mList = []
-		me.refs.msgl.forceUpdate()
+		me.refs.MessageList.state.msgList = []
+		me.refs.MessageList.forceUpdate()
 	},
 	onExportMessages: function(){//done
 		var me = this
-		me.refs.msgl.exportMessages()
+		me.refs.MessageList.exportMessages()
 	},
 	onGetMessage: function(message, intent, date){
 		var me = this
-		if(me.refs.chl.isActive(intent)){
-			me.refs.msgl.addMessage(message.message, intent,date)
-			me.refs.msgl.forceUpdate()			
+		if(me.refs.ChannelList.isActive(intent)){
+			me.refs.MessageList.addMessage(message.message, intent,date)
+			me.refs.MessageList.forceUpdate()			
 		}
 	},
 	dragOver: function(event){
 		event.preventDefault()
 	},
 	listDrop: function(event){
-		var me = this
 		var input = event.dataTransfer.getData("channel")
-		if(input.length>0&&!me.refs.chl.isInList(input)){
-			registerIntent(input,this.onGetMessage,this.findOrKill)
-			me.refs.chl.state.cList.push({value:input,checked:true})
-			me.refs.chl.forceUpdate()
+		this.AddChannel(input)
+	},
+	AddChannel: function(input){//done
+		var me = this
+		if(input.length>0&&!me.refs.ChannelList.isInList(input)){
+			this.state.client.data().watch(
+				input,
+				function(res,done){
+					me.onGetMessage(res.entity.newValue,input,new Date())
+				}
+			)
+			me.refs.ChannelList.state.chList.push({value:input,checked:true})
+			me.refs.ChannelList.forceUpdate()
 		}
 	},
 	textDrop: function(event){
@@ -55,24 +69,29 @@ var ChannelListener = React.createClass({
 	},
 	render: function (){
 		return (
-			<div>
-				<form>
-					Channel Subscriptions:<br/>
-	 				<input type="text" value ={this.state.value} ref="chInput" onChange={this.inputChange} draggable="false" onDrop={this.textDrop} onDragOver={this.dragOver}/>
-					<input type="button" onClick={this.onAddChannel} value="Add Channel"/>
-					<input type="button" onClick={this.onClearChannels} value="Clear Channels"/>
-					<br/>Listening on channels:<br/>
-					<ChannelList ref="chl" drop={this.listDrop} dragOver={this.dragOver}/>
-
-					<hr/>
-
-					Messages
-					<input type="button" onClick={this.onClearMessages} value="Clear"/>
-					<input type="button" onClick={this.onExportMessages} value="Export"/>
-					<br/>
-					<MessageList ref="msgl"/>					
-				</form>	
-			</div>
+			<form>
+				<div className="Frame">
+					<div className="Header"> Channel Subscriptions</div>
+					<div className="Line">
+		 				<input type="text" className="ChannelInput" value ={this.state.value} ref="ChannelInput" onChange={this.inputChange} draggable="false" placeholder="Enter channel..." onDrop={this.textDrop} onDragOver={this.dragOver}/>
+						<input type="button" className="btn-default" onClick={this.onAddChannelClick} value="Add Channel"/>
+						<input type="button" className="btn-default" onClick={this.onClearChannels} value="Clear Channels"/>
+					</div>
+					<div className="Line2"> Active Channels</div>
+					<ChannelList ref="ChannelList" drop={this.listDrop} dragOver={this.dragOver}/>
+				</div>
+				<div className="Header">Activity Log</div>
+				<div className="Line">
+					<input type="button" className="btn-default" onClick={this.onClearMessages} value="Clear"/>
+					<input type="button" className="btn-default" onClick={this.onExportMessages} value="Export"/>
+				</div>
+				<div className="Line2">
+					<label className="MsgLabel1" children="Date"/>
+					<label className="MsgLabel2" children="Channel"/>
+					<label className="MsgLabel3" children="Message"/>
+				</div>
+				<MessageList ref="MessageList"/>	
+			</form>
 		)
 	}
 })

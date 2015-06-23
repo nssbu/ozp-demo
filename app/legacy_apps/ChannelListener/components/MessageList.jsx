@@ -1,17 +1,17 @@
 var MessageList = React.createClass({
 	getInitialState: function () {
 		return {
-			mList: []
+			msgList: []
 		}
 	},
 	addMessage: function(value,channel,date){
-		this.state.mList.push(
+		this.state.msgList.push(
 			{value: value, date:date, channel: channel}
 		)
 	},
 	exportMessages: function(){
 		var xml = '<items>'
-		this.state.mList.map(function (item){
+		this.state.msgList.map(function (item){
 			xml+= '<item>'
 			xml+= '<date>'+item.date+'</date>'
 			xml+= '<channel>'+item.channel+'</channel>'
@@ -23,23 +23,13 @@ var MessageList = React.createClass({
 	},
 	render: function () {
 		var me=this
-		var style={
-			border: '2px solid black'
-		}
-		var messages=this.state.mList.map(function (item,i){
+		var messages=this.state.msgList.map(function (item,i){
 			return(
 				<Message index={i} value={item.value} channel={item.channel} date={getDate(item.date)}/>
 			)
 		})
 		return (
-			<table style={style}>
-				<thead><tr>
-					<td children='_Date_________________'/>
-					<td children='_Ch_'/>
-					<td children='_Message___________________' />
-				</tr></thead>
-				<tbody>{messages}</tbody>
-			</table>
+			<div className="MessageFrame">{messages}</div>
 		)
 	}
 })
