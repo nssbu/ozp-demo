@@ -1,33 +1,48 @@
 YUI.add("yuidoc-meta", function(Y) {
    Y.YUIDoc = { meta: {
     "classes": [
+        "ozpIwc.AjaxPersistenceQueue",
+        "ozpIwc.ApiBase",
         "ozpIwc.ApiError",
+        "ozpIwc.ApiNode",
         "ozpIwc.AsyncAction",
+        "ozpIwc.BadActionError",
+        "ozpIwc.BadContentError",
+        "ozpIwc.BadRequestError",
+        "ozpIwc.BadResourceError",
+        "ozpIwc.BadStateError",
         "ozpIwc.CancelableEvent",
         "ozpIwc.Client",
+        "ozpIwc.ClientParticipant",
         "ozpIwc.CommonApiBase",
         "ozpIwc.CommonApiCollectionValue",
         "ozpIwc.CommonApiValue",
         "ozpIwc.DataApi",
-        "ozpIwc.DataApiValue",
+        "ozpIwc.DataNode",
         "ozpIwc.Endpoint",
         "ozpIwc.EndpointRegistry",
         "ozpIwc.Event",
         "ozpIwc.FragmentPacket",
         "ozpIwc.FragmentStore",
         "ozpIwc.IntentsApi",
-        "ozpIwc.IntentsApiDefinitionValue",
-        "ozpIwc.IntentsApiHandlerValue",
-        "ozpIwc.IntentsApiTypeValue",
+        "ozpIwc.IntentsInFlightNode",
         "ozpIwc.InternalParticipant",
         "ozpIwc.KeyBroadcastLocalStorageLink",
         "ozpIwc.LeaderGroupParticipant",
-        "ozpIwc.LocalStorageLink",
+        "ozpIwc.Lifespan.Bound",
+        "ozpIwc.Lifespan.Ephemeral",
+        "ozpIwc.Lifespan.Persistent",
+        "ozpIwc.LocksApi",
+        "ozpIwc.LocksApiValue",
         "ozpIwc.MetricsRegistry",
         "ozpIwc.MulticastParticipant",
         "ozpIwc.NamesApi",
-        "ozpIwc.NamesApiValue",
+        "ozpIwc.NamesNode",
         "ozpIwc.NetworkPacket",
+        "ozpIwc.NoActionError",
+        "ozpIwc.NoMatchError",
+        "ozpIwc.NoPermissionError",
+        "ozpIwc.NoResourceError",
         "ozpIwc.PacketRouter",
         "ozpIwc.Participant",
         "ozpIwc.Peer",
@@ -35,11 +50,12 @@ YUI.add("yuidoc-meta", function(Y) {
         "ozpIwc.PostMessageParticipantListener",
         "ozpIwc.Router",
         "ozpIwc.RouterWatchdog",
-        "ozpIwc.SystemApi",
-        "ozpIwc.SystemApiApplicationValue",
+        "ozpIwc.SystemNode",
         "ozpIwc.Timer",
         "ozpIwc.TransportPacket",
         "ozpIwc.TransportPacketContext",
+        "ozpIwc.apiFilter",
+        "ozpIwc.apiFilter.Function",
         "ozpIwc.log",
         "ozpIwc.metricStats",
         "ozpIwc.metricStats.BinaryHeap",
@@ -54,6 +70,7 @@ YUI.add("yuidoc-meta", function(Y) {
         "ozpIwc.packetRouter",
         "ozpIwc.policyAuth.PDP",
         "ozpIwc.policyAuth.SecurityAttribute",
+        "ozpIwc.standardApiFilters",
         "ozpIwc.util",
         "ozpIwcPolicies"
     ],
@@ -62,13 +79,17 @@ YUI.add("yuidoc-meta", function(Y) {
         "bus.api",
         "bus.network",
         "bus.security",
+        "bus.service",
+        "bus.service.Type",
+        "bus.service.Value",
         "bus.transport",
         "bus.util",
         "client",
         "common",
         "metrics",
         "metrics.statistics",
-        "metrics.types"
+        "metrics.types",
+        "ozpIwc"
     ],
     "allModules": [
         {
@@ -107,6 +128,25 @@ YUI.add("yuidoc-meta", function(Y) {
             "description": "Classes related to security aspects of the IWC."
         },
         {
+            "displayName": "bus.service",
+            "name": "bus.service"
+        },
+        {
+            "displayName": "bus.service.Type",
+            "name": "bus.service.Type",
+            "description": "Service API classes of the bus."
+        },
+        {
+            "displayName": "bus.service.Value",
+            "name": "bus.service.Value",
+            "description": "Service API Value classes of the bus."
+        },
+        {
+            "displayName": "bus.service.Value.Persistance",
+            "name": "bus.service.Value.Persistance",
+            "description": "Persistance types for the apiNode."
+        },
+        {
             "displayName": "bus.transport",
             "name": "bus.transport",
             "description": "Classes related to transport aspects of the IWC."
@@ -140,6 +180,11 @@ YUI.add("yuidoc-meta", function(Y) {
             "displayName": "metrics.types",
             "name": "metrics.types",
             "description": "Types of metrics available."
+        },
+        {
+            "displayName": "ozpIwc",
+            "name": "ozpIwc",
+            "description": "The base class for APIs. Use {{#crossLink \"ozpIwc.createApi\"}}{{/crossLink}} to subclass\nthis.\n\nLeader State Management\n=======================\nThe base API uses locks.api to always have a single leader at a time.  An api instance goes\nthrough a linear series of states:  member -> loading -> leader\n* __member__ does not service requests\n* __loading__ is a transitory state between acquiring the leader lock and being ready to serve requests\n* __leader__ actively serves requests and broadcasts a death scream upon shutdown\n\nThe member state has two substates-- ready and dormant\n * __ready__ queues requests in case it has to become leader.  switches back to dormant on discovering a leader\n * __dormant__ silently drops requests.  Upon hearing a deathScream, it switches to ready."
         }
     ]
 } };

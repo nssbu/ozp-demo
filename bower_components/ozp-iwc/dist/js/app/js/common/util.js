@@ -21,6 +21,97 @@ ozpIwc.util.now=function() {
 };
 
 /**
+ * Applies the template using the supplied object for values
+ *
+ * @method resolveUriTemplate
+ * @param {string} template The template to use
+ * @param {Object} obj The object to get template paramters from
+ * @param {Object} fallback A secondary object for parameters not contained by the first
+ * @returns {Number}
+ */
+ozpIwc.util.resolveUriTemplate=function(template,obj,fallback) {
+	var converters={
+		"+": function(a) { return a;},
+		"": function(a) { return encodeURIComponent(a);}
+	};
+	var t=template.replace(/\{([\+\#\.\/\;\?\&]?)(.+?)\}/g,function(match,type,name) {
+			return converters[type](obj[name] || fallback[name]);
+		});
+	// look for the :// of the protocol
+	var protocolOffset=t.indexOf("://");
+	// if we found it, set the offset to the end.  otherwise, leave it
+	// at -1 so that a leading "//" will be replaced, below
+	if(protocolOffset >0) { protocolOffset+=3; }
+	
+	// remove double // that show up after the protocolOffset
+	return t.replace(/\/\//g,function(m,offset){
+			// only swap it after the protocol
+			if(offset > protocolOffset) {
+				return "/";
+			} else {
+				return m;
+			}
+		});
+};
+
+/**
+ * A record of event listeners used in the given IWC context. Grouped by type.
+ *
+ * @property eventListeners
+ * @static
+ * @type {Object}
+ */
+ozpIwc.util.eventListeners={};
+
+/**
+ * Adds an event listener to the window and stores its listener in ozpIwc.util.eventListeners.
+ *
+ * @method addEventListener
+ * @param {String} type the event to listen to
+ * @param {Function} listener the callback to be used upon the event being emitted
+ */
+ozpIwc.util.addEventListener=function(type,listener) {
+    var l=ozpIwc.util.eventListeners[type];
+    if(!l) {
+        l=ozpIwc.util.eventListeners[type]=[];
+    }
+    l.push(listener);
+    window.addEventListener(type,listener);
+};
+
+/**
+ * Removes an event listener from the window and from ozpIwc.util.eventListeners
+ * @param {String} type the event to remove the listener from
+ * @param {Function} listener the callback to unregister
+ */
+ozpIwc.util.removeEventListener=function(type,listener) {
+    var l=ozpIwc.util.eventListeners[type];
+    if(l) {
+        ozpIwc.util.eventListeners[type]=l.filter(function(v) { return v!==listener;});
+    }
+    window.removeEventListener(type,listener);
+};
+
+/**
+ * Removes all event listeners registered in ozpIwc.util.eventListeners
+ * @param {String} type the event to remove the listener from
+ * @param {Function} listener the callback to unregister
+ * @param {Boolean} [useCapture] if true all events of the specified type will be dispatched to the registered listener
+ *                             before being dispatched to any EventTarget beneath it in the DOM tree. Events which
+ *                             are bubbling upward through the tree will not trigger a listener designated to use
+ *                             capture.
+ */
+ozpIwc.util.purgeEventListeners=function() {
+    ozpIwc.object.eachEntry(ozpIwc.util.eventListeners,function(type,listenerList) {
+        listenerList.forEach(function(listener) {
+            window.removeEventListener(type,listener);
+        });
+    });
+    ozpIwc.util.eventListeners={};
+};
+
+
+/**
  * Create a class with the given parent in it's prototype chain.
  *
  * @method extend
@@ -60,7 +151,7 @@ ozpIwc.util.safePostMessage = function(window,msg,origin) {
         try {
             window.postMessage(JSON.stringify(msg), origin);
         } catch (e) {
-            ozpIwc.util.log("Invalid call to window.postMessage: " + e.message);
+            ozpIwc.log.debug("Invalid call to window.postMessage: " + e.message);
         }
     }
 };
@@ -125,36 +216,6 @@ ozpIwc.util.clone=function(value) {
 };
 
 /**
- * Non serializable cloning. Used to include prototype functions in the cloned object by creating a new instance
- * and copying over any attributes.
- * @method protoClone
- * @param {Object|Array} obj
- * @returns {*|Array.<T>|string|Blob}
- */
-ozpIwc.util.protoClone = function(obj) {
-
-    if (obj instanceof Array) {
-        return obj.slice();
-    }
-
-    // Handle Object
-    if (obj instanceof Object) {
-        var clone = new obj.constructor();
-        for(var i in obj){
-
-            if(obj.hasOwnProperty(i)){
-                //recurse if needed
-                clone[i] = ozpIwc.util.protoClone(obj[i]);
-            } else{
-                clone[i] = obj[i];
-            }
-        }
-        return clone;
-    }
-    return obj;
-};
-
-/**
  * A regex method to parse query parameters.
  *
  * @method parseQueryParams
@@ -170,6 +231,83 @@ ozpIwc.util.parseQueryParams=function(query) {
 		params[match[1]]=decodeURIComponent(match[2]);
 	}
     return params;
+};
+
+/**
+ * Adds params to the query string of the given url. Accepts objects, preformed query strings, and arrays of query
+ * params.
+ *
+ * @method addQueryParams
+ * @param {String} url
+ * @param {String|Object|Array} params
+ * @returns {String}
+ */
+ozpIwc.util.addQueryParams=function(url,params){
+    if(typeof url !== "string") { throw new Error("url should be a string."); }
+
+    var formattedParams = {};
+    switch(typeof params){
+        case "object":
+            // if in array form ["a=true","b=en_us",...]
+            if(Array.isArray(params)){
+                if(params.length === 0){
+                    return url;
+                }
+                for(var i in params){
+                    if(typeof params[i] === "string") {
+                        var p = ozpIwc.util.parseQueryParams(params[i]);
+                        for(var j in p){
+                            formattedParams[j] = p[j];
+                        }
+                    }
+                }
+            } else {
+                if(Object.keys(params).length === 0){
+                    return url;
+                }
+                // if in object form {a:true, b:"en_us",...}
+                formattedParams = params;
+            }
+            break;
+        case "undefined":
+            return url;
+
+        default:
+            if(params.length === 0) {
+                return url;
+            }
+            // if in string form "?a=true&b=en_us&..."
+            formattedParams = ozpIwc.util.parseQueryParams(params);
+            break;
+    }
+    var hash = "";
+    // Separate the hash temporarily (if exists)
+    var hashSplit = url.split("#");
+    if(hashSplit.length > 2){
+        throw new Error("Invalid url.");
+    } else {
+        url = hashSplit[0];
+        hash = hashSplit[1] || "";
+    }
+
+    //if the url has no query params  we append the initial "?"
+    if(url.indexOf("?") === -1) {
+        url += "?";
+    } else {
+        url += "&";
+    }
+    //skip on first iteration
+    var ampersand = "";
+    for(var k in formattedParams){
+        url += ampersand + k +"=" + formattedParams[k];
+        ampersand = "&";
+    }
+
+    if(hash.length > 0){
+        url += "#" + hash;
+    }
+
+    return url;
 };
 
 /**
@@ -252,112 +390,6 @@ ozpIwc.util.isIWCPacket=function(packet) {
     }
 };
 
-/**
- * Returns true if the the given document node is a direct descendant of the parent node.
- * @method isDirectDescendant
- * @param parent
- * @param child
- * @returns {boolean}
- */
-ozpIwc.util.isDirectDescendant = function(child,parent){
-    if (child.parentNode === parent) {
-        return true;
-    }
-    return false;
-};
-
-/**
- *
- * @param {Object} config
- * @param {Array<String>} config.reqAttrs
- * @param {Array<String>} config.optAttrs
- * @param {Array<String>} config.reqNodes
- * @param {Array<String>} config.optNodes
- */
-ozpIwc.util.elementParser = function(config){
-    config = config || {};
-
-    config.reqAttrs = config.reqAttrs || [];
-    config.optAttrs = config.optAttrs || [];
-    config.reqNodes = config.reqNodes || [];
-    config.optNodes = config.optNodes || [];
-
-    var element = config.element || {};
-
-    var findings = {
-        attrs: {},
-        nodes: {}
-    };
-    config.reqAttrs.forEach(function(attr){
-        var attribute = element.getAttribute(attr);
-        if(attribute){
-//            console.log('Found attribute of policy,(',attr,',',attribute,')');
-            findings.attrs[attr] = attribute;
-        } else {
-            console.error('Required attribute not found,(',attr,')');
-        }
-
-    });
-
-    config.optAttrs.forEach(function(attr){
-        var attribute = element.getAttribute(attr);
-        if(attribute){
-//            console.log('Found attribute of policy,(',attr,',',attribute,')');
-            findings.attrs[attr] = attribute;
-        }
-
-    });
-
-    config.reqNodes.forEach(function(tag){
-        var nodes = element.getElementsByTagName(tag);
-        findings.nodes[tag] = findings.nodes[tag] || [];
-        for(var i in nodes){
-            if(ozpIwc.util.isDirectDescendant(nodes[i],element)){
-//                console.log('Found node of policy: ', nodes[i]);
-                findings.nodes[tag].push(nodes[i]);
-            }
-        }
-        if(findings.nodes[tag].length <= 0) {
-            console.error('Required node not found,(',tag,')');
-        }
-    });
-    config.optNodes.forEach(function(tag){
-        var nodes = element.getElementsByTagName(tag);
-        for(var i in nodes){
-            if(ozpIwc.util.isDirectDescendant(nodes[i],element)){
-//                console.log('Found node of policy: ', nodes[i]);
-                findings.nodes[tag] = findings.nodes[tag] || [];
-                findings.nodes[tag].push(nodes[i]);
-            }
-        }
-    });
-    return findings;
-};
-
-ozpIwc.util.camelCased = function(string){
-    return string.charAt(0).toLowerCase() + string.substring(1);
-};
-
-/**
- * Shortened call for returning a resolving promise (cleans up promise chaining)
- * @param {*} obj any valid javascript to resolve with.
- * @returns {Promise}
- */
-ozpIwc.util.resolveWith = function(obj){
-    return new Promise(function(resolve,reject){
-        resolve(obj);
-    });
-};
-/**
- * Shortened call for returning a rejecting promise (cleans up promise chaining)
- * @param {*} obj any valid javascript to reject with.
- * @returns {Promise}
- */
-ozpIwc.util.rejectWith = function(obj){
-    return new Promise(function(resolve,reject){
-        reject(obj);
-    });
-};
 
 /**
  * Returns the version of Internet Explorer or a -1
@@ -369,7 +401,7 @@ ozpIwc.util.getInternetExplorerVersion= function() {
     if (navigator.appName === 'Microsoft Internet Explorer')
     {
         var ua = navigator.userAgent;
-        var re  = new RegExp("MSIE ([0-9]{1,}[\.0-9]{0,})");
+        var re  = /MSIE ([0-9]{1,}[\.0-9]{0,})/;
         if (re.exec(ua) !== null) {
             rv = parseFloat(RegExp.$1);
         }

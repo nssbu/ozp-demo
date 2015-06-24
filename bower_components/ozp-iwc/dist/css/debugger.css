@@ -8791,6 +8791,7 @@ text-align:left;
     border-right: 1px solid #ddd;
     border-bottom: 1px solid #ddd;
     max-height:80vh;
+    overflow: auto;
 }
 
 .ui-grid-viewport {
@@ -8800,6 +8801,7 @@ text-align:left;
 .ui-grid-cell-contents{
     height: auto !important;
     white-space: normal;
+    word-wrap: break-word;
     overflow: auto;
 }
 
