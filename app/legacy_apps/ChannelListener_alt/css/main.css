@@ -1,0 +1,139 @@
+body{
+	position:fixed;
+	height:100%;
+	width:100%;
+	background-color: #2b3036;
+	color:white;
+}
+
+.Header{
+	height: 35px;
+	font-weight:600;
+	font-size: 20px;
+	font: ubuntu;
+}
+
+.RowContainer, thead{
+	overflow:hidden;
+	font-weight: 300;	
+	font-size: 16px;
+}
+
+.RowContainer{
+	height: 40px;
+	border-bottom: solid #2b3036 12px;
+}
+
+.ChannelFrame, .MessageFrame{
+	overflow: auto;
+	background-color:#3b4246;
+	border-bottom: solid 2px #b5b6b8;
+}
+
+.ChannelFrame{
+	height: 100px;
+}
+
+.MessageFrame{
+	position:absolute;
+	left:0;
+	right:0;
+	bottom:0;
+	top:275px;
+	overflow: auto;
+	background-color:#3b4246;
+	border-bottom: solid 2px #b5b6b8;
+}
+
+table{
+	width:100%;
+}
+
+thead{
+	color:#009dd3;
+}
+
+tbody tr{
+	position:relative;
+	height: 22px;
+	overflow: hidden;
+	font-size: 14px;
+}
+
+.ChannelFrame thead tr :first-child {
+	width:70px;
+}
+
+.ChannelFrame tr :nth-child(2) {
+	width:55px;
+}
+
+.MessageFrame tr :first-child {
+	width:170px;
+}
+
+.MessageFrame tr :nth-child(2) {
+	width:60px;
+}
+
+.icon-cross-white{
+	position:relative;
+	left: 20px;
+	border:0;
+	padding:0;
+	height:10px;
+	width: 10px;
+	background-color: transparent;
+	background-image:url(../images/sprite.css-f85abf92.svg);
+	background-position: 99.2537313433% 73.1305343511%;
+}
+
+.icon-cross-white:hover{
+	background-position: 99.2537313433% 61.6801526718%;
+}
+
+.btn-default {
+	position:relative;
+	top:-1px;
+  	color: #eeeeef;
+  	background-color: #3b4246;
+  	border-width: 1px;
+  	border-style: solid;
+  	border-color: #191f25;
+  	font-size: 14px;
+  	height:28px;
+  }
+
+.btn-default:hover, .btn-default:focus, .btn-default.focus, .btn-default:active, .btn-default.active, .open > .btn-default.dropdown-toggle {
+    color: #ffffff;
+    background-color: #087399;
+    border-color: #087399;
+}
+
+.btn-default:active, .btn-default.active, .open > .btn-default.dropdown-toggle {
+    background-image: none;
+}
+
+.btn-default.disabled, .btn-default.disabled:hover, .btn-default.disabled:focus, .btn-default.disabled.focus, .btn-default.disabled:active, .btn-default.disabled.active, .btn-default[disabled], .btn-default[disabled]:hover, .btn-default[disabled]:focus, .btn-default[disabled].focus, .btn-default[disabled]:active, .btn-default[disabled].active, fieldset[disabled] .btn-default, fieldset[disabled] .btn-default:hover, fieldset[disabled] .btn-default:focus, fieldset[disabled] .btn-default.focus, fieldset[disabled] .btn-default:active, fieldset[disabled] .btn-default.active {
+    background-color: #3b4246;
+    border-color: #2b3036;
+}
+
+.btn-default .badge {
+    color: #3b4246;
+    background-color: #eeeeef;
+}
+
+.ChannelInput{
+ 	background-color:#4c5457;
+ 	border-color:#191f25;
+ 	border-style:solid;
+ }
+/*
+$gray-base:              #191f25 !default;
+$gray-darkest:           #2b3036 !default;
+$gray-darker:            #3b4246 !default;
+$gray-dark:              #4c5457 !default;
+$gray-light:			 #b5b6b8;
+$blue:					 #009dd3;
+*/
