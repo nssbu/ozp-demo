@@ -17,4 +17,4 @@ function getDate(now){
 	else if(mSecs<100) {mSecs='0'+mSecs}
 
 	return yyyy+'-'+mm+'-'+dd+' '+hours+':'+mins+':'+secs+':'+mSecs
-}
+};
