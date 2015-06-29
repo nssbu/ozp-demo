@@ -1,0 +1,1 @@
+React.render(<ChannelShouter/>,document.body);
