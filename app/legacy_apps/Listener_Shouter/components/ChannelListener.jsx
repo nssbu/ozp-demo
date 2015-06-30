@@ -5,7 +5,8 @@ var ChannelListener = React.createClass({
     getInitialState: function () {
         return {
             chInputValue: '',
-            msgDisplayType: 'Table view'
+            displayMode: 'Table',
+            msgDisplay: 'Get XML'
         };
     },
 
@@ -34,16 +35,18 @@ var ChannelListener = React.createClass({
     },
 
     toggleDisplayType: function () {
-        if (this.state.msgDisplayType === 'XML view') {
-            this.setState({msgDisplayType: 'Table view'});
+        if (this.state.displayMode === 'Table') {
+            this.setState({displayMode: 'XML'});
+            this.setState({msgDisplay: 'Back'});
         } else {
-            this.setState({msgDisplayType: 'XML view'});
+            this.setState({displayMode: 'Table'});
+            this.setState({msgDisplay: 'Get XML'});
         };
     },
 
     render: function (){
         var messageDisplay;
-        if (this.state.msgDisplayType === 'Table view') {
+        if (this.state.displayMode === 'Table') {
             messageDisplay = <MessageList messageList={this.state.messageList} />;
         } else {
             messageDisplay = <MessageList_XML messageList={this.state.messageList} />;
@@ -61,7 +64,7 @@ var ChannelListener = React.createClass({
                 <div className="Header">Activity Log</div>
                 <div className="RowContainer">
                     <input type="button" className="btn-default" onClick={actions.clearMessageList} value="Clear"/>
-                    <input type="button" className="btn-default" onClick={this.toggleDisplayType} value={this.state.msgDisplayType}/>
+                    <input type="button" className="btn-default" onClick={this.toggleDisplayType} value={this.state.msgDisplay}/>
                 </div>
                 {messageDisplay}
             </form>

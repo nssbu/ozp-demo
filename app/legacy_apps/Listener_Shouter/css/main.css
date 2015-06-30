@@ -10,7 +10,8 @@ body {
     height: 35px;
     font-weight: 600;
     font-size: 20px;
-    font: ubuntu;}
+    font: ubuntu;
+}
 
 .RowContainer, thead {
     font-weight: bold;
