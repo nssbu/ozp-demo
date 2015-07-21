@@ -64,19 +64,13 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwcCo
  * IWC Non-Recurring Actions
  */
     $scope.getListings = function(){
-        return $scope.client.api('data.api').list('/locationLister/listings').then(function(reply) {
+        return $scope.client.api('data.api').bulkGet('/locationLister/listings').then(function(reply) {
             if (Array.isArray(reply.entity) && reply.entity.length > 0) {
-                var promises = [];
                 reply.entity.forEach(function (listing) {
-                    var curPromise = $scope.client.api('data.api').get(listing).then(function (reply) {
-                        $log.debug(listing, reply);
-                        if($scope.isValidListing(reply.entity)) {
-                            $scope.locations[listing] = reply.entity;
-                        }
-                    });
-                    promises.push(curPromise);
+                    if($scope.isValidListing(listing.entity)) {
+                        $scope.locations[listing.resource] = listing.entity;
+                    }
                 });
-                return Promise.all(promises);
             }
         });
     };
@@ -85,7 +79,11 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwcCo
     $scope.addListing = function(listing){
         listing = listing || {};
         return $scope.locationModal(listing).then(function (output) {
-            return $scope.client.api('data.api').addChild('/locationLister/listings', {entity:  output.listing});
+            return $scope.client.api('data.api').addChild('/locationLister/listings', {entity:  output.listing}).then(function(){
+                console.log(arguments)
+            }).catch(function(e){
+                console.log(e);
+            });
         });
     };
 
@@ -113,10 +111,7 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwcCo
     };
 
     $scope.deleteSelectedLocation = function() {
-        var removeResource = {
-            resource: $scope.currentLocationId
-        };
-        return $scope.client.api('data.api').removeChild('/locationLister/listings', {entity: removeResource});
+        return $scope.client.api('data.api').delete($scope.currentLocationId);
     };
 
 /**
@@ -150,7 +145,6 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwcCo
 
         var onChange = function(reply) {
             var promises = [];
-
             reply.entity.newCollection.forEach(function(listing){
                 promises.push($scope.client.data().get(listing));
             });
@@ -162,7 +156,9 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwcCo
                     $scope.locations[listings[i].resource] = listings[i].entity;
                 }
                 $scope.$apply();
-            })
+            }).catch(function(err){
+                console.log(err);
+            });
         };
 
         return $scope.client.data().watch('/locationLister/listings',onChange).then(function(response){
