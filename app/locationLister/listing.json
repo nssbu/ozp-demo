@@ -1,0 +1,16 @@
+{
+  "description": "List all of your favorite locations. Part of the location application suite.",
+  "descriptionShort": "List all of your favorite locations.",
+  "title": "Location Lister",
+  "icons": {
+    "small": "locationLister/icon.png",
+    "large": "locationLister/icon.png"
+  },
+  "launchUrls":{
+    "default": "locationLister/index.html?color=black"
+  },
+  "uiHints":{
+    "width": null,
+    "height": null
+  }
+}
