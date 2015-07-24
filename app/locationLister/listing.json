@@ -7,7 +7,7 @@
     "large": "locationLister/icon.png"
   },
   "launchUrls":{
-    "default": "locationLister/index.html?color=black"
+    "default": "locationLister/index.html"
   },
   "uiHints":{
     "width": null,

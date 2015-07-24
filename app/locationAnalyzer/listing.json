@@ -7,7 +7,7 @@
     "large": "locationAnalyzer/icon.png"
   },
   "launchUrls":{
-    "default": "locationAnalyzer/index.html?color=black"
+    "default": "locationAnalyzer/index.html"
   },
   "uiHints":{
     "width": null,

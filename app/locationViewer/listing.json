@@ -7,7 +7,7 @@
     "large": "locationViewer/icon.png"
   },
   "launchUrls":{
-    "default": "locationViewer/index.html?color=black"
+    "default": "locationViewer/index.html"
   },
   "uiHints":{
     "width": null,
