@@ -12,7 +12,7 @@
     "angular-bootstrap": "~0.13.x",
     "angular-gridster": "~0.9.11",
     "angular-animate": "1.2.x",
-    "bootstrap": "~3.1.x",
+    "bootstrap": "~3.3.x",
     "d3": "latest",
     "html5-boilerplate": "~4.3.0",
     "ozp-iwc": "ozone-development/ozp-iwc",

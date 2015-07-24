@@ -1,0 +1,16 @@
+{
+  "description": "Analyze all of your favorite locations. Part of the location application suite.",
+  "descriptionShort": "Analyze all of your favorite locations.",
+  "title": "Location Analyzer",
+  "icons": {
+    "small": "locationAnalyzer/icon.png",
+    "large": "locationAnalyzer/icon.png"
+  },
+  "launchUrls":{
+    "default": "locationAnalyzer/index.html?color=black"
+  },
+  "uiHints":{
+    "width": null,
+    "height": null
+  }
+}
