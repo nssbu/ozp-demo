@@ -69,7 +69,7 @@ client.connect().then(function(){
     //=================================================================
     // add our ball
     //=================================================================
-    client.data().addChild("/balls",{}).then(function(packet){
+    client.data().addChild("/balls",{lifespan: "Ephemeral"}).then(function(packet){
         bouncing.ourBalls.push(new BallPublisher({
             resource:packet.entity.resource,
             iwcClient: client
@@ -89,7 +89,7 @@ client.connect().then(function(){
 
 	};
 
-    client.data().watch("/balls",{pattern: "/balls/"},onBallsChanged).then(function(reply){
+    client.data().watch("/balls",{lifespan: "Ephemeral", pattern: "/balls/"},onBallsChanged).then(function(reply){
         //watch request resolve the resource if it exists
         reply.collection.forEach(function(b) {
             //If the ball does not exist, create it.
