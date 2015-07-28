@@ -176,6 +176,7 @@ var BallPublisher=function(config) {
 
 
 		self.iwc.data().set(this.resource,{
+			lifespan: "Ephemeral",
 			entity: ball,
             respondOn: "error"
 		})['catch'](function(err){
