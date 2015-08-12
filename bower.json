@@ -16,7 +16,7 @@
     "d3": "latest",
     "html5-boilerplate": "~4.3.0",
     "ozp-iwc": "ozone-development/ozp-iwc",
-    "ozp-iwc-angular": "ozone-development/ozp-iwc-angular",
+    "ozp-iwc-angular": "ozone-development/ozp-iwc-angular#master",
     "ozp-data-schemas": "ozone-development/ozp-data-schemas",
     "ol3": "hastebrot/ol3-dist#3.1.1"
   },
