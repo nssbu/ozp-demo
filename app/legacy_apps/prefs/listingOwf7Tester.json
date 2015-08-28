@@ -1,0 +1,17 @@
+{
+  "description": "Owf 7 Preferences",
+  "descriptionShort": "Owf 7 Preferences",
+  "title": "org.owfgoss.owf.examples.Preferences",
+  "icons": {
+    "small": "legacy_resources/images/preferencessm.gif",
+    "large": "legacy_resources/images/preferences.gif"
+  },
+  "launchUrls":{
+    "default": "legacy_apps/prefs/Preferences.html"
+  },
+  "isLegacy": true,
+  "uiHints":{
+    "width": null,
+    "height": null
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "description": "Stock Watcher",
+  "descriptionShort": "Stock Watcher",
+  "title": "org.owfgoss.owf.examples.StockWatcher",
+  "icons": {
+    "small": "legacy_apps/StockWatcher/images/stockwatchsm.gif",
+    "large": "legacy_apps/StockWatcher/images/stockwatch.gif"
+  },
+  "launchUrls":{
+    "default": "legacy_apps/StockWatcher/StockWatcher.html"
+  },
+  "isLegacy": true,
+  "uiHints":{
+    "width": null,
+    "height": null
+  }
+}

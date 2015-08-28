@@ -1,0 +1,17 @@
+{
+  "description": "Announcing Clock.",
+  "descriptionShort": "Announcing Clock.",
+  "title": "org.owfgoss.owf.examples.Clock",
+  "icons": {
+    "small": "legacy_resources/images/clocksm.gif",
+    "large": "legacy_resources/images/clock.gif"
+  },
+  "launchUrls":{
+    "default": "legacy_apps/clock/AnnouncingClock_Eventing.html"
+  },
+  "isLegacy": true,
+  "uiHints":{
+    "width": null,
+    "height": null
+  }
+}

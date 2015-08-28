@@ -1,0 +1,17 @@
+{
+  "description": "Second Tracker.",
+  "descriptionShort": "Second Tracker.",
+  "title": "org.owfgoss.owf.examples.SecondTracker",
+  "icons": {
+    "small": "legacy_resources/images/trackersm.gif",
+    "large": "legacy_resources/images/tracker.gif"
+  },
+  "launchUrls":{
+    "default": "legacy_apps/clock/SecondTracker.html"
+  },
+  "isLegacy": true,
+  "uiHints":{
+    "width": null,
+    "height": null
+  }
+}
