@@ -1,0 +1,17 @@
+{
+  "description": "Directions.",
+  "descriptionShort": "Directions.",
+  "title": "org.owfgoss.owf.examples.GetDirections",
+  "icons": {
+    "small": "legacy_apps/directions/img/logo.png",
+    "large": "legacy_apps/directions/img/logo.png"
+  },
+  "launchUrls":{
+    "default": "legacy_apps/directions/index.html"
+  },
+  "isLegacy": true,
+  "uiHints":{
+    "width": null,
+    "height": null
+  }
+}

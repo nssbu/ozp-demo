@@ -1,0 +1,17 @@
+{
+  "description": "Google Maps",
+  "descriptionShort": "Google Maps",
+  "title": "org.owfgoss.owf.examples.GoogleMaps",
+  "icons": {
+    "small": "legacy_apps/googlemaps/img/logo.png",
+    "large": "legacy_apps/googlemaps/img/logo.png"
+  },
+  "launchUrls":{
+    "default": "legacy_apps/googlemaps/index.html"
+  },
+  "isLegacy": true,
+  "uiHints":{
+    "width": 500,
+    "height": 500
+  }
+}

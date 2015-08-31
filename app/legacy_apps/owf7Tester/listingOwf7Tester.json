@@ -1,0 +1,17 @@
+{
+  "description": "Owf 7 Tester",
+  "descriptionShort": "Owf 7 Tester",
+  "title": "org.owfgoss.owf.examples.owf7Tester",
+  "icons": {
+    "small": "legacy_resources/images/tracker.gif",
+    "large": "legacy_resources/images/tracker.gif"
+  },
+  "launchUrls":{
+    "default": "legacy_apps/owf7Tester/index.html"
+  },
+  "isLegacy": true,
+  "uiHints":{
+    "width": null,
+    "height": null
+  }
+}

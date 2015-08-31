@@ -1,0 +1,17 @@
+{
+  "description": "This app component allows users to manage their contacts.",
+  "descriptionShort": "This app component allows users to manage their contacts.",
+  "title": "org.owfgoss.owf.examples.ContactsManager",
+  "icons": {
+    "small": "legacy_apps/contacts/img/logo.png",
+    "large": "legacy_apps/contacts/img/logo.png"
+  },
+  "launchUrls":{
+    "default": "legacy_apps/contacts/index.html"
+  },
+  "isLegacy": true,
+  "uiHints":{
+    "width": null,
+    "height": null
+  }
+}

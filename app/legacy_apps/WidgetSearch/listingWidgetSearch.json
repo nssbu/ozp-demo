@@ -1,0 +1,17 @@
+{
+  "description": "Widget Search",
+  "descriptionShort": "Widget Search",
+  "title": "org.owfgoss.owf.examples.WidgetSearch",
+  "icons": {
+    "small": "legacy_resources/images/tracker.gif",
+    "large": "legacy_resources/images/tracker.gif"
+  },
+  "launchUrls":{
+    "default": "legacy_apps/WidgetSearch/WidgetSearch.html"
+  },
+  "isLegacy": true,
+  "uiHints":{
+    "width": null,
+    "height": null
+  }
+}
