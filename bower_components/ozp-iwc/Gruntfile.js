@@ -8,54 +8,79 @@ module.exports = function(grunt) {
         }
     };
 
+    var mockBackendMiddleware = function(connect, options, middlewares) {
+        // inject a custom middleware into the array of default middlewares
+        middlewares.unshift(function(req, res, next) {
+
+            if (req.method !== 'PUT' && req.method !== 'POST' && req.method !== 'DELETE') {
+                return next();
+            }
+            res.end('The ozp-iwc test backend drops all write actions.');
+        });
+
+        return middlewares;
+    };
+
     // Project configuration.
     var config = {
         pkg: grunt.file.readJSON('package.json'),
 
         src: {
             common: [
+                'app/js/common/initials.js',
                 'bower_components/es5-shim/es5-shim.js',
                 'bower_components/es5-shim/es5-sham.js',
                 'bower_components/es6-promise/promise.js',
+                'app/js/common/util.js',
                 'app/js/common/**/*.js'
             ],
             metrics: [
                 '<%= src.common %>',
-                'app/js/metrics/statistics/sample.js',
-                'app/js/metrics/statistics/binary_heap.js',
-                'app/js/metrics/statistics/exponentiallyDecayingSample.js',
-                'app/js/metrics/statistics/exponentiallyWeightedMovingAverage.js',
-                'app/js/metrics/baseMetric.js',
-                'app/js/metrics/types/*.js',
-                'app/js/metrics/metricsRegistry.js'
+                'app/js/metric/stats/sample.js',
+                'app/js/metric/stats/binary_heap.js',
+                'app/js/metric/stats/exponentiallyDecayingSample.js',
+                'app/js/metric/stats/exponentiallyWeightedMovingAverage.js',
+                'app/js/metric/baseMetric.js',
+                'app/js/metric/types/*.js',
+                'app/js/metric/registry.js'
             ],
             bus: [
                 '<%= src.common %>',
                 '<%= src.metrics %>',
                 'app/js/bus/util/**/*.js',
-                'app/js/bus/security/**/*.js',
+                'app/js/bus/wiring/configLoading.js',
+
+                'app/js/bus/policyAuth/**/*.js',
+
+                'app/js/bus/packet/**.*.js',
                 'app/js/bus/network/**/*.js',
-                'app/js/bus/transport/participant.js',
-                'app/js/bus/transport/internalParticipant.js',
+
+                'app/js/bus/transport/participant/base.js',
+                'app/js/bus/transport/participant/internal.js',
+                'app/js/bus/transport/participant/sharedWorker.js',
+                'app/js/bus/transport/participant/postMessage.js',
                 'app/js/bus/transport/router.js',
                 'app/js/bus/transport/**/*.js',
-                'app/js/bus/storage/**/*.js',
-                'app/js/bus/api/commonApiValue.js',
-                'app/js/bus/api/commonApiCollectionValue.js',
+
                 'app/js/bus/api/*.js',
+                'app/js/bus/api/base/*.js',
+                'app/js/bus/api/error/*.js',
+                'app/js/bus/api/filter/*.js',
                 'app/js/bus/api/**/*.js',
-                'app/js/bus/*/**/*.js',
-                'app/js/services/*.js',
-                'app/js/services/node/**/*.js',
+
+                'app/js/services/api/*/node/**/*.js',
                 'app/js/services/api/**/*.js',
-                'app/js/defaultWiring.js'
+
+
+                'app/js/bus/wiring/support/**/*.js',
+                'app/js/bus/wiring/init/base.js',
+                'app/js/bus/wiring/init/default.js'
             ],
             client: [
                 '<%= src.common %>',
                 'app/js/client/**/*.js'
             ],
             testLib: [
-                'test/karma/**/*.js',
                 'test/lib/**/*.js',
                 'test/mockParticipant/**/*.js'
             ],
@@ -74,7 +99,6 @@ module.exports = function(grunt) {
                 '<%= src.testIntegrationClient %>'
             ],
             debugger: [
-                '<%= src.bus %>',
                 'bower_components/bootstrap/dist/boostrap.js',
                 'bower_components/jquery/dist/jquery.js',
                 'bower_components/angular/angular.js',
@@ -91,6 +115,10 @@ module.exports = function(grunt) {
                 'bower_components/vis/dist/vis.css',
                 'app/css/debugger/**/*.css'
             ],
+            workerTimerJs: [
+                'app/js/worker/timerThrottleUnlock.js',
+                'app/js/worker/timerThrottleUnlockRunner.js'
+            ],
             all: [
                 '<%= src.metrics %>',
                 '<%= src.bus %>',
@@ -102,25 +130,41 @@ module.exports = function(grunt) {
             busJs: 'dist/js/<%= pkg.name %>-bus.js',
             clientJs: 'dist/js/<%= pkg.name %>-client.js',
             metricsJs: 'dist/js/<%= pkg.name %>-metrics.js',
+            ngBusJs: 'dist/js/<%= pkg.name %>-bus-angular.js',
+            ngClientJs: 'dist/js/<%= pkg.name %>-client-angular.js',
+            ngMetricsJs: 'dist/js/<%= pkg.name %>-metrics-angular.js',
             debuggerJs: 'dist/js/debugger.js',
             debuggerCss: 'dist/css/debugger.css',
+            workerTimerJs: 'dist/js/ozpIwc.timer.js',
 
             busJsMin: 'dist/js/<%= pkg.name %>-bus.min.js',
             clientJsMin: 'dist/js/<%= pkg.name %>-client.min.js',
             metricsJsMin: 'dist/js/<%= pkg.name %>-metrics.min.js',
+            ngBusJsMin: 'dist/js/<%= pkg.name %>-bus-angular.min.js',
+            ngClientJsMin: 'dist/js/<%= pkg.name %>-client-angular.min.js',
+            ngMetricsJsMin: 'dist/js/<%= pkg.name %>-metrics-angular.min.js',
             debuggerJsMin: 'dist/js/debugger.min.js',
-            allJs: ['<%=output.busJs %>', '<%=output.clientJs %>', '<%=output.metricsJs %>'],
-            allJsMin: ['<%=output.busJsMin %>', '<%=output.clientJsMin %>', '<%=output.metricsJsMin %>'],
+
+
+            allJs: ['<%=output.busJs %>', '<%=output.clientJs %>', '<%=output.metricsJs %>',
+                    '<%=output.ngBusJs %>', '<%=output.ngClientJs %>', '<%=output.ngMetricsJs %>'],
+            allJsMin: ['<%=output.busJsMin %>', '<%=output.clientJsMin %>', '<%=output.metricsJsMin %>',
+                       '<%=output.ngBusJsMin %>', '<%=output.ngClientJsMin %>', '<%=output.ngMetricsJsMin %>'],
             testUnit: [
+                'test/lib/test.conf.js',
                 '<%= output.busJsMin %>',
-                '<%= output.clientJsMin %>',
-                '<%= src.testLib %>',
+                'test/lib/testWiring.js',
+                'test/lib/testTools.js',
+                'test/lib/mockTime.js',
+                'test/lib/jasmine-promises.js',
+                'test/lib/mockObjects.js',
                 '<%= src.testUnit %>'
             ],
             testIntegrationClient: [
-                '<%= output.busJsMin %>',
-                '<%= output.clientJsMin %>',
-                '<%= src.testLib %>',
+                '<%= output.clientJs %>',
+                'test/lib/testTools.js',
+                'test/lib/jasmine-promises.js',
+                'test/mockParticipant/js/mockParticipant.js',
                 '<%= src.testIntegrationClient %>'
             ],
             testIntegrationBus: [
@@ -149,9 +193,63 @@ module.exports = function(grunt) {
                 src: '<%= src.debugger %>',
                 dest: '<%= output.debuggerJs %>'
             },
+            workerTimer: {
+                src: '<%= src.workerTimerJs %>',
+                dest: '<%= output.workerTimerJs %>'
+            },
             debuggerCss: {
                 src: '<%= src.debuggerCss %>',
                 dest: '<%= output.debuggerCss %>'
+            }
+        },
+        concat: {
+            ngBus: {
+                options: {
+                    banner: 'angular.module(\'ozpIwcBus\', []).factory(\'iwcBus\', function () {\n',
+                    footer: '\n//Return the ozpIwc object\nreturn ozpIwc;\n});'
+                },
+                src: '<%= output.busJs %>',
+                dest: '<%= output.ngBusJs %>'
+            },
+            ngBusMin: {
+                options: {
+                    banner: 'angular.module(\'ozpIwcBus\', []).factory(\'iwcBus\', function () {\n',
+                    footer: '\n//Return the ozpIwc object\nreturn ozpIwc;\n});'
+                },
+                src: '<%= output.busJsMin %>',
+                dest: '<%= output.ngBusJsMin %>'
+            },
+            ngClient: {
+                options: {
+                    banner: 'angular.module(\'ozpIwcClient\', []).factory(\'iwcClient\', function () {\n',
+                    footer: '\n//Return the ozpIwc object\nreturn ozpIwc;\n});'
+                },
+                src: '<%= output.clientJs %>',
+                dest: '<%= output.ngClientJs %>'
+            },
+            ngClientMin: {
+                options: {
+                    banner: 'angular.module(\'ozpIwcClient\', []).factory(\'iwcClient\', function () {\n',
+                    footer: '\n//Return the ozpIwc object\nreturn ozpIwc;\n});'
+                },
+                src: '<%= output.clientJsMin %>',
+                dest: '<%= output.ngClientJsMin %>'
+            },
+            ngMetrics: {
+                options: {
+                    banner: 'angular.module(\'ozpIwcMetrics\', []).factory(\'iwcMetrics\', function () {\n',
+                    footer: '\n//Return the ozpIwc object\nreturn ozpIwc;\n});'
+                },
+                src: '<%= output.metricsJs %>',
+                dest: '<%= output.ngMetricsJs %>'
+            },
+            ngMetricsMin: {
+                options: {
+                    banner: 'angular.module(\'ozpIwcMetrics\', []).factory(\'iwcMetrics\', function () {\n',
+                    footer: '\n//Return the ozpIwc object\nreturn ozpIwc;\n});'
+                },
+                src: '<%= output.metricsJsMin %>',
+                dest: '<%= output.ngMetricsJsMin %>'
             }
         },
         uglify: {
@@ -191,6 +289,12 @@ module.exports = function(grunt) {
                     },{
                         src: ['**/*'],
                         dest: './dist/js/app/js',
+                        cwd: 'app/js',
+                        expand: true,
+                        nonull:true
+                    },{
+                        src: ['ozpIwc.conf.js', 'ozpIwc.loader.js'],
+                        dest: './dist/js',
                         cwd: 'app/js',
                         expand: true,
                         nonull:true
@@ -272,7 +376,7 @@ module.exports = function(grunt) {
         watch: {
             concatFiles: {
                 files: ['Gruntfile.js', '<%= src.all %>','app/**/*'],
-                tasks: ['jshint','concat_sourcemap', 'copy:dist'],
+                tasks: ['jshint','concat_sourcemap', 'yuidoc','copy:dist'],
                 options: {
                     interrupt: true,
                     spawn: false
@@ -296,7 +400,9 @@ module.exports = function(grunt) {
             all: [
                 'Gruntfile.js',
                 '<%= src.all %>',
-                '!bower_components/**/*'
+                '!bower_components/**/*',
+                '!app/js/client/timerThrottleUnlock.js',
+                '!app/js/worker/timerThrottleUnlock.js'
             ],
             test: {
                 src: ['<%= src.test %>']
@@ -306,7 +412,8 @@ module.exports = function(grunt) {
             app: {
                 options: {
                     port: 13000,
-                    base: [sampleDataBase,'dist']
+                    base: ['dist',sampleDataBase],
+                    middleware:  mockBackendMiddleware
                 }
             },
             tests: {
@@ -316,7 +423,10 @@ module.exports = function(grunt) {
                 options: {port: 14001, base: ["dist","test/mockParticipant"]}
             },
             testBus: {
-                options:{ port: 14002, base: ['dist',sampleDataBase] }
+                options:{ port: 14002, base: ['dist',sampleDataBase], middleware:  mockBackendMiddleware}
+            },
+            noDB: {
+                options: {port: 16000, base: ["dist"]}
             },
             demo1: {
                 options: { port: 15000, base: ["dist","demo/bouncingBalls"] }
@@ -370,11 +480,13 @@ module.exports = function(grunt) {
                     'git commit -m "chore(release): <%= pkg.version %>"',
                     'git push origin master',
                     'git checkout --detach',
-                    'grunt dist',
+                    'grunt build yuidoc',
                     'git add -f dist',
                     'git commit -m "chore(release): <%= pkg.version %>"',
                     'git tag -a "<%= pkg.version %>" -m "chore(release): <%= pkg.version %>"',
+                    'git tag -a "release/<%= pkg.version %>" -m "chore(release): <%= pkg.version %>"',
                     'git push origin <% pkg.version %> --tags',
+                    'grunt update-gh-pages',
                     'git checkout master'
                 ].join('&&')
             },
@@ -391,10 +503,12 @@ module.exports = function(grunt) {
         },
         karma: {
             options:{
-                configFile: 'karma.conf.js',
                 browsers: ['Firefox']
             },
             unit: {
+                options: {
+                    configFile: 'karma-unit.conf.js'
+                },
                 files: {
                     src: ['<%= output.testUnit %>']
                 }
@@ -412,6 +526,40 @@ module.exports = function(grunt) {
                     '/js/ozpIwc-bus.js': '/base/dist/js/ozpIwc-bus.js'
                 }
             }
+        },
+        nodemon: {
+            backend: {
+                script: 'server.js',
+                options: {
+                    env:{
+                        PORT: "8181"
+                    },
+                    cwd: 'backend',
+                    ignore: ['node_modules/**']
+                }
+            }
+        },
+        concurrent: {
+            server: {
+                tasks: ['nodemon','build','watch'],
+                options: {
+                    logConcurrentOutput: true
+                }
+            }
+        },
+        gitbook: {
+            development: {
+                output: "_book",
+                input: "./docs/iwc_guide",
+                title: "Inter-Widget Communication (IWC)",
+                github: "ozone-development/ozp-iwc"
+            }
+        },
+        'gh-pages': {
+            options: {
+                base: "_book"
+            },
+            src: ["**"]
         }
 
     };
@@ -422,21 +570,18 @@ module.exports = function(grunt) {
     grunt.initConfig(config);
 
     grunt.registerTask('readpkg', 'Read in the package.json file', function() {
-
         grunt.config.set('pkg', grunt.file.readJSON('./package.json'));
-
     });
     // Default task(s).
     grunt.registerTask('build', "Concat and minify the source code into dist",
-        ['copy:hackBootstrap', 'jshint', 'concat_sourcemap', 
-            'uglify', 'copy:dist','shell:buildVersionFile']
+        ['copy:hackBootstrap', 'jshint', 'concat_sourcemap','uglify','concat', 'yuidoc', 'copy:dist','shell:buildVersionFile']
     );
-
     grunt.registerTask('karmaTests', "Runs the unit and integration tests.",
         ['build','karma:unit','connect:testBus','connect:mockParticipant', 'karma:integrationClient', 'karma:integrationBus']
     );
-    grunt.registerTask('travis', "Build, Runs the unit tests, and create Docs",['build','karma:unit', 'yuidoc']);
-
+    grunt.registerTask('travis', "Build, Runs the unit tests, and create Docs",
+        ['build','karma:unit', 'yuidoc']
+    );
     grunt.registerTask('dist', "Builds and tests the full distribution",
         ['build','karmaTests','yuidoc']
     );
@@ -446,9 +591,26 @@ module.exports = function(grunt) {
     grunt.registerTask('connect-all', "Runs tests and demos locally",
         ['build','connect','watch']
     );
-    grunt.registerTask('releasePatch', ['bump:patch','readpkg','shell:releaseGit']);
-    grunt.registerTask('releaseMinor', ['bump:minor','readpkg', 'shell:releaseGit']);
-    grunt.registerTask('releaseMajor', ['bump:major','readpkg', 'shell:releaseGit']);
-    grunt.registerTask('default', ['dist']);
+    grunt.registerTask('connect-noDB', "Runs tests and demos locally",
+        ['build','connect:noDB','watch']
+    );
+    grunt.registerTask('serve', "Launches the IWC & Backend",
+        ['concurrent:server']
+    );
+    grunt.registerTask('releasePatch',
+        ['build','karma:unit','bump:patch','readpkg','shell:releaseGit']
+    );
+    grunt.registerTask('releaseMinor',
+        ['build','karma:unit','bump:minor','readpkg', 'shell:releaseGit']
+    );
+    grunt.registerTask('releaseMajor',
+        ['build','karma:unit','bump:major','readpkg', 'shell:releaseGit']
+    );
+    grunt.registerTask('update-gh-pages',
+        ['gitbook', 'gh-pages']
+    );
+    grunt.registerTask('default',
+        ['dist']
+    );
 
 };

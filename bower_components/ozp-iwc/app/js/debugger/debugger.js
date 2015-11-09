@@ -48,28 +48,43 @@ var debuggerModule=angular.module("ozpIwc.debugger",[
 
 
 debuggerModule.factory("iwcClient",function() {
-    return new ozpIwc.ClientParticipant({name: "debuggerClient"});
+    var path = window.location.href.replace(window.location.hash,"");
+    var domain = ozpIwc.util.parseQueryParams().peerUrl || path.substr(0,path.lastIndexOf('/'));
+
+    var dbg = new ozpIwc.Debugger({
+        peerUrl: domain
+    });
+
+    return dbg;
 });
         
         
 debuggerModule.controller("debuggerController",["$scope","iwcClient",function(scope,client) {
     scope.ozpIwc = ozpIwc;
-    scope.apiRootUrl = ozpIwc.apiRootUrl;
     scope.tab = 'general';
-    client.connect().then(function(){
-        scope.address = client.address;
+    scope.loading = true;
+
+    client.getConfig().then(function(config){
+        scope.$evalAsync(function(){
+            scope.apiRootUrl = config.apiRootUrl;
+            scope.address = client.address;
+
+            scope.loading = false;
+        });
     });
+
 }]);
 debuggerModule.service("apiSettingService",function(){
     this.apis={
         'data.api' : {
-            'address': "data.api",
+            'address': "data.api"
         },
         'intents.api': {
             'address': "intents.api",
             'actions': [{
                 action: "invoke",
-                contentTypes: ['application/vnd.ozp-iwc-intent-definition-v1+json',
+                contentTypes: [
+                    'application/vnd.ozp-iwc-intent-definition-v1+json',
                     'application/vnd.ozp-iwc-intent-handler-v1+json']
             },{
                 action: "broadcast",
@@ -81,7 +96,10 @@ debuggerModule.service("apiSettingService",function(){
             'address': "system.api",
             'actions': [{
                 action: "launch",
-                contentTypes: ['application/vnd.ozp-application-v1+json']
+                contentTypes: [
+                    'application/vnd.ozp-application-v1+json',
+                    'application/vnd.ozp-iwc-application+json;version=2'
+                ]
             }]
         },
         'names.api': {

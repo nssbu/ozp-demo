@@ -1,15407 +1,5 @@
 /*!
- * https://github.com/es-shims/es5-shim
- * @license es5-shim Copyright 2009-2014 by contributors, MIT License
- * see https://github.com/es-shims/es5-shim/blob/master/LICENSE
- */
-
-// vim: ts=4 sts=4 sw=4 expandtab
-
-// Add semicolon to prevent IIFE from being passed as argument to concatenated code.
-;
-
-// UMD (Universal Module Definition)
-// see https://github.com/umdjs/umd/blob/master/returnExports.js
-(function (root, factory) {
-    'use strict';
-    /*global define, exports, module */
-    if (typeof define === 'function' && define.amd) {
-        // AMD. Register as an anonymous module.
-        define(factory);
-    } else if (typeof exports === 'object') {
-        // Node. Does not work with strict CommonJS, but
-        // only CommonJS-like enviroments that support module.exports,
-        // like Node.
-        module.exports = factory();
-    } else {
-        // Browser globals (root is window)
-        root.returnExports = factory();
-    }
-}(this, function () {
-
-/**
- * Brings an environment as close to ECMAScript 5 compliance
- * as is possible with the facilities of erstwhile engines.
- *
- * Annotated ES5: http://es5.github.com/ (specific links below)
- * ES5 Spec: http://www.ecma-international.org/publications/files/ECMA-ST/Ecma-262.pdf
- * Required reading: http://javascriptweblog.wordpress.com/2011/12/05/extending-javascript-natives/
- */
-
-// Shortcut to an often accessed properties, in order to avoid multiple
-// dereference that costs universally.
-var ArrayPrototype = Array.prototype;
-var ObjectPrototype = Object.prototype;
-var FunctionPrototype = Function.prototype;
-var StringPrototype = String.prototype;
-var NumberPrototype = Number.prototype;
-var array_slice = ArrayPrototype.slice;
-var array_splice = ArrayPrototype.splice;
-var array_push = ArrayPrototype.push;
-var array_unshift = ArrayPrototype.unshift;
-var call = FunctionPrototype.call;
-
-// Having a toString local variable name breaks in Opera so use to_string.
-var to_string = ObjectPrototype.toString;
-
-var isArray = Array.isArray || function isArray(obj) {
-    return to_string.call(obj) === '[object Array]';
-};
-
-var hasToStringTag = typeof Symbol === 'function' && typeof Symbol.toStringTag === 'symbol';
-var isCallable; /* inlined from https://npmjs.com/is-callable */ var fnToStr = Function.prototype.toString, tryFunctionObject = function tryFunctionObject(value) { try { fnToStr.call(value); return true; } catch (e) { return false; } }, fnClass = '[object Function]', genClass = '[object GeneratorFunction]'; isCallable = function isCallable(value) { if (typeof value !== 'function') { return false; } if (hasToStringTag) { return tryFunctionObject(value); } var strClass = to_string.call(value); return strClass === fnClass || strClass === genClass; };
-var isRegex; /* inlined from https://npmjs.com/is-regex */ var regexExec = RegExp.prototype.exec, tryRegexExec = function tryRegexExec(value) { try { regexExec.call(value); return true; } catch (e) { return false; } }, regexClass = '[object RegExp]'; isRegex = function isRegex(value) { if (typeof value !== 'object') { return false; } return hasToStringTag ? tryRegexExec(value) : to_string.call(value) === regexClass; };
-var isString; /* inlined from https://npmjs.com/is-string */ var strValue = String.prototype.valueOf, tryStringObject = function tryStringObject(value) { try { strValue.call(value); return true; } catch (e) { return false; } }, stringClass = '[object String]'; isString = function isString(value) { if (typeof value === 'string') { return true; } if (typeof value !== 'object') { return false; } return hasToStringTag ? tryStringObject(value) : to_string.call(value) === stringClass; };
-
-var isArguments = function isArguments(value) {
-    var str = to_string.call(value);
-    var isArgs = str === '[object Arguments]';
-    if (!isArgs) {
-        isArgs = !isArray(value) &&
-          value !== null &&
-          typeof value === 'object' &&
-          typeof value.length === 'number' &&
-          value.length >= 0 &&
-          isCallable(value.callee);
-    }
-    return isArgs;
-};
-
-/* inlined from http://npmjs.com/define-properties */
-var defineProperties = (function (has) {
-  var supportsDescriptors = Object.defineProperty && (function () {
-      try {
-          Object.defineProperty({}, 'x', {});
-          return true;
-      } catch (e) { /* this is ES3 */
-          return false;
-      }
-  }());
-
-  // Define configurable, writable and non-enumerable props
-  // if they don't exist.
-  var defineProperty;
-  if (supportsDescriptors) {
-      defineProperty = function (object, name, method, forceAssign) {
-          if (!forceAssign && (name in object)) { return; }
-          Object.defineProperty(object, name, {
-              configurable: true,
-              enumerable: false,
-              writable: true,
-              value: method
-          });
-      };
-  } else {
-      defineProperty = function (object, name, method, forceAssign) {
-          if (!forceAssign && (name in object)) { return; }
-          object[name] = method;
-      };
-  }
-  return function defineProperties(object, map, forceAssign) {
-      for (var name in map) {
-          if (has.call(map, name)) {
-            defineProperty(object, name, map[name], forceAssign);
-          }
-      }
-  };
-}(ObjectPrototype.hasOwnProperty));
-
-//
-// Util
-// ======
-//
-
-/* replaceable with https://npmjs.com/package/es-abstract /helpers/isPrimitive */
-function isPrimitive(input) {
-    var type = typeof input;
-    return input === null ||
-        type === 'undefined' ||
-        type === 'boolean' ||
-        type === 'number' ||
-        type === 'string';
-}
-
-var ES = {
-    // ES5 9.4
-    // http://es5.github.com/#x9.4
-    // http://jsperf.com/to-integer
-    /* replaceable with https://npmjs.com/package/es-abstract ES5.ToInteger */
-    ToInteger: function ToInteger(num) {
-        var n = +num;
-        if (n !== n) { // isNaN
-            n = 0;
-        } else if (n !== 0 && n !== (1 / 0) && n !== -(1 / 0)) {
-            n = (n > 0 || -1) * Math.floor(Math.abs(n));
-        }
-        return n;
-    },
-
-    /* replaceable with https://npmjs.com/package/es-abstract ES5.ToPrimitive */
-    ToPrimitive: function ToPrimitive(input) {
-        var val, valueOf, toStr;
-        if (isPrimitive(input)) {
-            return input;
-        }
-        valueOf = input.valueOf;
-        if (isCallable(valueOf)) {
-            val = valueOf.call(input);
-            if (isPrimitive(val)) {
-                return val;
-            }
-        }
-        toStr = input.toString;
-        if (isCallable(toStr)) {
-            val = toStr.call(input);
-            if (isPrimitive(val)) {
-                return val;
-            }
-        }
-        throw new TypeError();
-    },
-
-    // ES5 9.9
-    // http://es5.github.com/#x9.9
-    /* replaceable with https://npmjs.com/package/es-abstract ES5.ToObject */
-    ToObject: function (o) {
-        /*jshint eqnull: true */
-        if (o == null) { // this matches both null and undefined
-            throw new TypeError("can't convert " + o + ' to object');
-        }
-        return Object(o);
-    },
-
-    /* replaceable with https://npmjs.com/package/es-abstract ES5.ToUint32 */
-    ToUint32: function ToUint32(x) {
-        return x >>> 0;
-    }
-};
-
-//
-// Function
-// ========
-//
-
-// ES-5 15.3.4.5
-// http://es5.github.com/#x15.3.4.5
-
-var Empty = function Empty() {};
-
-defineProperties(FunctionPrototype, {
-    bind: function bind(that) { // .length is 1
-        // 1. Let Target be the this value.
-        var target = this;
-        // 2. If IsCallable(Target) is false, throw a TypeError exception.
-        if (!isCallable(target)) {
-            throw new TypeError('Function.prototype.bind called on incompatible ' + target);
-        }
-        // 3. Let A be a new (possibly empty) internal list of all of the
-        //   argument values provided after thisArg (arg1, arg2 etc), in order.
-        // XXX slicedArgs will stand in for "A" if used
-        var args = array_slice.call(arguments, 1); // for normal call
-        // 4. Let F be a new native ECMAScript object.
-        // 11. Set the [[Prototype]] internal property of F to the standard
-        //   built-in Function prototype object as specified in 15.3.3.1.
-        // 12. Set the [[Call]] internal property of F as described in
-        //   15.3.4.5.1.
-        // 13. Set the [[Construct]] internal property of F as described in
-        //   15.3.4.5.2.
-        // 14. Set the [[HasInstance]] internal property of F as described in
-        //   15.3.4.5.3.
-        var bound;
-        var binder = function () {
-
-            if (this instanceof bound) {
-                // 15.3.4.5.2 [[Construct]]
-                // When the [[Construct]] internal method of a function object,
-                // F that was created using the bind function is called with a
-                // list of arguments ExtraArgs, the following steps are taken:
-                // 1. Let target be the value of F's [[TargetFunction]]
-                //   internal property.
-                // 2. If target has no [[Construct]] internal method, a
-                //   TypeError exception is thrown.
-                // 3. Let boundArgs be the value of F's [[BoundArgs]] internal
-                //   property.
-                // 4. Let args be a new list containing the same values as the
-                //   list boundArgs in the same order followed by the same
-                //   values as the list ExtraArgs in the same order.
-                // 5. Return the result of calling the [[Construct]] internal
-                //   method of target providing args as the arguments.
-
-                var result = target.apply(
-                    this,
-                    args.concat(array_slice.call(arguments))
-                );
-                if (Object(result) === result) {
-                    return result;
-                }
-                return this;
-
-            } else {
-                // 15.3.4.5.1 [[Call]]
-                // When the [[Call]] internal method of a function object, F,
-                // which was created using the bind function is called with a
-                // this value and a list of arguments ExtraArgs, the following
-                // steps are taken:
-                // 1. Let boundArgs be the value of F's [[BoundArgs]] internal
-                //   property.
-                // 2. Let boundThis be the value of F's [[BoundThis]] internal
-                //   property.
-                // 3. Let target be the value of F's [[TargetFunction]] internal
-                //   property.
-                // 4. Let args be a new list containing the same values as the
-                //   list boundArgs in the same order followed by the same
-                //   values as the list ExtraArgs in the same order.
-                // 5. Return the result of calling the [[Call]] internal method
-                //   of target providing boundThis as the this value and
-                //   providing args as the arguments.
-
-                // equiv: target.call(this, ...boundArgs, ...args)
-                return target.apply(
-                    that,
-                    args.concat(array_slice.call(arguments))
-                );
-
-            }
-
-        };
-
-        // 15. If the [[Class]] internal property of Target is "Function", then
-        //     a. Let L be the length property of Target minus the length of A.
-        //     b. Set the length own property of F to either 0 or L, whichever is
-        //       larger.
-        // 16. Else set the length own property of F to 0.
-
-        var boundLength = Math.max(0, target.length - args.length);
-
-        // 17. Set the attributes of the length own property of F to the values
-        //   specified in 15.3.5.1.
-        var boundArgs = [];
-        for (var i = 0; i < boundLength; i++) {
-            boundArgs.push('$' + i);
-        }
-
-        // XXX Build a dynamic function with desired amount of arguments is the only
-        // way to set the length property of a function.
-        // In environments where Content Security Policies enabled (Chrome extensions,
-        // for ex.) all use of eval or Function costructor throws an exception.
-        // However in all of these environments Function.prototype.bind exists
-        // and so this code will never be executed.
-        bound = Function('binder', 'return function (' + boundArgs.join(',') + '){ return binder.apply(this, arguments); }')(binder);
-
-        if (target.prototype) {
-            Empty.prototype = target.prototype;
-            bound.prototype = new Empty();
-            // Clean up dangling references.
-            Empty.prototype = null;
-        }
-
-        // TODO
-        // 18. Set the [[Extensible]] internal property of F to true.
-
-        // TODO
-        // 19. Let thrower be the [[ThrowTypeError]] function Object (13.2.3).
-        // 20. Call the [[DefineOwnProperty]] internal method of F with
-        //   arguments "caller", PropertyDescriptor {[[Get]]: thrower, [[Set]]:
-        //   thrower, [[Enumerable]]: false, [[Configurable]]: false}, and
-        //   false.
-        // 21. Call the [[DefineOwnProperty]] internal method of F with
-        //   arguments "arguments", PropertyDescriptor {[[Get]]: thrower,
-        //   [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: false},
-        //   and false.
-
-        // TODO
-        // NOTE Function objects created using Function.prototype.bind do not
-        // have a prototype property or the [[Code]], [[FormalParameters]], and
-        // [[Scope]] internal properties.
-        // XXX can't delete prototype in pure-js.
-
-        // 22. Return F.
-        return bound;
-    }
-});
-
-// _Please note: Shortcuts are defined after `Function.prototype.bind` as we
-// us it in defining shortcuts.
-var owns = call.bind(ObjectPrototype.hasOwnProperty);
-
-//
-// Array
-// =====
-//
-
-// ES5 15.4.4.12
-// http://es5.github.com/#x15.4.4.12
-var spliceNoopReturnsEmptyArray = (function () {
-    var a = [1, 2];
-    var result = a.splice();
-    return a.length === 2 && isArray(result) && result.length === 0;
-}());
-defineProperties(ArrayPrototype, {
-    // Safari 5.0 bug where .splice() returns undefined
-    splice: function splice(start, deleteCount) {
-        if (arguments.length === 0) {
-            return [];
-        } else {
-            return array_splice.apply(this, arguments);
-        }
-    }
-}, !spliceNoopReturnsEmptyArray);
-
-var spliceWorksWithEmptyObject = (function () {
-    var obj = {};
-    ArrayPrototype.splice.call(obj, 0, 0, 1);
-    return obj.length === 1;
-}());
-defineProperties(ArrayPrototype, {
-    splice: function splice(start, deleteCount) {
-        if (arguments.length === 0) { return []; }
-        var args = arguments;
-        this.length = Math.max(ES.ToInteger(this.length), 0);
-        if (arguments.length > 0 && typeof deleteCount !== 'number') {
-            args = array_slice.call(arguments);
-            if (args.length < 2) {
-                args.push(this.length - start);
-            } else {
-                args[1] = ES.ToInteger(deleteCount);
-            }
-        }
-        return array_splice.apply(this, args);
-    }
-}, !spliceWorksWithEmptyObject);
-
-// ES5 15.4.4.12
-// http://es5.github.com/#x15.4.4.13
-// Return len+argCount.
-// [bugfix, ielt8]
-// IE < 8 bug: [].unshift(0) === undefined but should be "1"
-var hasUnshiftReturnValueBug = [].unshift(0) !== 1;
-defineProperties(ArrayPrototype, {
-    unshift: function () {
-        array_unshift.apply(this, arguments);
-        return this.length;
-    }
-}, hasUnshiftReturnValueBug);
-
-// ES5 15.4.3.2
-// http://es5.github.com/#x15.4.3.2
-// https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Array/isArray
-defineProperties(Array, { isArray: isArray });
-
-// The IsCallable() check in the Array functions
-// has been replaced with a strict check on the
-// internal class of the object to trap cases where
-// the provided function was actually a regular
-// expression literal, which in V8 and
-// JavaScriptCore is a typeof "function".  Only in
-// V8 are regular expression literals permitted as
-// reduce parameters, so it is desirable in the
-// general case for the shim to match the more
-// strict and common behavior of rejecting regular
-// expressions.
-
-// ES5 15.4.4.18
-// http://es5.github.com/#x15.4.4.18
-// https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/array/forEach
-
-// Check failure of by-index access of string characters (IE < 9)
-// and failure of `0 in boxedString` (Rhino)
-var boxedString = Object('a');
-var splitString = boxedString[0] !== 'a' || !(0 in boxedString);
-
-var properlyBoxesContext = function properlyBoxed(method) {
-    // Check node 0.6.21 bug where third parameter is not boxed
-    var properlyBoxesNonStrict = true;
-    var properlyBoxesStrict = true;
-    if (method) {
-        method.call('foo', function (_, __, context) {
-            if (typeof context !== 'object') { properlyBoxesNonStrict = false; }
-        });
-
-        method.call([1], function () {
-            'use strict';
-            properlyBoxesStrict = typeof this === 'string';
-        }, 'x');
-    }
-    return !!method && properlyBoxesNonStrict && properlyBoxesStrict;
-};
-
-defineProperties(ArrayPrototype, {
-    forEach: function forEach(fun /*, thisp*/) {
-        var object = ES.ToObject(this),
-            self = splitString && isString(this) ? this.split('') : object,
-            thisp = arguments[1],
-            i = -1,
-            length = self.length >>> 0;
-
-        // If no callback function or if callback is not a callable function
-        if (!isCallable(fun)) {
-            throw new TypeError(); // TODO message
-        }
-
-        while (++i < length) {
-            if (i in self) {
-                // Invoke the callback function with call, passing arguments:
-                // context, property value, property key, thisArg object
-                // context
-                fun.call(thisp, self[i], i, object);
-            }
-        }
-    }
-}, !properlyBoxesContext(ArrayPrototype.forEach));
-
-// ES5 15.4.4.19
-// http://es5.github.com/#x15.4.4.19
-// https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Objects/Array/map
-defineProperties(ArrayPrototype, {
-    map: function map(fun /*, thisp*/) {
-        var object = ES.ToObject(this),
-            self = splitString && isString(this) ? this.split('') : object,
-            length = self.length >>> 0,
-            result = Array(length),
-            thisp = arguments[1];
-
-        // If no callback function or if callback is not a callable function
-        if (!isCallable(fun)) {
-            throw new TypeError(fun + ' is not a function');
-        }
-
-        for (var i = 0; i < length; i++) {
-            if (i in self) {
-                result[i] = fun.call(thisp, self[i], i, object);
-            }
-        }
-        return result;
-    }
-}, !properlyBoxesContext(ArrayPrototype.map));
-
-// ES5 15.4.4.20
-// http://es5.github.com/#x15.4.4.20
-// https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Objects/Array/filter
-defineProperties(ArrayPrototype, {
-    filter: function filter(fun /*, thisp */) {
-        var object = ES.ToObject(this),
-            self = splitString && isString(this) ? this.split('') : object,
-            length = self.length >>> 0,
-            result = [],
-            value,
-            thisp = arguments[1];
-
-        // If no callback function or if callback is not a callable function
-        if (!isCallable(fun)) {
-            throw new TypeError(fun + ' is not a function');
-        }
-
-        for (var i = 0; i < length; i++) {
-            if (i in self) {
-                value = self[i];
-                if (fun.call(thisp, value, i, object)) {
-                    result.push(value);
-                }
-            }
-        }
-        return result;
-    }
-}, !properlyBoxesContext(ArrayPrototype.filter));
-
-// ES5 15.4.4.16
-// http://es5.github.com/#x15.4.4.16
-// https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Array/every
-defineProperties(ArrayPrototype, {
-    every: function every(fun /*, thisp */) {
-        var object = ES.ToObject(this),
-            self = splitString && isString(this) ? this.split('') : object,
-            length = self.length >>> 0,
-            thisp = arguments[1];
-
-        // If no callback function or if callback is not a callable function
-        if (!isCallable(fun)) {
-            throw new TypeError(fun + ' is not a function');
-        }
-
-        for (var i = 0; i < length; i++) {
-            if (i in self && !fun.call(thisp, self[i], i, object)) {
-                return false;
-            }
-        }
-        return true;
-    }
-}, !properlyBoxesContext(ArrayPrototype.every));
-
-// ES5 15.4.4.17
-// http://es5.github.com/#x15.4.4.17
-// https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Array/some
-defineProperties(ArrayPrototype, {
-    some: function some(fun /*, thisp */) {
-        var object = ES.ToObject(this),
-            self = splitString && isString(this) ? this.split('') : object,
-            length = self.length >>> 0,
-            thisp = arguments[1];
-
-        // If no callback function or if callback is not a callable function
-        if (!isCallable(fun)) {
-            throw new TypeError(fun + ' is not a function');
-        }
-
-        for (var i = 0; i < length; i++) {
-            if (i in self && fun.call(thisp, self[i], i, object)) {
-                return true;
-            }
-        }
-        return false;
-    }
-}, !properlyBoxesContext(ArrayPrototype.some));
-
-// ES5 15.4.4.21
-// http://es5.github.com/#x15.4.4.21
-// https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Objects/Array/reduce
-var reduceCoercesToObject = false;
-if (ArrayPrototype.reduce) {
-    reduceCoercesToObject = typeof ArrayPrototype.reduce.call('es5', function (_, __, ___, list) { return list; }) === 'object';
-}
-defineProperties(ArrayPrototype, {
-    reduce: function reduce(fun /*, initial*/) {
-        var object = ES.ToObject(this),
-            self = splitString && isString(this) ? this.split('') : object,
-            length = self.length >>> 0;
-
-        // If no callback function or if callback is not a callable function
-        if (!isCallable(fun)) {
-            throw new TypeError(fun + ' is not a function');
-        }
-
-        // no value to return if no initial value and an empty array
-        if (!length && arguments.length === 1) {
-            throw new TypeError('reduce of empty array with no initial value');
-        }
-
-        var i = 0;
-        var result;
-        if (arguments.length >= 2) {
-            result = arguments[1];
-        } else {
-            do {
-                if (i in self) {
-                    result = self[i++];
-                    break;
-                }
-
-                // if array contains no values, no initial value to return
-                if (++i >= length) {
-                    throw new TypeError('reduce of empty array with no initial value');
-                }
-            } while (true);
-        }
-
-        for (; i < length; i++) {
-            if (i in self) {
-                result = fun.call(void 0, result, self[i], i, object);
-            }
-        }
-
-        return result;
-    }
-}, !reduceCoercesToObject);
-
-// ES5 15.4.4.22
-// http://es5.github.com/#x15.4.4.22
-// https://developer.mozilla.org/en/Core_JavaScript_1.5_Reference/Objects/Array/reduceRight
-var reduceRightCoercesToObject = false;
-if (ArrayPrototype.reduceRight) {
-    reduceRightCoercesToObject = typeof ArrayPrototype.reduceRight.call('es5', function (_, __, ___, list) { return list; }) === 'object';
-}
-defineProperties(ArrayPrototype, {
-    reduceRight: function reduceRight(fun /*, initial*/) {
-        var object = ES.ToObject(this),
-            self = splitString && isString(this) ? this.split('') : object,
-            length = self.length >>> 0;
-
-        // If no callback function or if callback is not a callable function
-        if (!isCallable(fun)) {
-            throw new TypeError(fun + ' is not a function');
-        }
-
-        // no value to return if no initial value, empty array
-        if (!length && arguments.length === 1) {
-            throw new TypeError('reduceRight of empty array with no initial value');
-        }
-
-        var result, i = length - 1;
-        if (arguments.length >= 2) {
-            result = arguments[1];
-        } else {
-            do {
-                if (i in self) {
-                    result = self[i--];
-                    break;
-                }
-
-                // if array contains no values, no initial value to return
-                if (--i < 0) {
-                    throw new TypeError('reduceRight of empty array with no initial value');
-                }
-            } while (true);
-        }
-
-        if (i < 0) {
-            return result;
-        }
-
-        do {
-            if (i in self) {
-                result = fun.call(void 0, result, self[i], i, object);
-            }
-        } while (i--);
-
-        return result;
-    }
-}, !reduceRightCoercesToObject);
-
-// ES5 15.4.4.14
-// http://es5.github.com/#x15.4.4.14
-// https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Array/indexOf
-var hasFirefox2IndexOfBug = Array.prototype.indexOf && [0, 1].indexOf(1, 2) !== -1;
-defineProperties(ArrayPrototype, {
-    indexOf: function indexOf(sought /*, fromIndex */) {
-        var self = splitString && isString(this) ? this.split('') : ES.ToObject(this),
-            length = self.length >>> 0;
-
-        if (!length) {
-            return -1;
-        }
-
-        var i = 0;
-        if (arguments.length > 1) {
-            i = ES.ToInteger(arguments[1]);
-        }
-
-        // handle negative indices
-        i = i >= 0 ? i : Math.max(0, length + i);
-        for (; i < length; i++) {
-            if (i in self && self[i] === sought) {
-                return i;
-            }
-        }
-        return -1;
-    }
-}, hasFirefox2IndexOfBug);
-
-// ES5 15.4.4.15
-// http://es5.github.com/#x15.4.4.15
-// https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Array/lastIndexOf
-var hasFirefox2LastIndexOfBug = Array.prototype.lastIndexOf && [0, 1].lastIndexOf(0, -3) !== -1;
-defineProperties(ArrayPrototype, {
-    lastIndexOf: function lastIndexOf(sought /*, fromIndex */) {
-        var self = splitString && isString(this) ? this.split('') : ES.ToObject(this),
-            length = self.length >>> 0;
-
-        if (!length) {
-            return -1;
-        }
-        var i = length - 1;
-        if (arguments.length > 1) {
-            i = Math.min(i, ES.ToInteger(arguments[1]));
-        }
-        // handle negative indices
-        i = i >= 0 ? i : length - Math.abs(i);
-        for (; i >= 0; i--) {
-            if (i in self && sought === self[i]) {
-                return i;
-            }
-        }
-        return -1;
-    }
-}, hasFirefox2LastIndexOfBug);
-
-//
-// Object
-// ======
-//
-
-// ES5 15.2.3.14
-// http://es5.github.com/#x15.2.3.14
-
-// http://whattheheadsaid.com/2010/10/a-safer-object-keys-compatibility-implementation
-var hasDontEnumBug = !({'toString': null}).propertyIsEnumerable('toString'),
-    hasProtoEnumBug = function () {}.propertyIsEnumerable('prototype'),
-    hasStringEnumBug = !owns('x', '0'),
-    dontEnums = [
-        'toString',
-        'toLocaleString',
-        'valueOf',
-        'hasOwnProperty',
-        'isPrototypeOf',
-        'propertyIsEnumerable',
-        'constructor'
-    ],
-    dontEnumsLength = dontEnums.length;
-
-defineProperties(Object, {
-    keys: function keys(object) {
-        var isFn = isCallable(object),
-            isArgs = isArguments(object),
-            isObject = object !== null && typeof object === 'object',
-            isStr = isObject && isString(object);
-
-        if (!isObject && !isFn && !isArgs) {
-            throw new TypeError('Object.keys called on a non-object');
-        }
-
-        var theKeys = [];
-        var skipProto = hasProtoEnumBug && isFn;
-        if ((isStr && hasStringEnumBug) || isArgs) {
-            for (var i = 0; i < object.length; ++i) {
-                theKeys.push(String(i));
-            }
-        }
-
-        if (!isArgs) {
-            for (var name in object) {
-                if (!(skipProto && name === 'prototype') && owns(object, name)) {
-                    theKeys.push(String(name));
-                }
-            }
-        }
-
-        if (hasDontEnumBug) {
-            var ctor = object.constructor,
-                skipConstructor = ctor && ctor.prototype === object;
-            for (var j = 0; j < dontEnumsLength; j++) {
-                var dontEnum = dontEnums[j];
-                if (!(skipConstructor && dontEnum === 'constructor') && owns(object, dontEnum)) {
-                    theKeys.push(dontEnum);
-                }
-            }
-        }
-        return theKeys;
-    }
-});
-
-var keysWorksWithArguments = Object.keys && (function () {
-    // Safari 5.0 bug
-    return Object.keys(arguments).length === 2;
-}(1, 2));
-var originalKeys = Object.keys;
-defineProperties(Object, {
-    keys: function keys(object) {
-        if (isArguments(object)) {
-            return originalKeys(ArrayPrototype.slice.call(object));
-        } else {
-            return originalKeys(object);
-        }
-    }
-}, !keysWorksWithArguments);
-
-//
-// Date
-// ====
-//
-
-// ES5 15.9.5.43
-// http://es5.github.com/#x15.9.5.43
-// This function returns a String value represent the instance in time
-// represented by this Date object. The format of the String is the Date Time
-// string format defined in 15.9.1.15. All fields are present in the String.
-// The time zone is always UTC, denoted by the suffix Z. If the time value of
-// this object is not a finite Number a RangeError exception is thrown.
-var negativeDate = -62198755200000;
-var negativeYearString = '-000001';
-var hasNegativeDateBug = Date.prototype.toISOString && new Date(negativeDate).toISOString().indexOf(negativeYearString) === -1;
-
-defineProperties(Date.prototype, {
-    toISOString: function toISOString() {
-        var result, length, value, year, month;
-        if (!isFinite(this)) {
-            throw new RangeError('Date.prototype.toISOString called on non-finite value.');
-        }
-
-        year = this.getUTCFullYear();
-
-        month = this.getUTCMonth();
-        // see https://github.com/es-shims/es5-shim/issues/111
-        year += Math.floor(month / 12);
-        month = (month % 12 + 12) % 12;
-
-        // the date time string format is specified in 15.9.1.15.
-        result = [month + 1, this.getUTCDate(), this.getUTCHours(), this.getUTCMinutes(), this.getUTCSeconds()];
-        year = (
-            (year < 0 ? '-' : (year > 9999 ? '+' : '')) +
-            ('00000' + Math.abs(year)).slice((0 <= year && year <= 9999) ? -4 : -6)
-        );
-
-        length = result.length;
-        while (length--) {
-            value = result[length];
-            // pad months, days, hours, minutes, and seconds to have two
-            // digits.
-            if (value < 10) {
-                result[length] = '0' + value;
-            }
-        }
-        // pad milliseconds to have three digits.
-        return (
-            year + '-' + result.slice(0, 2).join('-') +
-            'T' + result.slice(2).join(':') + '.' +
-            ('000' + this.getUTCMilliseconds()).slice(-3) + 'Z'
-        );
-    }
-}, hasNegativeDateBug);
-
-
-// ES5 15.9.5.44
-// http://es5.github.com/#x15.9.5.44
-// This function provides a String representation of a Date object for use by
-// JSON.stringify (15.12.3).
-var dateToJSONIsSupported = false;
-try {
-    dateToJSONIsSupported = (
-        Date.prototype.toJSON &&
-        new Date(NaN).toJSON() === null &&
-        new Date(negativeDate).toJSON().indexOf(negativeYearString) !== -1 &&
-        Date.prototype.toJSON.call({ // generic
-            toISOString: function () {
-                return true;
-            }
-        })
-    );
-} catch (e) {
-}
-if (!dateToJSONIsSupported) {
-    Date.prototype.toJSON = function toJSON(key) {
-        // When the toJSON method is called with argument key, the following
-        // steps are taken:
-
-        // 1.  Let O be the result of calling ToObject, giving it the this
-        // value as its argument.
-        // 2. Let tv be ES.ToPrimitive(O, hint Number).
-        var o = Object(this),
-            tv = ES.ToPrimitive(o),
-            toISO;
-        // 3. If tv is a Number and is not finite, return null.
-        if (typeof tv === 'number' && !isFinite(tv)) {
-            return null;
-        }
-        // 4. Let toISO be the result of calling the [[Get]] internal method of
-        // O with argument "toISOString".
-        toISO = o.toISOString;
-        // 5. If IsCallable(toISO) is false, throw a TypeError exception.
-        if (typeof toISO !== 'function') {
-            throw new TypeError('toISOString property is not callable');
-        }
-        // 6. Return the result of calling the [[Call]] internal method of
-        //  toISO with O as the this value and an empty argument list.
-        return toISO.call(o);
-
-        // NOTE 1 The argument is ignored.
-
-        // NOTE 2 The toJSON function is intentionally generic; it does not
-        // require that its this value be a Date object. Therefore, it can be
-        // transferred to other kinds of objects for use as a method. However,
-        // it does require that any such object have a toISOString method. An
-        // object is free to use the argument key to filter its
-        // stringification.
-    };
-}
-
-// ES5 15.9.4.2
-// http://es5.github.com/#x15.9.4.2
-// based on work shared by Daniel Friesen (dantman)
-// http://gist.github.com/303249
-var supportsExtendedYears = Date.parse('+033658-09-27T01:46:40.000Z') === 1e15;
-var acceptsInvalidDates = !isNaN(Date.parse('2012-04-04T24:00:00.500Z')) || !isNaN(Date.parse('2012-11-31T23:59:59.000Z'));
-var doesNotParseY2KNewYear = isNaN(Date.parse('2000-01-01T00:00:00.000Z'));
-if (!Date.parse || doesNotParseY2KNewYear || acceptsInvalidDates || !supportsExtendedYears) {
-    // XXX global assignment won't work in embeddings that use
-    // an alternate object for the context.
-    /*global Date: true */
-    /*eslint-disable no-undef*/
-    Date = (function (NativeDate) {
-    /*eslint-enable no-undef*/
-        // Date.length === 7
-        function Date(Y, M, D, h, m, s, ms) {
-            var length = arguments.length;
-            if (this instanceof NativeDate) {
-                var date = length === 1 && String(Y) === Y ? // isString(Y)
-                    // We explicitly pass it through parse:
-                    new NativeDate(Date.parse(Y)) :
-                    // We have to manually make calls depending on argument
-                    // length here
-                    length >= 7 ? new NativeDate(Y, M, D, h, m, s, ms) :
-                    length >= 6 ? new NativeDate(Y, M, D, h, m, s) :
-                    length >= 5 ? new NativeDate(Y, M, D, h, m) :
-                    length >= 4 ? new NativeDate(Y, M, D, h) :
-                    length >= 3 ? new NativeDate(Y, M, D) :
-                    length >= 2 ? new NativeDate(Y, M) :
-                    length >= 1 ? new NativeDate(Y) :
-                                  new NativeDate();
-                // Prevent mixups with unfixed Date object
-                date.constructor = Date;
-                return date;
-            }
-            return NativeDate.apply(this, arguments);
-        }
-
-        // 15.9.1.15 Date Time String Format.
-        var isoDateExpression = new RegExp('^' +
-            '(\\d{4}|[+-]\\d{6})' + // four-digit year capture or sign +
-                                      // 6-digit extended year
-            '(?:-(\\d{2})' + // optional month capture
-            '(?:-(\\d{2})' + // optional day capture
-            '(?:' + // capture hours:minutes:seconds.milliseconds
-                'T(\\d{2})' + // hours capture
-                ':(\\d{2})' + // minutes capture
-                '(?:' + // optional :seconds.milliseconds
-                    ':(\\d{2})' + // seconds capture
-                    '(?:(\\.\\d{1,}))?' + // milliseconds capture
-                ')?' +
-            '(' + // capture UTC offset component
-                'Z|' + // UTC capture
-                '(?:' + // offset specifier +/-hours:minutes
-                    '([-+])' + // sign capture
-                    '(\\d{2})' + // hours offset capture
-                    ':(\\d{2})' + // minutes offset capture
-                ')' +
-            ')?)?)?)?' +
-        '$');
-
-        var months = [
-            0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365
-        ];
-
-        function dayFromMonth(year, month) {
-            var t = month > 1 ? 1 : 0;
-            return (
-                months[month] +
-                Math.floor((year - 1969 + t) / 4) -
-                Math.floor((year - 1901 + t) / 100) +
-                Math.floor((year - 1601 + t) / 400) +
-                365 * (year - 1970)
-            );
-        }
-
-        function toUTC(t) {
-            return Number(new NativeDate(1970, 0, 1, 0, 0, 0, t));
-        }
-
-        // Copy any custom methods a 3rd party library may have added
-        for (var key in NativeDate) {
-            Date[key] = NativeDate[key];
-        }
-
-        // Copy "native" methods explicitly; they may be non-enumerable
-        Date.now = NativeDate.now;
-        Date.UTC = NativeDate.UTC;
-        Date.prototype = NativeDate.prototype;
-        Date.prototype.constructor = Date;
-
-        // Upgrade Date.parse to handle simplified ISO 8601 strings
-        Date.parse = function parse(string) {
-            var match = isoDateExpression.exec(string);
-            if (match) {
-                // parse months, days, hours, minutes, seconds, and milliseconds
-                // provide default values if necessary
-                // parse the UTC offset component
-                var year = Number(match[1]),
-                    month = Number(match[2] || 1) - 1,
-                    day = Number(match[3] || 1) - 1,
-                    hour = Number(match[4] || 0),
-                    minute = Number(match[5] || 0),
-                    second = Number(match[6] || 0),
-                    millisecond = Math.floor(Number(match[7] || 0) * 1000),
-                    // When time zone is missed, local offset should be used
-                    // (ES 5.1 bug)
-                    // see https://bugs.ecmascript.org/show_bug.cgi?id=112
-                    isLocalTime = Boolean(match[4] && !match[8]),
-                    signOffset = match[9] === '-' ? 1 : -1,
-                    hourOffset = Number(match[10] || 0),
-                    minuteOffset = Number(match[11] || 0),
-                    result;
-                if (
-                    hour < (
-                        minute > 0 || second > 0 || millisecond > 0 ?
-                        24 : 25
-                    ) &&
-                    minute < 60 && second < 60 && millisecond < 1000 &&
-                    month > -1 && month < 12 && hourOffset < 24 &&
-                    minuteOffset < 60 && // detect invalid offsets
-                    day > -1 &&
-                    day < (
-                        dayFromMonth(year, month + 1) -
-                        dayFromMonth(year, month)
-                    )
-                ) {
-                    result = (
-                        (dayFromMonth(year, month) + day) * 24 +
-                        hour +
-                        hourOffset * signOffset
-                    ) * 60;
-                    result = (
-                        (result + minute + minuteOffset * signOffset) * 60 +
-                        second
-                    ) * 1000 + millisecond;
-                    if (isLocalTime) {
-                        result = toUTC(result);
-                    }
-                    if (-8.64e15 <= result && result <= 8.64e15) {
-                        return result;
-                    }
-                }
-                return NaN;
-            }
-            return NativeDate.parse.apply(this, arguments);
-        };
-
-        return Date;
-    }(Date));
-    /*global Date: false */
-}
-
-// ES5 15.9.4.4
-// http://es5.github.com/#x15.9.4.4
-if (!Date.now) {
-    Date.now = function now() {
-        return new Date().getTime();
-    };
-}
-
-
-//
-// Number
-// ======
-//
-
-// ES5.1 15.7.4.5
-// http://es5.github.com/#x15.7.4.5
-var hasToFixedBugs = NumberPrototype.toFixed && (
-  (0.00008).toFixed(3) !== '0.000' ||
-  (0.9).toFixed(0) !== '1' ||
-  (1.255).toFixed(2) !== '1.25' ||
-  (1000000000000000128).toFixed(0) !== '1000000000000000128'
-);
-
-var toFixedHelpers = {
-  base: 1e7,
-  size: 6,
-  data: [0, 0, 0, 0, 0, 0],
-  multiply: function multiply(n, c) {
-      var i = -1;
-      while (++i < toFixedHelpers.size) {
-          c += n * toFixedHelpers.data[i];
-          toFixedHelpers.data[i] = c % toFixedHelpers.base;
-          c = Math.floor(c / toFixedHelpers.base);
-      }
-  },
-  divide: function divide(n) {
-      var i = toFixedHelpers.size, c = 0;
-      while (--i >= 0) {
-          c += toFixedHelpers.data[i];
-          toFixedHelpers.data[i] = Math.floor(c / n);
-          c = (c % n) * toFixedHelpers.base;
-      }
-  },
-  numToString: function numToString() {
-      var i = toFixedHelpers.size;
-      var s = '';
-      while (--i >= 0) {
-          if (s !== '' || i === 0 || toFixedHelpers.data[i] !== 0) {
-              var t = String(toFixedHelpers.data[i]);
-              if (s === '') {
-                  s = t;
-              } else {
-                  s += '0000000'.slice(0, 7 - t.length) + t;
-              }
-          }
-      }
-      return s;
-  },
-  pow: function pow(x, n, acc) {
-      return (n === 0 ? acc : (n % 2 === 1 ? pow(x, n - 1, acc * x) : pow(x * x, n / 2, acc)));
-  },
-  log: function log(x) {
-      var n = 0;
-      while (x >= 4096) {
-          n += 12;
-          x /= 4096;
-      }
-      while (x >= 2) {
-          n += 1;
-          x /= 2;
-      }
-      return n;
-  }
-};
-
-defineProperties(NumberPrototype, {
-    toFixed: function toFixed(fractionDigits) {
-        var f, x, s, m, e, z, j, k;
-
-        // Test for NaN and round fractionDigits down
-        f = Number(fractionDigits);
-        f = f !== f ? 0 : Math.floor(f);
-
-        if (f < 0 || f > 20) {
-            throw new RangeError('Number.toFixed called with invalid number of decimals');
-        }
-
-        x = Number(this);
-
-        // Test for NaN
-        if (x !== x) {
-            return 'NaN';
-        }
-
-        // If it is too big or small, return the string value of the number
-        if (x <= -1e21 || x >= 1e21) {
-            return String(x);
-        }
-
-        s = '';
-
-        if (x < 0) {
-            s = '-';
-            x = -x;
-        }
-
-        m = '0';
-
-        if (x > 1e-21) {
-            // 1e-21 < x < 1e21
-            // -70 < log2(x) < 70
-            e = toFixedHelpers.log(x * toFixedHelpers.pow(2, 69, 1)) - 69;
-            z = (e < 0 ? x * toFixedHelpers.pow(2, -e, 1) : x / toFixedHelpers.pow(2, e, 1));
-            z *= 0x10000000000000; // Math.pow(2, 52);
-            e = 52 - e;
-
-            // -18 < e < 122
-            // x = z / 2 ^ e
-            if (e > 0) {
-                toFixedHelpers.multiply(0, z);
-                j = f;
-
-                while (j >= 7) {
-                    toFixedHelpers.multiply(1e7, 0);
-                    j -= 7;
-                }
-
-                toFixedHelpers.multiply(toFixedHelpers.pow(10, j, 1), 0);
-                j = e - 1;
-
-                while (j >= 23) {
-                    toFixedHelpers.divide(1 << 23);
-                    j -= 23;
-                }
-
-                toFixedHelpers.divide(1 << j);
-                toFixedHelpers.multiply(1, 1);
-                toFixedHelpers.divide(2);
-                m = toFixedHelpers.numToString();
-            } else {
-                toFixedHelpers.multiply(0, z);
-                toFixedHelpers.multiply(1 << (-e), 0);
-                m = toFixedHelpers.numToString() + '0.00000000000000000000'.slice(2, 2 + f);
-            }
-        }
-
-        if (f > 0) {
-            k = m.length;
-
-            if (k <= f) {
-                m = s + '0.0000000000000000000'.slice(0, f - k + 2) + m;
-            } else {
-                m = s + m.slice(0, k - f) + '.' + m.slice(k - f);
-            }
-        } else {
-            m = s + m;
-        }
-
-        return m;
-    }
-}, hasToFixedBugs);
-
-
-//
-// String
-// ======
-//
-
-// ES5 15.5.4.14
-// http://es5.github.com/#x15.5.4.14
-
-// [bugfix, IE lt 9, firefox 4, Konqueror, Opera, obscure browsers]
-// Many browsers do not split properly with regular expressions or they
-// do not perform the split correctly under obscure conditions.
-// See http://blog.stevenlevithan.com/archives/cross-browser-split
-// I've tested in many browsers and this seems to cover the deviant ones:
-//    'ab'.split(/(?:ab)*/) should be ["", ""], not [""]
-//    '.'.split(/(.?)(.?)/) should be ["", ".", "", ""], not ["", ""]
-//    'tesst'.split(/(s)*/) should be ["t", undefined, "e", "s", "t"], not
-//       [undefined, "t", undefined, "e", ...]
-//    ''.split(/.?/) should be [], not [""]
-//    '.'.split(/()()/) should be ["."], not ["", "", "."]
-
-var string_split = StringPrototype.split;
-if (
-    'ab'.split(/(?:ab)*/).length !== 2 ||
-    '.'.split(/(.?)(.?)/).length !== 4 ||
-    'tesst'.split(/(s)*/)[1] === 't' ||
-    'test'.split(/(?:)/, -1).length !== 4 ||
-    ''.split(/.?/).length ||
-    '.'.split(/()()/).length > 1
-) {
-    (function () {
-        var compliantExecNpcg = typeof (/()??/).exec('')[1] === 'undefined'; // NPCG: nonparticipating capturing group
-
-        StringPrototype.split = function (separator, limit) {
-            var string = this;
-            if (typeof separator === 'undefined' && limit === 0) {
-                return [];
-            }
-
-            // If `separator` is not a regex, use native split
-            if (!isRegex(separator)) {
-                return string_split.call(this, separator, limit);
-            }
-
-            var output = [],
-                flags = (separator.ignoreCase ? 'i' : '') +
-                        (separator.multiline ? 'm' : '') +
-                        (separator.extended ? 'x' : '') + // Proposed for ES6
-                        (separator.sticky ? 'y' : ''), // Firefox 3+
-                lastLastIndex = 0,
-                // Make `global` and avoid `lastIndex` issues by working with a copy
-                separator2, match, lastIndex, lastLength;
-            separator = new RegExp(separator.source, flags + 'g');
-            string += ''; // Type-convert
-            if (!compliantExecNpcg) {
-                // Doesn't need flags gy, but they don't hurt
-                separator2 = new RegExp('^' + separator.source + '$(?!\\s)', flags);
-            }
-            /* Values for `limit`, per the spec:
-             * If undefined: 4294967295 // Math.pow(2, 32) - 1
-             * If 0, Infinity, or NaN: 0
-             * If positive number: limit = Math.floor(limit); if (limit > 4294967295) limit -= 4294967296;
-             * If negative number: 4294967296 - Math.floor(Math.abs(limit))
-             * If other: Type-convert, then use the above rules
-             */
-            limit = typeof limit === 'undefined' ?
-                -1 >>> 0 : // Math.pow(2, 32) - 1
-                ES.ToUint32(limit);
-            match = separator.exec(string);
-            while (match) {
-                // `separator.lastIndex` is not reliable cross-browser
-                lastIndex = match.index + match[0].length;
-                if (lastIndex > lastLastIndex) {
-                    output.push(string.slice(lastLastIndex, match.index));
-                    // Fix browsers whose `exec` methods don't consistently return `undefined` for
-                    // nonparticipating capturing groups
-                    if (!compliantExecNpcg && match.length > 1) {
-                        /*eslint-disable no-loop-func */
-                        match[0].replace(separator2, function () {
-                            for (var i = 1; i < arguments.length - 2; i++) {
-                                if (typeof arguments[i] === 'undefined') {
-                                    match[i] = void 0;
-                                }
-                            }
-                        });
-                        /*eslint-enable no-loop-func */
-                    }
-                    if (match.length > 1 && match.index < string.length) {
-                        array_push.apply(output, match.slice(1));
-                    }
-                    lastLength = match[0].length;
-                    lastLastIndex = lastIndex;
-                    if (output.length >= limit) {
-                        break;
-                    }
-                }
-                if (separator.lastIndex === match.index) {
-                    separator.lastIndex++; // Avoid an infinite loop
-                }
-                match = separator.exec(string);
-            }
-            if (lastLastIndex === string.length) {
-                if (lastLength || !separator.test('')) {
-                    output.push('');
-                }
-            } else {
-                output.push(string.slice(lastLastIndex));
-            }
-            return output.length > limit ? output.slice(0, limit) : output;
-        };
-    }());
-
-// [bugfix, chrome]
-// If separator is undefined, then the result array contains just one String,
-// which is the this value (converted to a String). If limit is not undefined,
-// then the output array is truncated so that it contains no more than limit
-// elements.
-// "0".split(undefined, 0) -> []
-} else if ('0'.split(void 0, 0).length) {
-    StringPrototype.split = function split(separator, limit) {
-        if (typeof separator === 'undefined' && limit === 0) { return []; }
-        return string_split.call(this, separator, limit);
-    };
-}
-
-var str_replace = StringPrototype.replace;
-var replaceReportsGroupsCorrectly = (function () {
-    var groups = [];
-    'x'.replace(/x(.)?/g, function (match, group) {
-        groups.push(group);
-    });
-    return groups.length === 1 && typeof groups[0] === 'undefined';
-}());
-
-if (!replaceReportsGroupsCorrectly) {
-    StringPrototype.replace = function replace(searchValue, replaceValue) {
-        var isFn = isCallable(replaceValue);
-        var hasCapturingGroups = isRegex(searchValue) && (/\)[*?]/).test(searchValue.source);
-        if (!isFn || !hasCapturingGroups) {
-            return str_replace.call(this, searchValue, replaceValue);
-        } else {
-            var wrappedReplaceValue = function (match) {
-                var length = arguments.length;
-                var originalLastIndex = searchValue.lastIndex;
-                searchValue.lastIndex = 0;
-                var args = searchValue.exec(match) || [];
-                searchValue.lastIndex = originalLastIndex;
-                args.push(arguments[length - 2], arguments[length - 1]);
-                return replaceValue.apply(this, args);
-            };
-            return str_replace.call(this, searchValue, wrappedReplaceValue);
-        }
-    };
-}
-
-// ECMA-262, 3rd B.2.3
-// Not an ECMAScript standard, although ECMAScript 3rd Edition has a
-// non-normative section suggesting uniform semantics and it should be
-// normalized across all browsers
-// [bugfix, IE lt 9] IE < 9 substr() with negative value not working in IE
-var string_substr = StringPrototype.substr;
-var hasNegativeSubstrBug = ''.substr && '0b'.substr(-1) !== 'b';
-defineProperties(StringPrototype, {
-    substr: function substr(start, length) {
-        return string_substr.call(
-            this,
-            start < 0 ? ((start = this.length + start) < 0 ? 0 : start) : start,
-            length
-        );
-    }
-}, hasNegativeSubstrBug);
-
-// ES5 15.5.4.20
-// whitespace from: http://es5.github.io/#x15.5.4.20
-var ws = '\x09\x0A\x0B\x0C\x0D\x20\xA0\u1680\u180E\u2000\u2001\u2002\u2003' +
-    '\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u202F\u205F\u3000\u2028' +
-    '\u2029\uFEFF';
-var zeroWidth = '\u200b';
-var wsRegexChars = '[' + ws + ']';
-var trimBeginRegexp = new RegExp('^' + wsRegexChars + wsRegexChars + '*');
-var trimEndRegexp = new RegExp(wsRegexChars + wsRegexChars + '*$');
-var hasTrimWhitespaceBug = StringPrototype.trim && (ws.trim() || !zeroWidth.trim());
-defineProperties(StringPrototype, {
-    // http://blog.stevenlevithan.com/archives/faster-trim-javascript
-    // http://perfectionkills.com/whitespace-deviations/
-    trim: function trim() {
-        if (typeof this === 'undefined' || this === null) {
-            throw new TypeError("can't convert " + this + ' to object');
-        }
-        return String(this).replace(trimBeginRegexp, '').replace(trimEndRegexp, '');
-    }
-}, hasTrimWhitespaceBug);
-
-// ES-5 15.1.2.2
-if (parseInt(ws + '08') !== 8 || parseInt(ws + '0x16') !== 22) {
-    /*global parseInt: true */
-    parseInt = (function (origParseInt) {
-        var hexRegex = /^0[xX]/;
-        return function parseIntES5(str, radix) {
-            str = String(str).trim();
-            if (!Number(radix)) {
-                radix = hexRegex.test(str) ? 16 : 10;
-            }
-            return origParseInt(str, radix);
-        };
-    }(parseInt));
-}
-
-}));
-
-/*!
- * https://github.com/es-shims/es5-shim
- * @license es5-shim Copyright 2009-2014 by contributors, MIT License
- * see https://github.com/es-shims/es5-shim/blob/master/LICENSE
- */
-
-// vim: ts=4 sts=4 sw=4 expandtab
-
-//Add semicolon to prevent IIFE from being passed as argument to concated code.
-;
-
-// UMD (Universal Module Definition)
-// see https://github.com/umdjs/umd/blob/master/returnExports.js
-(function (root, factory) {
-    'use strict';
-    /*global define, exports, module */
-    if (typeof define === 'function' && define.amd) {
-        // AMD. Register as an anonymous module.
-        define(factory);
-    } else if (typeof exports === 'object') {
-        // Node. Does not work with strict CommonJS, but
-        // only CommonJS-like enviroments that support module.exports,
-        // like Node.
-        module.exports = factory();
-    } else {
-        // Browser globals (root is window)
-        root.returnExports = factory();
-  }
-}(this, function () {
-
-var call = Function.prototype.call;
-var prototypeOfObject = Object.prototype;
-var owns = call.bind(prototypeOfObject.hasOwnProperty);
-
-// If JS engine supports accessors creating shortcuts.
-var defineGetter;
-var defineSetter;
-var lookupGetter;
-var lookupSetter;
-var supportsAccessors = owns(prototypeOfObject, '__defineGetter__');
-if (supportsAccessors) {
-    /*eslint-disable no-underscore-dangle */
-    defineGetter = call.bind(prototypeOfObject.__defineGetter__);
-    defineSetter = call.bind(prototypeOfObject.__defineSetter__);
-    lookupGetter = call.bind(prototypeOfObject.__lookupGetter__);
-    lookupSetter = call.bind(prototypeOfObject.__lookupSetter__);
-    /*eslint-enable no-underscore-dangle */
-}
-
-// ES5 15.2.3.2
-// http://es5.github.com/#x15.2.3.2
-if (!Object.getPrototypeOf) {
-    // https://github.com/es-shims/es5-shim/issues#issue/2
-    // http://ejohn.org/blog/objectgetprototypeof/
-    // recommended by fschaefer on github
-    //
-    // sure, and webreflection says ^_^
-    // ... this will nerever possibly return null
-    // ... Opera Mini breaks here with infinite loops
-    Object.getPrototypeOf = function getPrototypeOf(object) {
-        /*eslint-disable no-proto */
-        var proto = object.__proto__;
-        /*eslint-enable no-proto */
-        if (proto || proto === null) {
-            return proto;
-        } else if (object.constructor) {
-            return object.constructor.prototype;
-        } else {
-            return prototypeOfObject;
-        }
-    };
-}
-
-//ES5 15.2.3.3
-//http://es5.github.com/#x15.2.3.3
-
-function doesGetOwnPropertyDescriptorWork(object) {
-    try {
-        object.sentinel = 0;
-        return Object.getOwnPropertyDescriptor(object, 'sentinel').value === 0;
-    } catch (exception) {
-        // returns falsy
-    }
-}
-
-//check whether getOwnPropertyDescriptor works if it's given. Otherwise,
-//shim partially.
-if (Object.defineProperty) {
-    var getOwnPropertyDescriptorWorksOnObject = doesGetOwnPropertyDescriptorWork({});
-    var getOwnPropertyDescriptorWorksOnDom = typeof document === 'undefined' ||
-    doesGetOwnPropertyDescriptorWork(document.createElement('div'));
-    if (!getOwnPropertyDescriptorWorksOnDom || !getOwnPropertyDescriptorWorksOnObject) {
-        var getOwnPropertyDescriptorFallback = Object.getOwnPropertyDescriptor;
-    }
-}
-
-if (!Object.getOwnPropertyDescriptor || getOwnPropertyDescriptorFallback) {
-    var ERR_NON_OBJECT = 'Object.getOwnPropertyDescriptor called on a non-object: ';
-
-    /*eslint-disable no-proto */
-    Object.getOwnPropertyDescriptor = function getOwnPropertyDescriptor(object, property) {
-        if ((typeof object !== 'object' && typeof object !== 'function') || object === null) {
-            throw new TypeError(ERR_NON_OBJECT + object);
-        }
-
-        // make a valiant attempt to use the real getOwnPropertyDescriptor
-        // for I8's DOM elements.
-        if (getOwnPropertyDescriptorFallback) {
-            try {
-                return getOwnPropertyDescriptorFallback.call(Object, object, property);
-            } catch (exception) {
-                // try the shim if the real one doesn't work
-            }
-        }
-
-        var descriptor;
-
-        // If object does not owns property return undefined immediately.
-        if (!owns(object, property)) {
-            return descriptor;
-        }
-
-        // If object has a property then it's for sure both `enumerable` and
-        // `configurable`.
-        descriptor = { enumerable: true, configurable: true };
-
-        // If JS engine supports accessor properties then property may be a
-        // getter or setter.
-        if (supportsAccessors) {
-            // Unfortunately `__lookupGetter__` will return a getter even
-            // if object has own non getter property along with a same named
-            // inherited getter. To avoid misbehavior we temporary remove
-            // `__proto__` so that `__lookupGetter__` will return getter only
-            // if it's owned by an object.
-            var prototype = object.__proto__;
-            var notPrototypeOfObject = object !== prototypeOfObject;
-            // avoid recursion problem, breaking in Opera Mini when
-            // Object.getOwnPropertyDescriptor(Object.prototype, 'toString')
-            // or any other Object.prototype accessor
-            if (notPrototypeOfObject) {
-                object.__proto__ = prototypeOfObject;
-            }
-
-            var getter = lookupGetter(object, property);
-            var setter = lookupSetter(object, property);
-
-            if (notPrototypeOfObject) {
-                // Once we have getter and setter we can put values back.
-                object.__proto__ = prototype;
-            }
-
-            if (getter || setter) {
-                if (getter) {
-                    descriptor.get = getter;
-                }
-                if (setter) {
-                    descriptor.set = setter;
-                }
-                // If it was accessor property we're done and return here
-                // in order to avoid adding `value` to the descriptor.
-                return descriptor;
-            }
-        }
-
-        // If we got this far we know that object has an own property that is
-        // not an accessor so we set it as a value and return descriptor.
-        descriptor.value = object[property];
-        descriptor.writable = true;
-        return descriptor;
-    };
-    /*eslint-enable no-proto */
-}
-
-// ES5 15.2.3.4
-// http://es5.github.com/#x15.2.3.4
-if (!Object.getOwnPropertyNames) {
-    Object.getOwnPropertyNames = function getOwnPropertyNames(object) {
-        return Object.keys(object);
-    };
-}
-
-// ES5 15.2.3.5
-// http://es5.github.com/#x15.2.3.5
-if (!Object.create) {
-
-    // Contributed by Brandon Benvie, October, 2012
-    var createEmpty;
-    var supportsProto = !({ __proto__: null } instanceof Object);
-                        // the following produces false positives
-                        // in Opera Mini => not a reliable check
-                        // Object.prototype.__proto__ === null
-    /*global document */
-    if (supportsProto || typeof document === 'undefined') {
-        createEmpty = function () {
-            return { __proto__: null };
-        };
-    } else {
-        // In old IE __proto__ can't be used to manually set `null`, nor does
-        // any other method exist to make an object that inherits from nothing,
-        // aside from Object.prototype itself. Instead, create a new global
-        // object and *steal* its Object.prototype and strip it bare. This is
-        // used as the prototype to create nullary objects.
-        createEmpty = function () {
-            var iframe = document.createElement('iframe');
-            var parent = document.body || document.documentElement;
-            iframe.style.display = 'none';
-            parent.appendChild(iframe);
-            /*eslint-disable no-script-url */
-            iframe.src = 'javascript:';
-            /*eslint-enable no-script-url */
-            var empty = iframe.contentWindow.Object.prototype;
-            parent.removeChild(iframe);
-            iframe = null;
-            delete empty.constructor;
-            delete empty.hasOwnProperty;
-            delete empty.propertyIsEnumerable;
-            delete empty.isPrototypeOf;
-            delete empty.toLocaleString;
-            delete empty.toString;
-            delete empty.valueOf;
-            /*eslint-disable no-proto */
-            empty.__proto__ = null;
-            /*eslint-enable no-proto */
-
-            function Empty() {}
-            Empty.prototype = empty;
-            // short-circuit future calls
-            createEmpty = function () {
-                return new Empty();
-            };
-            return new Empty();
-        };
-    }
-
-    Object.create = function create(prototype, properties) {
-
-        var object;
-        function Type() {}  // An empty constructor.
-
-        if (prototype === null) {
-            object = createEmpty();
-        } else {
-            if (typeof prototype !== 'object' && typeof prototype !== 'function') {
-                // In the native implementation `parent` can be `null`
-                // OR *any* `instanceof Object`  (Object|Function|Array|RegExp|etc)
-                // Use `typeof` tho, b/c in old IE, DOM elements are not `instanceof Object`
-                // like they are in modern browsers. Using `Object.create` on DOM elements
-                // is...err...probably inappropriate, but the native version allows for it.
-                throw new TypeError('Object prototype may only be an Object or null'); // same msg as Chrome
-            }
-            Type.prototype = prototype;
-            object = new Type();
-            // IE has no built-in implementation of `Object.getPrototypeOf`
-            // neither `__proto__`, but this manually setting `__proto__` will
-            // guarantee that `Object.getPrototypeOf` will work as expected with
-            // objects created using `Object.create`
-            /*eslint-disable no-proto */
-            object.__proto__ = prototype;
-            /*eslint-enable no-proto */
-        }
-
-        if (properties !== void 0) {
-            Object.defineProperties(object, properties);
-        }
-
-        return object;
-    };
-}
-
-// ES5 15.2.3.6
-// http://es5.github.com/#x15.2.3.6
-
-// Patch for WebKit and IE8 standard mode
-// Designed by hax <hax.github.com>
-// related issue: https://github.com/es-shims/es5-shim/issues#issue/5
-// IE8 Reference:
-//     http://msdn.microsoft.com/en-us/library/dd282900.aspx
-//     http://msdn.microsoft.com/en-us/library/dd229916.aspx
-// WebKit Bugs:
-//     https://bugs.webkit.org/show_bug.cgi?id=36423
-
-function doesDefinePropertyWork(object) {
-    try {
-        Object.defineProperty(object, 'sentinel', {});
-        return 'sentinel' in object;
-    } catch (exception) {
-        // returns falsy
-    }
-}
-
-// check whether defineProperty works if it's given. Otherwise,
-// shim partially.
-if (Object.defineProperty) {
-    var definePropertyWorksOnObject = doesDefinePropertyWork({});
-    var definePropertyWorksOnDom = typeof document === 'undefined' ||
-        doesDefinePropertyWork(document.createElement('div'));
-    if (!definePropertyWorksOnObject || !definePropertyWorksOnDom) {
-        var definePropertyFallback = Object.defineProperty,
-            definePropertiesFallback = Object.defineProperties;
-    }
-}
-
-if (!Object.defineProperty || definePropertyFallback) {
-    var ERR_NON_OBJECT_DESCRIPTOR = 'Property description must be an object: ';
-    var ERR_NON_OBJECT_TARGET = 'Object.defineProperty called on non-object: ';
-    var ERR_ACCESSORS_NOT_SUPPORTED = 'getters & setters can not be defined on this javascript engine';
-
-    Object.defineProperty = function defineProperty(object, property, descriptor) {
-        if ((typeof object !== 'object' && typeof object !== 'function') || object === null) {
-            throw new TypeError(ERR_NON_OBJECT_TARGET + object);
-        }
-        if ((typeof descriptor !== 'object' && typeof descriptor !== 'function') || descriptor === null) {
-            throw new TypeError(ERR_NON_OBJECT_DESCRIPTOR + descriptor);
-        }
-        // make a valiant attempt to use the real defineProperty
-        // for I8's DOM elements.
-        if (definePropertyFallback) {
-            try {
-                return definePropertyFallback.call(Object, object, property, descriptor);
-            } catch (exception) {
-                // try the shim if the real one doesn't work
-            }
-        }
-
-        // If it's a data property.
-        if ('value' in descriptor) {
-            // fail silently if 'writable', 'enumerable', or 'configurable'
-            // are requested but not supported
-            /*
-            // alternate approach:
-            if ( // can't implement these features; allow false but not true
-                ('writable' in descriptor && !descriptor.writable) ||
-                ('enumerable' in descriptor && !descriptor.enumerable) ||
-                ('configurable' in descriptor && !descriptor.configurable)
-            ))
-                throw new RangeError(
-                    'This implementation of Object.defineProperty does not support configurable, enumerable, or writable.'
-                );
-            */
-
-            if (supportsAccessors && (lookupGetter(object, property) || lookupSetter(object, property))) {
-                // As accessors are supported only on engines implementing
-                // `__proto__` we can safely override `__proto__` while defining
-                // a property to make sure that we don't hit an inherited
-                // accessor.
-                /*eslint-disable no-proto */
-                var prototype = object.__proto__;
-                object.__proto__ = prototypeOfObject;
-                // Deleting a property anyway since getter / setter may be
-                // defined on object itself.
-                delete object[property];
-                object[property] = descriptor.value;
-                // Setting original `__proto__` back now.
-                object.__proto__ = prototype;
-                /*eslint-enable no-proto */
-            } else {
-                object[property] = descriptor.value;
-            }
-        } else {
-            if (!supportsAccessors) {
-                throw new TypeError(ERR_ACCESSORS_NOT_SUPPORTED);
-            }
-            // If we got that far then getters and setters can be defined !!
-            if ('get' in descriptor) {
-                defineGetter(object, property, descriptor.get);
-            }
-            if ('set' in descriptor) {
-                defineSetter(object, property, descriptor.set);
-            }
-        }
-        return object;
-    };
-}
-
-// ES5 15.2.3.7
-// http://es5.github.com/#x15.2.3.7
-if (!Object.defineProperties || definePropertiesFallback) {
-    Object.defineProperties = function defineProperties(object, properties) {
-        // make a valiant attempt to use the real defineProperties
-        if (definePropertiesFallback) {
-            try {
-                return definePropertiesFallback.call(Object, object, properties);
-            } catch (exception) {
-                // try the shim if the real one doesn't work
-            }
-        }
-
-        for (var property in properties) {
-            if (owns(properties, property) && property !== '__proto__') {
-                Object.defineProperty(object, property, properties[property]);
-            }
-        }
-        return object;
-    };
-}
-
-// ES5 15.2.3.8
-// http://es5.github.com/#x15.2.3.8
-if (!Object.seal) {
-    Object.seal = function seal(object) {
-        if (Object(object) !== object) {
-            throw new TypeError('Object.seal can only be called on Objects.');
-        }
-        // this is misleading and breaks feature-detection, but
-        // allows "securable" code to "gracefully" degrade to working
-        // but insecure code.
-        return object;
-    };
-}
-
-// ES5 15.2.3.9
-// http://es5.github.com/#x15.2.3.9
-if (!Object.freeze) {
-    Object.freeze = function freeze(object) {
-        if (Object(object) !== object) {
-            throw new TypeError('Object.freeze can only be called on Objects.');
-        }
-        // this is misleading and breaks feature-detection, but
-        // allows "securable" code to "gracefully" degrade to working
-        // but insecure code.
-        return object;
-    };
-}
-
-// detect a Rhino bug and patch it
-try {
-    Object.freeze(function () {});
-} catch (exception) {
-    Object.freeze = (function freeze(freezeObject) {
-        return function freeze(object) {
-            if (typeof object === 'function') {
-                return object;
-            } else {
-                return freezeObject(object);
-            }
-        };
-    }(Object.freeze));
-}
-
-// ES5 15.2.3.10
-// http://es5.github.com/#x15.2.3.10
-if (!Object.preventExtensions) {
-    Object.preventExtensions = function preventExtensions(object) {
-        if (Object(object) !== object) {
-            throw new TypeError('Object.preventExtensions can only be called on Objects.');
-        }
-        // this is misleading and breaks feature-detection, but
-        // allows "securable" code to "gracefully" degrade to working
-        // but insecure code.
-        return object;
-    };
-}
-
-// ES5 15.2.3.11
-// http://es5.github.com/#x15.2.3.11
-if (!Object.isSealed) {
-    Object.isSealed = function isSealed(object) {
-        if (Object(object) !== object) {
-            throw new TypeError('Object.isSealed can only be called on Objects.');
-        }
-        return false;
-    };
-}
-
-// ES5 15.2.3.12
-// http://es5.github.com/#x15.2.3.12
-if (!Object.isFrozen) {
-    Object.isFrozen = function isFrozen(object) {
-        if (Object(object) !== object) {
-            throw new TypeError('Object.isFrozen can only be called on Objects.');
-        }
-        return false;
-    };
-}
-
-// ES5 15.2.3.13
-// http://es5.github.com/#x15.2.3.13
-if (!Object.isExtensible) {
-    Object.isExtensible = function isExtensible(object) {
-        // 1. If Type(O) is not Object throw a TypeError exception.
-        if (Object(object) !== object) {
-            throw new TypeError('Object.isExtensible can only be called on Objects.');
-        }
-        // 2. Return the Boolean value of the [[Extensible]] internal property of O.
-        var name = '';
-        while (owns(object, name)) {
-            name += '?';
-        }
-        object[name] = true;
-        var returnValue = owns(object, name);
-        delete object[name];
-        return returnValue;
-    };
-}
-
-}));
-
-(function() {
-var define, requireModule, require, requirejs;
-
-(function() {
-  var registry = {}, seen = {};
-
-  define = function(name, deps, callback) {
-    registry[name] = { deps: deps, callback: callback };
-  };
-
-  requirejs = require = requireModule = function(name) {
-  requirejs._eak_seen = registry;
-
-    if (seen[name]) { return seen[name]; }
-    seen[name] = {};
-
-    if (!registry[name]) {
-      throw new Error("Could not find module " + name);
-    }
-
-    var mod = registry[name],
-        deps = mod.deps,
-        callback = mod.callback,
-        reified = [],
-        exports;
-
-    for (var i=0, l=deps.length; i<l; i++) {
-      if (deps[i] === 'exports') {
-        reified.push(exports = {});
-      } else {
-        reified.push(requireModule(resolve(deps[i])));
-      }
-    }
-
-    var value = callback.apply(this, reified);
-    return seen[name] = exports || value;
-
-    function resolve(child) {
-      if (child.charAt(0) !== '.') { return child; }
-      var parts = child.split("/");
-      var parentBase = name.split("/").slice(0, -1);
-
-      for (var i=0, l=parts.length; i<l; i++) {
-        var part = parts[i];
-
-        if (part === '..') { parentBase.pop(); }
-        else if (part === '.') { continue; }
-        else { parentBase.push(part); }
-      }
-
-      return parentBase.join("/");
-    }
-  };
-})();
-
-define("promise/all", 
-  ["./utils","exports"],
-  function(__dependency1__, __exports__) {
-    "use strict";
-    /* global toString */
-
-    var isArray = __dependency1__.isArray;
-    var isFunction = __dependency1__.isFunction;
-
-    /**
-      Returns a promise that is fulfilled when all the given promises have been
-      fulfilled, or rejected if any of them become rejected. The return promise
-      is fulfilled with an array that gives all the values in the order they were
-      passed in the `promises` array argument.
-
-      Example:
-
-      ```javascript
-      var promise1 = RSVP.resolve(1);
-      var promise2 = RSVP.resolve(2);
-      var promise3 = RSVP.resolve(3);
-      var promises = [ promise1, promise2, promise3 ];
-
-      RSVP.all(promises).then(function(array){
-        // The array here would be [ 1, 2, 3 ];
-      });
-      ```
-
-      If any of the `promises` given to `RSVP.all` are rejected, the first promise
-      that is rejected will be given as an argument to the returned promises's
-      rejection handler. For example:
-
-      Example:
-
-      ```javascript
-      var promise1 = RSVP.resolve(1);
-      var promise2 = RSVP.reject(new Error("2"));
-      var promise3 = RSVP.reject(new Error("3"));
-      var promises = [ promise1, promise2, promise3 ];
-
-      RSVP.all(promises).then(function(array){
-        // Code here never runs because there are rejected promises!
-      }, function(error) {
-        // error.message === "2"
-      });
-      ```
-
-      @method all
-      @for RSVP
-      @param {Array} promises
-      @param {String} label
-      @return {Promise} promise that is fulfilled when all `promises` have been
-      fulfilled, or rejected if any of them become rejected.
-    */
-    function all(promises) {
-      /*jshint validthis:true */
-      var Promise = this;
-
-      if (!isArray(promises)) {
-        throw new TypeError('You must pass an array to all.');
-      }
-
-      return new Promise(function(resolve, reject) {
-        var results = [], remaining = promises.length,
-        promise;
-
-        if (remaining === 0) {
-          resolve([]);
-        }
-
-        function resolver(index) {
-          return function(value) {
-            resolveAll(index, value);
-          };
-        }
-
-        function resolveAll(index, value) {
-          results[index] = value;
-          if (--remaining === 0) {
-            resolve(results);
-          }
-        }
-
-        for (var i = 0; i < promises.length; i++) {
-          promise = promises[i];
-
-          if (promise && isFunction(promise.then)) {
-            promise.then(resolver(i), reject);
-          } else {
-            resolveAll(i, promise);
-          }
-        }
-      });
-    }
-
-    __exports__.all = all;
-  });
-define("promise/asap", 
-  ["exports"],
-  function(__exports__) {
-    "use strict";
-    var browserGlobal = (typeof window !== 'undefined') ? window : {};
-    var BrowserMutationObserver = browserGlobal.MutationObserver || browserGlobal.WebKitMutationObserver;
-    var local = (typeof global !== 'undefined') ? global : (this === undefined? window:this);
-
-    // node
-    function useNextTick() {
-      return function() {
-        process.nextTick(flush);
-      };
-    }
-
-    function useMutationObserver() {
-      var iterations = 0;
-      var observer = new BrowserMutationObserver(flush);
-      var node = document.createTextNode('');
-      observer.observe(node, { characterData: true });
-
-      return function() {
-        node.data = (iterations = ++iterations % 2);
-      };
-    }
-
-    function useSetTimeout() {
-      return function() {
-        local.setTimeout(flush, 1);
-      };
-    }
-
-    var queue = [];
-    function flush() {
-      for (var i = 0; i < queue.length; i++) {
-        var tuple = queue[i];
-        var callback = tuple[0], arg = tuple[1];
-        callback(arg);
-      }
-      queue = [];
-    }
-
-    var scheduleFlush;
-
-    // Decide what async method to use to triggering processing of queued callbacks:
-    if (typeof process !== 'undefined' && {}.toString.call(process) === '[object process]') {
-      scheduleFlush = useNextTick();
-    } else if (BrowserMutationObserver) {
-      scheduleFlush = useMutationObserver();
-    } else {
-      scheduleFlush = useSetTimeout();
-    }
-
-    function asap(callback, arg) {
-      var length = queue.push([callback, arg]);
-      if (length === 1) {
-        // If length is 1, that means that we need to schedule an async flush.
-        // If additional callbacks are queued before the queue is flushed, they
-        // will be processed by this flush that we are scheduling.
-        scheduleFlush();
-      }
-    }
-
-    __exports__.asap = asap;
-  });
-define("promise/config", 
-  ["exports"],
-  function(__exports__) {
-    "use strict";
-    var config = {
-      instrument: false
-    };
-
-    function configure(name, value) {
-      if (arguments.length === 2) {
-        config[name] = value;
-      } else {
-        return config[name];
-      }
-    }
-
-    __exports__.config = config;
-    __exports__.configure = configure;
-  });
-define("promise/polyfill", 
-  ["./promise","./utils","exports"],
-  function(__dependency1__, __dependency2__, __exports__) {
-    "use strict";
-    /*global self*/
-    var RSVPPromise = __dependency1__.Promise;
-    var isFunction = __dependency2__.isFunction;
-
-    function polyfill() {
-      var local;
-
-      if (typeof global !== 'undefined') {
-        local = global;
-      } else if (typeof window !== 'undefined' && window.document) {
-        local = window;
-      } else {
-        local = self;
-      }
-
-      var es6PromiseSupport = 
-        "Promise" in local &&
-        // Some of these methods are missing from
-        // Firefox/Chrome experimental implementations
-        "resolve" in local.Promise &&
-        "reject" in local.Promise &&
-        "all" in local.Promise &&
-        "race" in local.Promise &&
-        // Older version of the spec had a resolver object
-        // as the arg rather than a function
-        (function() {
-          var resolve;
-          new local.Promise(function(r) { resolve = r; });
-          return isFunction(resolve);
-        }());
-
-      if (!es6PromiseSupport) {
-        local.Promise = RSVPPromise;
-      }
-    }
-
-    __exports__.polyfill = polyfill;
-  });
-define("promise/promise", 
-  ["./config","./utils","./all","./race","./resolve","./reject","./asap","exports"],
-  function(__dependency1__, __dependency2__, __dependency3__, __dependency4__, __dependency5__, __dependency6__, __dependency7__, __exports__) {
-    "use strict";
-    var config = __dependency1__.config;
-    var configure = __dependency1__.configure;
-    var objectOrFunction = __dependency2__.objectOrFunction;
-    var isFunction = __dependency2__.isFunction;
-    var now = __dependency2__.now;
-    var all = __dependency3__.all;
-    var race = __dependency4__.race;
-    var staticResolve = __dependency5__.resolve;
-    var staticReject = __dependency6__.reject;
-    var asap = __dependency7__.asap;
-
-    var counter = 0;
-
-    config.async = asap; // default async is asap;
-
-    function Promise(resolver) {
-      if (!isFunction(resolver)) {
-        throw new TypeError('You must pass a resolver function as the first argument to the promise constructor');
-      }
-
-      if (!(this instanceof Promise)) {
-        throw new TypeError("Failed to construct 'Promise': Please use the 'new' operator, this object constructor cannot be called as a function.");
-      }
-
-      this._subscribers = [];
-
-      invokeResolver(resolver, this);
-    }
-
-    function invokeResolver(resolver, promise) {
-      function resolvePromise(value) {
-        resolve(promise, value);
-      }
-
-      function rejectPromise(reason) {
-        reject(promise, reason);
-      }
-
-      try {
-        resolver(resolvePromise, rejectPromise);
-      } catch(e) {
-        rejectPromise(e);
-      }
-    }
-
-    function invokeCallback(settled, promise, callback, detail) {
-      var hasCallback = isFunction(callback),
-          value, error, succeeded, failed;
-
-      if (hasCallback) {
-        try {
-          value = callback(detail);
-          succeeded = true;
-        } catch(e) {
-          failed = true;
-          error = e;
-        }
-      } else {
-        value = detail;
-        succeeded = true;
-      }
-
-      if (handleThenable(promise, value)) {
-        return;
-      } else if (hasCallback && succeeded) {
-        resolve(promise, value);
-      } else if (failed) {
-        reject(promise, error);
-      } else if (settled === FULFILLED) {
-        resolve(promise, value);
-      } else if (settled === REJECTED) {
-        reject(promise, value);
-      }
-    }
-
-    var PENDING   = void 0;
-    var SEALED    = 0;
-    var FULFILLED = 1;
-    var REJECTED  = 2;
-
-    function subscribe(parent, child, onFulfillment, onRejection) {
-      var subscribers = parent._subscribers;
-      var length = subscribers.length;
-
-      subscribers[length] = child;
-      subscribers[length + FULFILLED] = onFulfillment;
-      subscribers[length + REJECTED]  = onRejection;
-    }
-
-    function publish(promise, settled) {
-      var child, callback, subscribers = promise._subscribers, detail = promise._detail;
-
-      for (var i = 0; i < subscribers.length; i += 3) {
-        child = subscribers[i];
-        callback = subscribers[i + settled];
-
-        invokeCallback(settled, child, callback, detail);
-      }
-
-      promise._subscribers = null;
-    }
-
-    Promise.prototype = {
-      constructor: Promise,
-
-      _state: undefined,
-      _detail: undefined,
-      _subscribers: undefined,
-
-      then: function(onFulfillment, onRejection) {
-        var promise = this;
-
-        var thenPromise = new this.constructor(function() {});
-
-        if (this._state) {
-          var callbacks = arguments;
-          config.async(function invokePromiseCallback() {
-            invokeCallback(promise._state, thenPromise, callbacks[promise._state - 1], promise._detail);
-          });
-        } else {
-          subscribe(this, thenPromise, onFulfillment, onRejection);
-        }
-
-        return thenPromise;
-      },
-
-      'catch': function(onRejection) {
-        return this.then(null, onRejection);
-      }
-    };
-
-    Promise.all = all;
-    Promise.race = race;
-    Promise.resolve = staticResolve;
-    Promise.reject = staticReject;
-
-    function handleThenable(promise, value) {
-      var then = null,
-      resolved;
-
-      try {
-        if (promise === value) {
-          throw new TypeError("A promises callback cannot return that same promise.");
-        }
-
-        if (objectOrFunction(value)) {
-          then = value.then;
-
-          if (isFunction(then)) {
-            then.call(value, function(val) {
-              if (resolved) { return true; }
-              resolved = true;
-
-              if (value !== val) {
-                resolve(promise, val);
-              } else {
-                fulfill(promise, val);
-              }
-            }, function(val) {
-              if (resolved) { return true; }
-              resolved = true;
-
-              reject(promise, val);
-            });
-
-            return true;
-          }
-        }
-      } catch (error) {
-        if (resolved) { return true; }
-        reject(promise, error);
-        return true;
-      }
-
-      return false;
-    }
-
-    function resolve(promise, value) {
-      if (promise === value) {
-        fulfill(promise, value);
-      } else if (!handleThenable(promise, value)) {
-        fulfill(promise, value);
-      }
-    }
-
-    function fulfill(promise, value) {
-      if (promise._state !== PENDING) { return; }
-      promise._state = SEALED;
-      promise._detail = value;
-
-      config.async(publishFulfillment, promise);
-    }
-
-    function reject(promise, reason) {
-      if (promise._state !== PENDING) { return; }
-      promise._state = SEALED;
-      promise._detail = reason;
-
-      config.async(publishRejection, promise);
-    }
-
-    function publishFulfillment(promise) {
-      publish(promise, promise._state = FULFILLED);
-    }
-
-    function publishRejection(promise) {
-      publish(promise, promise._state = REJECTED);
-    }
-
-    __exports__.Promise = Promise;
-  });
-define("promise/race", 
-  ["./utils","exports"],
-  function(__dependency1__, __exports__) {
-    "use strict";
-    /* global toString */
-    var isArray = __dependency1__.isArray;
-
-    /**
-      `RSVP.race` allows you to watch a series of promises and act as soon as the
-      first promise given to the `promises` argument fulfills or rejects.
-
-      Example:
-
-      ```javascript
-      var promise1 = new RSVP.Promise(function(resolve, reject){
-        setTimeout(function(){
-          resolve("promise 1");
-        }, 200);
-      });
-
-      var promise2 = new RSVP.Promise(function(resolve, reject){
-        setTimeout(function(){
-          resolve("promise 2");
-        }, 100);
-      });
-
-      RSVP.race([promise1, promise2]).then(function(result){
-        // result === "promise 2" because it was resolved before promise1
-        // was resolved.
-      });
-      ```
-
-      `RSVP.race` is deterministic in that only the state of the first completed
-      promise matters. For example, even if other promises given to the `promises`
-      array argument are resolved, but the first completed promise has become
-      rejected before the other promises became fulfilled, the returned promise
-      will become rejected:
-
-      ```javascript
-      var promise1 = new RSVP.Promise(function(resolve, reject){
-        setTimeout(function(){
-          resolve("promise 1");
-        }, 200);
-      });
-
-      var promise2 = new RSVP.Promise(function(resolve, reject){
-        setTimeout(function(){
-          reject(new Error("promise 2"));
-        }, 100);
-      });
-
-      RSVP.race([promise1, promise2]).then(function(result){
-        // Code here never runs because there are rejected promises!
-      }, function(reason){
-        // reason.message === "promise2" because promise 2 became rejected before
-        // promise 1 became fulfilled
-      });
-      ```
-
-      @method race
-      @for RSVP
-      @param {Array} promises array of promises to observe
-      @param {String} label optional string for describing the promise returned.
-      Useful for tooling.
-      @return {Promise} a promise that becomes fulfilled with the value the first
-      completed promises is resolved with if the first completed promise was
-      fulfilled, or rejected with the reason that the first completed promise
-      was rejected with.
-    */
-    function race(promises) {
-      /*jshint validthis:true */
-      var Promise = this;
-
-      if (!isArray(promises)) {
-        throw new TypeError('You must pass an array to race.');
-      }
-      return new Promise(function(resolve, reject) {
-        var results = [], promise;
-
-        for (var i = 0; i < promises.length; i++) {
-          promise = promises[i];
-
-          if (promise && typeof promise.then === 'function') {
-            promise.then(resolve, reject);
-          } else {
-            resolve(promise);
-          }
-        }
-      });
-    }
-
-    __exports__.race = race;
-  });
-define("promise/reject", 
-  ["exports"],
-  function(__exports__) {
-    "use strict";
-    /**
-      `RSVP.reject` returns a promise that will become rejected with the passed
-      `reason`. `RSVP.reject` is essentially shorthand for the following:
-
-      ```javascript
-      var promise = new RSVP.Promise(function(resolve, reject){
-        reject(new Error('WHOOPS'));
-      });
-
-      promise.then(function(value){
-        // Code here doesn't run because the promise is rejected!
-      }, function(reason){
-        // reason.message === 'WHOOPS'
-      });
-      ```
-
-      Instead of writing the above, your code now simply becomes the following:
-
-      ```javascript
-      var promise = RSVP.reject(new Error('WHOOPS'));
-
-      promise.then(function(value){
-        // Code here doesn't run because the promise is rejected!
-      }, function(reason){
-        // reason.message === 'WHOOPS'
-      });
-      ```
-
-      @method reject
-      @for RSVP
-      @param {Any} reason value that the returned promise will be rejected with.
-      @param {String} label optional string for identifying the returned promise.
-      Useful for tooling.
-      @return {Promise} a promise that will become rejected with the given
-      `reason`.
-    */
-    function reject(reason) {
-      /*jshint validthis:true */
-      var Promise = this;
-
-      return new Promise(function (resolve, reject) {
-        reject(reason);
-      });
-    }
-
-    __exports__.reject = reject;
-  });
-define("promise/resolve", 
-  ["exports"],
-  function(__exports__) {
-    "use strict";
-    function resolve(value) {
-      /*jshint validthis:true */
-      if (value && typeof value === 'object' && value.constructor === this) {
-        return value;
-      }
-
-      var Promise = this;
-
-      return new Promise(function(resolve) {
-        resolve(value);
-      });
-    }
-
-    __exports__.resolve = resolve;
-  });
-define("promise/utils", 
-  ["exports"],
-  function(__exports__) {
-    "use strict";
-    function objectOrFunction(x) {
-      return isFunction(x) || (typeof x === "object" && x !== null);
-    }
-
-    function isFunction(x) {
-      return typeof x === "function";
-    }
-
-    function isArray(x) {
-      return Object.prototype.toString.call(x) === "[object Array]";
-    }
-
-    // Date.now is not available in browsers < IE9
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now#Compatibility
-    var now = Date.now || function() { return new Date().getTime(); };
-
-
-    __exports__.objectOrFunction = objectOrFunction;
-    __exports__.isFunction = isFunction;
-    __exports__.isArray = isArray;
-    __exports__.now = now;
-  });
-requireModule('promise/polyfill').polyfill();
-}());
-var ozpIwc = ozpIwc || {};
-
-ozpIwc.apiMap = {
-    "data.api" : { 'address': 'data.api',
-        'actions': ["get","set","delete","watch","unwatch","list","bulkGet","addChild","removeChild"]
-    },
-    "intents.api" : { 'address': 'intents.api',
-        'actions': ["get","set","delete","watch","unwatch","list","bulkGet","register","invoke","broadcast"]
-    },
-    "names.api" : { 'address': 'names.api',
-        'actions': ["get","set","delete","watch","unwatch","list","bulkGet"]
-    },
-    "system.api" : { 'address': 'system.api',
-        'actions': ["get","set","delete","watch","unwatch","list","bulkGet","launch"]
-    },
-    "locks.api" : { 'address' : 'locks.api',
-        'actions': ["get","watch","unwatch","list","lock","unlock"]
-    }
-};
-/*
- * @method ozpIwc.ApiPromiseMixin
- * @static
- * Augments a participant or connection that supports basic IWC communications
- * functions for sending and receiving.
- * @uses ozpIwc.Events
- * @param {ozpIwc.Participant} participant
- */
-ozpIwc.ApiPromiseMixin=function(participant,autoConnect) {
-    autoConnect = (typeof autoConnect === "undefined" || autoConnect);
-
-    participant.address = participant.address || "$nobody";
-    participant.connect = participant.connect ||  function(){
-        participant.connectPromise = Promise.resolve();
-
-        return participant.connectPromise;
-    };
-
-    if(!participant.events) {
-        participant.events = new ozpIwc.Event();
-        participant.events.mixinOnOff(participant);
-    }
-
-    var mixins = ozpIwc.ApiPromiseMixin.getCore();
-    for(var i in mixins){
-        participant[i] = mixins[i];
-    }
-
-    participant.readLaunchParams(window.name);
-    participant.readLaunchParams(window.location.search);
-    participant.readLaunchParams(window.location.hash);
-
-    ozpIwc.ApiPromiseMixin.registerEvents(participant);
-
-    participant.constructApiFunctions();
-
-    if(autoConnect){
-        participant.connect();
-    }
-};
-
-/**
- * Registers event listeners for the participant.  Listens for the following events: disconnect.
- * @method registerEvents
- * @static
- * @param {ozpIwc.Participant} participant
- */
-ozpIwc.ApiPromiseMixin.registerEvents = function(participant){
-    participant.on("disconnect",function(){
-        participant.promiseCallbacks={};
-        participant.registeredCallbacks={};
-        window.removeEventListener("message",participant.postMessageHandler,false);
-        participant.connectPromise = null;
-    });
-};
-
-/**
- * A factory for the apiPromise functionality.
- *
- * @method getCore
- * @static
- * @returns {Object}
- */
-ozpIwc.ApiPromiseMixin.getCore = function() {
-    return {
-
-        /**
-         * @property promiseCallbacks
-         * @type Object
-         * @default {}
-         */
-        promiseCallbacks: {},
-
-        /**
-         * @property msgIdSequence
-         * @type Number
-         * @default 0
-         */
-        msgIdSequence: 0,
-
-        /**
-         * @property receivedPackets
-         * @type Number
-         * @default 0
-         */
-        receivedPackets: 0,
-
-        /**
-         * @property receivedBytes
-         * @type Number
-         * @default 0
-         */
-        receivedBytes: 0,
-
-        /**
-         * @property sentPackets
-         * @type Number
-         * @default 0
-         */
-        sentPackets: 0,
-
-        /**
-         * @property sentBytes
-         * @type Number
-         * @default 0
-         */
-        sentBytes: 0,
-
-        /**
-         * The epoch time the Client was instantiated.
-         * @property startTime
-         * @type Number
-         */
-        startTime: ozpIwc.util.now(),
-
-        /**
-         * A map of available apis and their actions.
-         * @property apiMap
-         * @type Object
-         */
-        apiMap: ozpIwc.apiMap || {},
-
-        /**
-         * @property wrapperMap
-         * @type Object
-         * @default {}
-         */
-        wrapperMap: {},
-
-        /**
-         * @property preconnectionQueue
-         * @type Array
-         * @default []
-         */
-        preconnectionQueue: [],
-
-        /**
-         * @property launchParams
-         * @type Object
-         * @default {}
-         */
-        launchParams: {},
-
-        /**
-         * @property watchMsgMap
-         * @type Object
-         * @default {}
-         */
-        watchMsgMap: {},
-
-        /**
-         * @property registeredCallbacks
-         * @type Object
-         * @default {}
-         */
-        registeredCallbacks: {},
-
-        /**
-         * @property launchedIntents
-         * @type Array
-         * @default []
-         */
-        launchedIntents: [],
-
-        /**
-         * Returns whether or not the participant is connected to the IWC bus.
-         *
-         * @method isConnected
-         * @returns {Boolean}
-         */
-        isConnected: function(){
-            return this.address !== "$nobody";
-        },
-
-        /**
-         * Parses launch parameters based on the raw string input it receives.
-         *
-         * @method readLaunchParams
-         * @param {String} rawString
-         */
-        readLaunchParams: function(rawString) {
-            // of the form ozpIwc.VARIABLE=VALUE, where:
-            //   VARIABLE is alphanumeric + "_"
-            //   VALUE does not contain & or #
-            var re=/ozpIwc.(\w+)=([^&#]+)/g;
-            var m;
-            while((m=re.exec(rawString)) !== null) {
-                var params = decodeURIComponent(m[2]);
-                try{
-                    params = JSON.parse(params);
-                } catch(e){
-                    // ignore the errors and just pass through the string
-                }
-                this.launchParams[m[1]]=params;
-            }
-        },
-
-        /**
-         * Receive a packet from the connected peer.  If the packet is a reply, then
-         * the callback for that reply is invoked.  Otherwise, it fires a receive event
-         *
-         * Fires:
-         *     - {{#crossLink "ozpIwc.Client/receive:event}}{{/crossLink}}
-         *
-         * @method receive
-         * @protected
-         * @param {ozpIwc.TransportPacket} packetContext
-         */
-        receiveFromRouterImpl: function (packetContext) {
-            var handled = false;
-
-            // If no packet, it is likely a $transport packet.
-            var packet = packetContext.packet || packetContext;
-            //Try and handle this packet as a reply message
-            if (packet.src ==="$transport" || packet.replyTo && this.promiseCallbacks[packet.replyTo]) {
-
-                var replyCancel = false;
-                var replyDone = function () {
-                    replyCancel = true;
-                };
-                this.promiseCallbacks[packet.replyTo](packet, replyDone);
-
-                if (replyCancel) {
-                    this.cancelPromiseCallback(packet.replyTo);
-                    handled = true;
-                }
-
-            }
-
-            //Try and handle this packet as callback message
-            if (!handled && packet.replyTo && this.registeredCallbacks[packet.replyTo]) {
-
-                var registeredCancel = false;
-                var registeredDone = function () {
-                    registeredCancel = true;
-                };
-
-                handled = this.registeredCallbacks[packet.replyTo](packet, registeredDone);
-                if (registeredCancel) {
-                    if (this.watchMsgMap[packet.replyTo] && this.watchMsgMap[packet.replyTo].action === "watch") {
-                        this.api(this.watchMsgMap[packet.replyTo].dst).unwatch(this.watchMsgMap[packet.replyTo].resource);
-                    }
-                    this.cancelRegisteredCallback(packet.replyTo);
-                }
-            }
-            if(!handled){
-                // Otherwise trigger "receive" for someone to handle it
-                this.events.trigger("receive",packetContext);
-            }
-        },
-
-        /**
-         * Builds the client api calls from the values in client.apiMap
-         *
-         * @method constructApiFunctions
-         */
-        constructApiFunctions: function () {
-            for (var api in this.apiMap) {
-                var apiObj = this.apiMap[api];
-                var apiFuncName = apiObj.address.replace('.api', '');
-
-                //prevent overriding client constructed fields, but allow updating of constructed APIs
-                if (!this.hasOwnProperty(apiFuncName) || this.apiMap[api].functionName === apiFuncName) {
-                    // wrap this in a function to break the closure
-                    // on apiObj.address that would otherwise register
-                    // everything for the last api in the list
-                    /*jshint loopfunc:true*/
-                    (function (self, addr) {
-                        self[apiFuncName] = function () {
-                            return self.api(addr);
-                        };
-                        self.apiMap[addr] = self.apiMap[addr] || {};
-                        self.apiMap[addr].functionName = apiFuncName;
-                        self.updateApi(addr);
-                    })(this, apiObj.address);
-                }
-            }
-        },
-
-        /**
-         * Calls the names.api to gather the /api/* resources to gain knowledge of available api actions of the current bus.
-         *
-         * @method gatherApiInformation
-         * @returns {Promise}
-         */
-        gatherApiInformation: function () {
-            var self = this;
-            // gather api information
-            return this.send({
-                dst: "names.api",
-                action: "get",
-                resource: "/api"
-            }).then(function (reply) {
-                if (reply.response === 'ok') {
-                    return reply.entity;
-                } else {
-                    throw reply.response;
-                }
-            }).then(function (apis) {
-                var promiseArray = [];
-                apis.forEach(function (api) {
-                    var promise = self.send({
-                        dst: "names.api",
-                        action: "get",
-                        resource: api
-                    }).then(function (res) {
-                        if (res.response === 'ok') {
-                            var name = api.replace('/api/', '');
-                            self.apiMap[name] = self.apiMap[name] || {};
-                            self.apiMap[name].address = name;
-                            self.apiMap[name].actions = res.entity.actions;
-                        } else {
-                            throw res.response;
-                        }
-                    });
-                    promiseArray.push(promise);
-                });
-                return Promise.all(promiseArray);
-            });
-        },
-
-        /**
-         * Cancel a reply callback registration.
-         * @method cancelPromiseCallback
-         * @param (String} msgId The packet replyTo ID for which the callback was registered.
-         *
-         * @return {Boolean} True if the cancel was successful, otherwise false.
-         */
-        cancelPromiseCallback: function (msgId) {
-            var success = false;
-            if (msgId) {
-                delete this.promiseCallbacks[msgId];
-                success = true;
-            }
-            return success;
-        },
-
-        /**
-         * Cancel a watch callback registration.
-         *
-         * @method cancelRegisteredCallback
-         * @param (String} msgId The packet replyTo ID for which the callback was registered.
-         *
-         * @return {Boolean} True if the cancel was successful, otherwise false.
-         */
-        cancelRegisteredCallback: function (msgId) {
-            var success = false;
-            if (msgId) {
-                delete this.registeredCallbacks[msgId];
-                delete this.watchMsgMap[msgId];
-                success = true;
-            }
-            return success;
-        },
-
-        /**
-         * Registers callbacks
-         *
-         * @method on
-         * @param {String} event The event to call the callback on.
-         * @param {Function} callback The function to be called.
-         *
-         */
-        on: function (event, callback) {
-            if (event === "connected" && this.isConnected()) {
-                callback(this);
-                return;
-            }
-            return this.events.on.apply(this.events, arguments);
-        },
-
-        /**
-         * De-registers callbacks
-         *
-         * @method off
-         * @param {String} event The event to call the callback on.
-         * @param {Function} callback The function to be called.
-         *
-         */
-        off: function (event, callback) {
-            return this.events.off.apply(this.events, arguments);
-        },
-
-        /**
-         * Handles intent invocation packets. Communicates back with the intents.api to operate the in flight intent state
-         * machine.
-         *
-         * @method intentInvocationHandling
-         * @param resource {String} The resource of the packet that sent the intent invocation
-         * @param intentResource {String} The in flight intent resource, used internally to operate the in flight intent state machine
-         * @param callback {Function} The intent handler's callback function
-         * @returns {Promise}
-         */
-        intentInvocationHandling: function (resource, intentResource, intentEntity, callback) {
-            var self = this;
-            var res;
-            var promiseChain;
-            callback = callback || function(){};
-
-            if(intentEntity) {
-                promiseChain = Promise.resolve(intentEntity);
-            } else {
-                promiseChain = self.send({
-                    dst: "intents.api",
-                    action: "get",
-                    resource: intentResource
-                }).then(function(reply){
-                    return reply.entity;
-                });
-            }
-            return promiseChain.then(function(response) {
-                res = response;
-                return self.send({
-                    dst: "intents.api",
-                    contentType: response.contentType,
-                    action: "set",
-                    resource: intentResource,
-                    entity: {
-                        handler: {
-                            resource: resource,
-                            address: self.address
-                        },
-                        state: "running"
-                    }
-                });
-            }).then(function(){
-                // Run the intent handler. Wrapped in a promise chain in case the callback itself is async.
-                return callback(res);
-            }).then(function (result) {
-
-                // Respond to the inflight resource
-                return self.send({
-                    dst: "intents.api",
-                    contentType: res.contentType,
-                    action: "set",
-                    resource: intentResource,
-                    entity: {
-                        reply: {
-                            'entity': result || {},
-                            'contentType': res.intent.type
-                        },
-                        state: "complete"
-                    }
-                });
-            })['catch'](function(e){
-                console.log("Error in handling intent: ", e, " -- Clearing in-flight intent node:", intentResource);
-                self.send({
-                    dst: "intents.api",
-                    resource: intentResource,
-                    action: "delete"
-                });
-            });
-        },
-
-        /**
-         * Calls the specific api wrapper given an api name specified.
-         * If the wrapper does not exist it is created.
-         *
-         * @method api
-         * @param apiName {String} The name of the api.
-         * @returns {Function} returns the wrapper call for the given api.
-         */
-        api: function (apiName) {
-            return this.wrapperMap[apiName] || this.updateApi(apiName);
-        },
-        /**
-         * Updates the wrapper map for api use. Whenever functionality is added or removed from the apiMap the
-         * updateApi must be called to reflect said changes on the wrapper map.
-         *
-         * @method updateApi
-         * @param apiName {String} The name of the api
-         * @returns {Function} returns the wrapper call for the given api.
-         */
-        updateApi: function (apiName) {
-            var augment = function (dst, action, client) {
-                return function (resource, fragment, otherCallback) {
-                    // If a fragment isn't supplied argument #2 should be a callback (if supplied)
-                    if (typeof fragment === "function") {
-                        otherCallback = fragment;
-                        fragment = {};
-                    }
-                    var packet = {
-                        'dst': dst,
-                        'action': action,
-                        'resource': resource,
-                        'entity': {}
-                    };
-                    for (var k in fragment) {
-                        packet[k] = fragment[k];
-                    }
-                    if (dst === "intents.api" && action === "register") {
-                        for (var i in client.launchedIntents) {
-                            var loadedResource = '/' + client.launchedIntents[i].entity.intent.type + '/' + client.launchedIntents[i].entity.intent.action;
-                            if (resource === loadedResource) {
-                                client.intentInvocationHandling(resource, client.launchedIntents[i].resource, otherCallback);
-                                delete client.launchedIntents[i];
-                            }
-                        }
-                    }
-                    return client.send(packet, otherCallback);
-                };
-            };
-
-            var wrapper = this.wrapperMap[apiName] || {};
-            if (this.apiMap.hasOwnProperty(apiName)) {
-                var api = this.apiMap[apiName];
-                wrapper = {};
-                for (var i = 0; i < api.actions.length; ++i) {
-                    var action = api.actions[i];
-                    wrapper[action] = augment(api.address, action, this);
-                }
-
-                this.wrapperMap[apiName] = wrapper;
-            }
-            wrapper.apiName = apiName;
-            return wrapper;
-        },
-
-        /**
-         * Sends a packet through the IWC.
-         * Will call the participants sendImpl function.
-         *
-         * @method send
-         * @param {Object} fields properties of the send packet..
-         * @param {Function} callback The Callback for any replies. The callback will be persisted if it returns a truth-like
-         * @param {Function} preexistingPromiseRes If this send already has a promise resolve registration, use it rather than make a new one.
-         * @param {Function} preexistingPromiseRej If this send already has a promise reject registration, use it rather than make a new one.
-         * value, canceled if it returns a false-like value.
-         */
-        send: function (fields, callback, preexistingPromiseRes, preexistingPromiseRej) {
-            var promiseRes = preexistingPromiseRes;
-            var promiseRej = preexistingPromiseRej;
-            var promise = new Promise(function (resolve, reject) {
-
-                if (!promiseRes && !promiseRej) {
-                    promiseRes = resolve;
-                    promiseRej = reject;
-                }
-            });
-
-            if (!(this.isConnected() || fields.dst === "$transport")) {
-                // when send is switched to promises, create the promise first and return it here, as well
-                this.preconnectionQueue.push({
-                    'fields': fields,
-                    'callback': callback,
-                    'promiseRes': promiseRes,
-                    'promiseRej': promiseRej
-                });
-                return promise;
-            }
-
-            var now = new Date().getTime();
-            var id = "p:" + this.msgIdSequence++; // makes the code below read better
-            var packet = {
-                ver: 1,
-                src: this.address,
-                msgId: id,
-                time: now
-            };
-
-            for (var k in fields) {
-                packet[k] = fields[k];
-            }
-
-            var self = this;
-
-            if (callback) {
-                this.registeredCallbacks[id] = function (reply, done) {
-                    // We've received a message that was a promise response but we've aready handled our promise response.
-                    if (reply.src === "$transport" || /(ok).*/.test(reply.response) || /(bad|no).*/.test(reply.response)) {
-                        // Do noting and let it get sent to the event handler
-                        return false;
-                    }else if (reply.entity && reply.entity.inFlightIntent) {
-                        self.intentInvocationHandling(packet.resource, reply.entity.inFlightIntent,
-                            reply.entity.inFlightIntentEntity, callback);
-                    } else {
-                        callback(reply, done);
-                    }
-                    return true;
-                };
-            }
-
-            this.promiseCallbacks[id] = function (reply, done) {
-                if (reply.src === "$transport" || /(ok).*/.test(reply.response)) {
-                    done();
-                    promiseRes(reply);
-                } else if (/(bad|no).*/.test(reply.response)) {
-                    done();
-                    promiseRej(reply);
-                } else {
-                    // it was not a promise callback
-                }
-            };
-
-            this.sendImpl(packet);
-            this.sentBytes += packet.length;
-            this.sentPackets++;
-
-            if (packet.action === "watch") {
-                this.watchMsgMap[id] = packet;
-            } else if (packet.action === "unwatch" && packet.replyTo) {
-                this.cancelRegisteredCallback(packet.replyTo);
-            }
-            return promise;
-        },
-
-        /**
-         * Generic handler for a bus connection to handle any queued messages & launch data after its connected.
-         * @method afterConnected
-         * @returns {Promise}
-         */
-        afterConnected: function(){
-            var self = this;
-            // dump any queued sends, trigger that we are fully connected
-            self.preconnectionQueue.forEach(function (p) {
-                self.send(p.fields, p.callback, p.promiseRes, p.promiseRej);
-            });
-            self.preconnectionQueue = [];
-            if (!self.launchParams.inFlightIntent || self.internal) {
-                self.events.trigger("connected");
-                return Promise.resolve();
-            }
-
-            // fetch the inFlightIntent
-            return self.intents().get(self.launchParams.inFlightIntent).then(function (response) {
-                // If there is an inflight intent that has not already been handled (i.e. page refresh driving to here)
-                if (response && response.entity && response.entity.intent) {
-                    self.launchedIntents.push(response);
-                    var launchData = response.entity.entity || {};
-                    if (response.response === 'ok') {
-                        for (var k in launchData) {
-                            self.launchParams[k] = launchData[k];
-                        }
-                    }
-                    self.intents().set(self.launchParams.inFlightIntent, {
-                        entity: {
-                            state: "complete"
-                        }
-                    });
-                }
-                self.events.trigger("connected");
-            })['catch'](function(e){
-                console.log(self.launchParams.inFlightIntent, " not handled, reason: ", e);
-                self.events.trigger("connected");
-            });
-        }
-
-    };
-};
-var ozpIwc=ozpIwc || {};
-/**
- * Common classes used between both the Client and the Bus.
- * @module common
- */
-
-/**
- * An Event emmitter/receiver class.
- * @class Event
- * @namespace ozpIwc
- */
-ozpIwc.Event=function() {
-    /**
-     * A key value store of events.
-     * @property events
-     * @type Object
-     * @default {}
-     */
-	this.events={};
-};
-
-/**
- * Registers a handler for the the event.
- *
- * @method on
- * @param {String} event The name of the event to trigger on.
- * @param {Function} callback Function to be invoked.
- * @param {Object} [self] Used as the this pointer when callback is invoked.
- *
- * @returns {Object} A handle that can be used to unregister the callback via
- * {{#crossLink "ozpIwc.Event/off:method"}}{{/crossLink}}
- */
-ozpIwc.Event.prototype.on=function(event,callback,self) {
-	var wrapped=callback;
-	if(self) {
-		wrapped=function() {
-			callback.apply(self,arguments);
-		};
-		wrapped.ozpIwcDelegateFor=callback;
-	}
-	this.events[event]=this.events[event]||[];
-	this.events[event].push(wrapped);
-	return wrapped;
-};
-
-/**
- * Unregisters an event handler previously registered.
- *
- * @method off
- * @param {String} event
- * @param {Function} callback
- */
-ozpIwc.Event.prototype.off=function(event,callback) {
-	this.events[event]=(this.events[event]||[]).filter( function(h) {
-		return h!==callback && h.ozpIwcDelegateFor !== callback;
-	});
-};
-
-/**
- * Fires an event that will be received by all handlers.
- *
- * @method
- * @param {String} eventName Name of the event.
- * @param {Object} event Event object to pass to the handers.
- *
- * @returns {Object} The event after all handlers have processed it.
- */
-ozpIwc.Event.prototype.trigger=function(eventName) {
-	//if no event data push a new cancelable event
-	var args = Array.prototype.slice.call(arguments,1);
-	if(args.length < 1){
-		args.push(new ozpIwc.CancelableEvent());
-	}
-	var handlers=this.events[eventName] || [];
-
-	handlers.forEach(function(h) {
-		h.apply(this,args);
-	});
-	return args[0];
-};
-
-
-
-/**
- * Adds an {{#crossLink "ozpIwc.Event/off:method"}}on(){{/crossLink}} and
- * {{#crossLink "ozpIwc.Event/off:method"}}off(){{/crossLink}} function to the target that delegate to this object.
- *
- * @method mixinOnOff
- * @param {Object} target Target to receive the on/off functions
- */
-ozpIwc.Event.prototype.mixinOnOff=function(target) {
-	var self=this;
-	target.on=function() { return self.on.apply(self,arguments);};
-	target.off=function() { return self.off.apply(self,arguments);};
-};
-
-/**
- * Convenient base for events that can be canceled.  Provides and manages
- * the properties canceled and cancelReason, as well as the member function
- * cancel().
- *
- * @class CancelableEvent
- * @namespace ozpIwc
- * @param {Object} data Data that will be copied into the event
- */
-ozpIwc.CancelableEvent=function(data) {
-	data = data || {};
-	for(var k in data) {
-		this[k]=data[k];
-	}
-	this.canceled=false;
-	this.cancelReason=null;
-};
-
-/**
- * Marks the event as canceled.
- * @method cancel
- * @param {String} reason A text description of why the event was canceled.
- *
- * @returns {ozpIwc.CancelableEvent} Reference to self
- */
-ozpIwc.CancelableEvent.prototype.cancel=function(reason) {
-	reason= reason || "Unknown";
-	this.canceled=true;
-	this.cancelReason=reason;
-	return this;
-};
-
-if(!(window.console && console.log)) {
-    console = {
-        log: function(){},
-        debug: function(){},
-        info: function(){},
-        warn: function(){},
-        error: function(){}
-    };
-}
-ozpIwc.object={
-    eachEntry: function(obj,fn,self) {
-        var rv=[];
-        for(var k in obj) {
-            rv.push(fn.call(self,k,obj[k],obj.hasOwnProperty(k)));
-        }
-        return rv;
-    },
-    values:function(obj,filterFn) {
-        filterFn=filterFn || function(key,value) {
-            return true;
-        };
-        var rv=[];
-        for(var k in obj) {
-            if(filterFn(k,obj[k])) {
-                rv.push(obj[k]);
-            }
-        }
-        return rv;
-    }
-};
-
-/**
- *
- * @class packetRouter
- * @namespace ozpIwc
- * @static
- */
-ozpIwc.packetRouter = ozpIwc.packetRouter || {};
-
-/**
- * Generates a template function to deserialize a uri string based on the RegExp pattern provided.
- *
- * @method uriTemplate
- * @static
- * @param {String} pattern
- * @returns {Function} If the uri does not meet the template criteria, null will be returned when the returned
- *                     function is invoked.
- */
-ozpIwc.packetRouter.uriTemplate=function(pattern) {
-  var fields=[];
-  var modifiedPattern="^"+pattern.replace(/\{.+?\}|[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, function(match) {
-      if(match.length===1) {
-          return "\\"+match;
-      }
-      var colon=match.indexOf(":");
-      
-      if(colon > 0) {
-          fields.push(match.slice(1,colon));
-          return "("+match.slice(colon+1,-1)+")";
-      } else {
-        fields.push(match.slice(1,-1));
-        return "([^\/]+)";
-      }
-  })+"$";
-  var regex=new RegExp(modifiedPattern);
-  
-  return function(input) {
-     var results=regex.exec(input);
-     if(!results) {
-         return null;
-     }
-     var obj={};
-     for(var i=1;i<results.length;++i) {
-         obj[fields[i-1]]=results[i];
-     }
-     return obj;
-  };
-    
-};
-
-/**
- * A routing module for packet controlling via template matching and filtering.
- * @class PacketRouter
- * @namespace ozpIwc
- */
-ozpIwc.PacketRouter=function() {
-    /**
-     * The key on this table is the route action.
-     * The value is an array of config objects of the form:
-     *    action: from the route declaration
-     *    resource: from the route declaration
-     *    handler: the function from the route declaration
-     *    uriTemplate: uriTemplate function
-     * @property routes
-     * @type {Object}
-     */
-    this.routes={};
-
-    /**
-     * The route that matches all packet handling requests. Should defined route be able to handle a packet, this route
-     * is called. Can be changed using the declareDefaultRoute method.
-     *
-     * @property defaultRoute
-     * @returns {*}
-     */
-    this.defaultRoute=function() { return false; };
-
-    /**
-     * The default scope of the router.
-     * @type {PacketRouter}
-     */
-    this.defaultSelf=this;
-};
-
-
-/**
- * Assigns a route to the Packet Router for the specific action. This route is taken by a packet if its resource matches
- * the routes resource template, passes any assigned filters. Additionally, a packet may only take one route, if
- * multiple possible routes are possible, the route which was declared earliest will handle the packet.
- *
- * @method declareRoute
- * @param {Object} config
- * @param {String} config.action The action this route is defined to (ex. "get", "set", "list", ...)
- * @param {String} config.resource The serialized uri template definition pertaining to the route (ex. "/foo", "/{id:\\d+}", "/{param1}/{param2}")
- * @param {Array} config.filters Any filters that better isolate the packet routing based on the context and packet properties
- * @param {Function} handler The resulting action to be taken should this route handle a packet.
- * @param {Object}handlerSelf The scope of the handler, the PacketRouter object holds the default scope if none is provided.
- *
- * @returns {ozpIwc.PacketRouter}
- */
-ozpIwc.PacketRouter.prototype.declareRoute=function(config,handler,handlerSelf) {
-    if(!config || !config.action || !config.resource) {
-        throw new Error("Bad route declaration: "+JSON.stringify(config,null,2));
-    }
-    config.handler=handler;
-    config.filters=config.filters || [];
-    config.handlerSelf=handlerSelf;
-    config.uriTemplate=ozpIwc.packetRouter.uriTemplate(config.resource);
-    
-    // @TODO FIXME var actions=ozpIwc.util.ensureArray(config.action);
-    var actions=ozpIwc.util.ensureArray(config.action);
-    
-    actions.forEach(function(a) {
-        if(!this.routes.hasOwnProperty(a)) {
-            this.routes[a]=[];
-        }
-    
-        this.routes[a].push(config);
-    },this);
-    return this;
-};
-
-/**
- * Recursively passes through all filters for the packet, calling the handler only if all filters pass.
- *
- * @method filterChain
- * @param {Object} packet
- * @param {Object} context
- * @param {Object} pathParams
- * @param {Object} routeSpec
- * @param {Array} filters
- * @returns {Function|null} The handler function should all filters pass.
- */
-ozpIwc.PacketRouter.prototype.filterChain=function(packet,context,pathParams,routeSpec,thisPointer,filters) {
-  // if there's no more filters to call, just short-circuit the filter chain
-  if(!filters.length) {
-    return routeSpec.handler.call(thisPointer,packet,context,pathParams);
-  }
-  // otherwise, chop off the next filter in queue and return it.
-  var currentFilter=filters.shift();
-  var self=this;
-  var filterCalled=false;
-  var returnValue=currentFilter.call(thisPointer,packet,context,pathParams,function() {
-      filterCalled=true;
-      return self.filterChain(packet,context,pathParams,routeSpec,thisPointer,filters);
-  });
-  if(!filterCalled) {
-      ozpIwc.log.info("Filter did not call next() and did not throw an exception",currentFilter);
-  } else {
-      ozpIwc.log.debug("Filter returned ", returnValue);
-  }
-  return returnValue;  
-};
-
-/**
- * Routes the given packet based on the context provided.
- *
- * @method routePacket
- * @param {Object} packet
- * @param {Object} context
- * @param {Object} routeOverrides - if it exists, this to determine the route instead of the packet
- * @returns {*} The output of the route's handler. If the specified action does not have any routes false is
- *                    returned. If the specified action does not have a matching route the default route is applied
- */
-ozpIwc.PacketRouter.prototype.routePacket=function(packet,context,thisPointer,routeOverrides) {
-    routeOverrides = routeOverrides || {};    
-    var action=routeOverrides.action || packet.action;
-    var resource=routeOverrides.resource || packet.resource;
-    
-    if(!action || !resource) {
-        context.defaultRouteCause="nonRoutablePacket";
-        return this.defaultRoute.call(thisPointer,packet,context,{});                
-    }
-    
-    context=context || {};
-    thisPointer=thisPointer || this.defaultSelf;
-    if(!this.routes.hasOwnProperty(action)) {
-        context.defaultRouteCause="noAction";
-        return this.defaultRoute.call(thisPointer,packet,context,{});
-    }
-    var actionRoutes=this.routes[action];
-    for(var i=0;i<actionRoutes.length;++i) {
-        var route=actionRoutes[i];
-        if(!route) {
-            continue;
-        }
-        var pathParams=route.uriTemplate(resource);
-        if(pathParams) {
-            thisPointer=route.handlerSelf || thisPointer;
-            var filterList=route.filters.slice();
-            return this.filterChain(packet,context,pathParams,route,thisPointer,filterList);
-        }
-    }
-    // if we made it this far, then we know about the action, but there are no resources for it
-    context.defaultRouteCause="noResource";
-    return this.defaultRoute.call(thisPointer,packet,context,{});        
-    
-};
-
-/**
- * Assigns the default route for the Packet Router
- *
- * @param {Function} handler
- */
-ozpIwc.PacketRouter.prototype.declareDefaultRoute=function(handler) {
-    this.defaultRoute=handler;
-};
-
-
-/**
- * Augments the provided class with a class-level router
- * and routing functions on the prototype.  This allows the use of
- * "declareRoute" on the class to create routes for all instances of
- * that class.  All filters and handlers are evaluated using the
- * instance as "this".
- * 
- * Defines:
- *    classToAugment.declareRoute(routeConfig,handler)
- *    classToAugment.prototype.routePacket(packet,context);
- * 
- * If the instance has a "defaultRoute" member, it will be used as the
- * default route for packets.
- * 
- * Example:
- *    ozpIwc.PacketRouter.mixin(MyClass);
- *    
- *    MyClass.declareRoute({
- *       action: "get",
- *       resource: "/foo/{id}"
- *    },function (packet,context,pathParams) {
- *       console.log("Foo handler",packet,context,pathParams);     
- *       return "foo handler";
- *    });
- * 
- *    MyClass.prototype.defaultRoute=function(packet,context) {
- *      console.log("Default handler",packet,context,pathParams);
- *      return "default!";
- *    };
- * 
- *    var instance=new MyClass();
- *
- *    var packet1={ resource: "/foo/123", action: "get", ...}
- *    var rv=instance.routePacket(packet1,{ bar: 2});
- *    // console output: Foo handler, packet1, {bar:2}, {id: 123}
- *    // rv === "foo handler"
- *    
- *    var packet2={ resource: "/dne/123", action: "get", ...}
- *    rv=instance.routePacket(packet2,{ bar: 3});
- *    // console output: Default handler, packet2, {bar:3}
- *    // rv === "default!"
- * 
- * @param {type} classToAugment
- * @returns {undefined}
- */
-ozpIwc.PacketRouter.mixin=function(classToAugment) {
-    var packetRouter=new ozpIwc.PacketRouter();
-    
-    var superClass=Object.getPrototypeOf(classToAugment.prototype);
-    if(superClass && superClass.routePacket) {
-        packetRouter.defaultRoute=function(packet,context) {
-            return superClass.routePacket.apply(this,arguments);
-        };
-    } else {
-        packetRouter.defaultRoute=function(packet,context) {
-            if(this.defaultRoute) {
-                return this.defaultRoute.apply(this,arguments);
-            } else {
-                return false;
-            }
-        };
-    }
-    classToAugment.declareRoute=function(config,handler) {
-        packetRouter.declareRoute(config,handler);
-    };
-    
-    classToAugment.prototype.routePacket=function(packet,context) {
-        return packetRouter.routePacket(packet,context,this);  
-    };
-};
-/**
- * @submodule common
- */
-
-/**
- * @class util
- * @namespace ozpIwc
- * @static
- */
-ozpIwc.util=ozpIwc.util || {};
-
-/**
- * Used to get the current epoch time.  Tests overrides this
- * to allow a fast-forward on time-based actions.
- *
- * @method now
- * @returns {Number}
- */
-ozpIwc.util.now=function() {
-    return new Date().getTime();
-};
-
-/**
- * Applies the template using the supplied object for values
- *
- * @method resolveUriTemplate
- * @param {string} template The template to use
- * @param {Object} obj The object to get template paramters from
- * @param {Object} fallback A secondary object for parameters not contained by the first
- * @returns {Number}
- */
-ozpIwc.util.resolveUriTemplate=function(template,obj,fallback) {
-	var converters={
-		"+": function(a) { return a;},
-		"": function(a) { return encodeURIComponent(a);}
-	};
-	var t=template.replace(/\{([\+\#\.\/\;\?\&]?)(.+?)\}/g,function(match,type,name) {
-			return converters[type](obj[name] || fallback[name]);
-		});
-	// look for the :// of the protocol
-	var protocolOffset=t.indexOf("://");
-	// if we found it, set the offset to the end.  otherwise, leave it
-	// at -1 so that a leading "//" will be replaced, below
-	if(protocolOffset >0) { protocolOffset+=3; }
-	
-	// remove double // that show up after the protocolOffset
-	return t.replace(/\/\//g,function(m,offset){
-			// only swap it after the protocol
-			if(offset > protocolOffset) {
-				return "/";
-			} else {
-				return m;
-			}
-		});
-};
-
-/**
- * A record of event listeners used in the given IWC context. Grouped by type.
- *
- * @property eventListeners
- * @static
- * @type {Object}
- */
-ozpIwc.util.eventListeners={};
-
-/**
- * Adds an event listener to the window and stores its listener in ozpIwc.util.eventListeners.
- *
- * @method addEventListener
- * @param {String} type the event to listen to
- * @param {Function} listener the callback to be used upon the event being emitted
- */
-ozpIwc.util.addEventListener=function(type,listener) {
-    var l=ozpIwc.util.eventListeners[type];
-    if(!l) {
-        l=ozpIwc.util.eventListeners[type]=[];
-    }
-    l.push(listener);
-    window.addEventListener(type,listener);
-};
-
-/**
- * Removes an event listener from the window and from ozpIwc.util.eventListeners
- * @param {String} type the event to remove the listener from
- * @param {Function} listener the callback to unregister
- */
-ozpIwc.util.removeEventListener=function(type,listener) {
-    var l=ozpIwc.util.eventListeners[type];
-    if(l) {
-        ozpIwc.util.eventListeners[type]=l.filter(function(v) { return v!==listener;});
-    }
-    window.removeEventListener(type,listener);
-};
-
-/**
- * Removes all event listeners registered in ozpIwc.util.eventListeners
- * @param {String} type the event to remove the listener from
- * @param {Function} listener the callback to unregister
- * @param {Boolean} [useCapture] if true all events of the specified type will be dispatched to the registered listener
- *                             before being dispatched to any EventTarget beneath it in the DOM tree. Events which
- *                             are bubbling upward through the tree will not trigger a listener designated to use
- *                             capture.
- */
-ozpIwc.util.purgeEventListeners=function() {
-    ozpIwc.object.eachEntry(ozpIwc.util.eventListeners,function(type,listenerList) {
-        listenerList.forEach(function(listener) {
-            window.removeEventListener(type,listener);
-        });
-    });
-    ozpIwc.util.eventListeners={};
-};
-
-
-/**
- * Create a class with the given parent in it's prototype chain.
- *
- * @method extend
- * @param {Function} baseClass The class being derived from.
- * @param {Function} newConstructor The new base class.
- *
- * @returns {Function} New Constructor with an augmented prototype.
- */
-ozpIwc.util.extend=function(baseClass,newConstructor) {
-    if(!baseClass || !baseClass.prototype) {
-        ozpIwc.log.error("Cannot create a new class for ",newConstructor," due to invalid baseclass:",baseClass);
-        throw new Error("Cannot create a new class due to invalid baseClass.  Dependency not loaded first?");
-    }
-    newConstructor.prototype = Object.create(baseClass.prototype);
-    newConstructor.prototype.constructor = newConstructor;
-    return newConstructor;
-};
-
-/**
- * Invoke postMessage on a given window in a safe manner. Test whether the browser
- * supports structured clones, and stringifies the message if not. Catches
- * errors (especially attempts to send non-cloneable objects), and tries to
- * send a stringified copy of the message asa fallback.
- *
- * @param window a window on which to invoke postMessage
- * @param msg the message to be sent
- * @param origin the target origin. The message will be sent only if it matches the origin of window.
- */
-ozpIwc.util.safePostMessage = function(window,msg,origin) {
-    try {
-        var data = msg;
-        if (!ozpIwc.util.structuredCloneSupport() && typeof data !== 'string') {
-           data=JSON.stringify(msg);
-        }
-        window.postMessage(data, origin);
-    } catch (e) {
-        try {
-            window.postMessage(JSON.stringify(msg), origin);
-        } catch (e) {
-            ozpIwc.log.debug("Invalid call to window.postMessage: " + e.message);
-        }
-    }
-};
-
-/**
- * Detect browser support for structured clones. Returns quickly since it
- * caches the result. This method only determines browser support for structured
- * clones. Clients are responsible, when accessing capabilities that rely on structured
- * cloning, to ensure that objects to be cloned meet the criteria of the structured clone
- * algorithm. (See ozpIwc.util.safePostMessage for a method which handles attempts to
- * clone an invalid object.). NB: a bug in FF will cause file objects to be treated as
- * non-cloneable, even in FF versions that support structured clones.
- * (see https://bugzilla.mozilla.org/show_bug.cgi?id=722126).
- *
- * @private
- *
- * @method structuredCloneSupport
- *
- * @returns {Boolean} True if structured clones are supported, false otherwise.
- */
-ozpIwc.util.structuredCloneSupport=function() {
-    ozpIwc.util = ozpIwc.util || {};
-    if (ozpIwc.util.structuredCloneSupportCache !== undefined) {
-        return ozpIwc.util.structuredCloneSupportCache;
-    }
-    var cloneSupport = 'postMessage' in window;
-    //If the browser doesn't support structured clones, it will call toString() on the object passed to postMessage.
-    try {
-        window.postMessage({
-            toString: function () {
-                cloneSupport = false;
-            }
-        }, "*");
-    } catch (e) {
-        //exception expected: objects with methods can't be cloned
-        //e.DATA_CLONE_ERR will exist only for browsers with structured clone support, which can be used as an additional check if needed
-    }
-    ozpIwc.util.structuredCloneSupportCache=cloneSupport;
-    return ozpIwc.util.structuredCloneSupportCache;
-};
-
-ozpIwc.util.structuredCloneSupport.cache=undefined;
-
-/**
- * Does a deep clone of a serializable object.  Note that this will not
- * clone unserializable objects like DOM elements, Date, RegExp, etc.
- *
- * @method clone
- * @param {Array|Object} value The value to be cloned.
- * @returns {Array|Object}  a deep copy of the object
- */
-ozpIwc.util.clone=function(value) {
-	if(Array.isArray(value) || typeof(value) === 'object') {
-        try {
-            return JSON.parse(JSON.stringify(value));
-        } catch (e) {
-            ozpIwc.log.log(e);
-        }
-	} else {
-		return value;
-	}
-};
-
-/**
- * A regex method to parse query parameters.
- *
- * @method parseQueryParams
- * @param {String} query
- *
- */
-ozpIwc.util.parseQueryParams=function(query) {
-    query = query || window.location.search;
-    var params={};
-	var regex=/\??([^&=]+)=?([^&]*)/g;
-	var match;
-	while((match=regex.exec(query)) !== null) {
-		params[match[1]]=decodeURIComponent(match[2]);
-	}
-    return params;
-};
-
-/**
- * Adds params to the query string of the given url. Accepts objects, preformed query strings, and arrays of query
- * params.
- *
- * @method addQueryParams
- * @param {String} url
- * @param {String|Object|Array} params
- * @returns {String}
- */
-ozpIwc.util.addQueryParams=function(url,params){
-    if(typeof url !== "string") { throw new Error("url should be a string."); }
-
-    var formattedParams = {};
-    switch(typeof params){
-        case "object":
-            // if in array form ["a=true","b=en_us",...]
-            if(Array.isArray(params)){
-                if(params.length === 0){
-                    return url;
-                }
-                for(var i in params){
-                    if(typeof params[i] === "string") {
-                        var p = ozpIwc.util.parseQueryParams(params[i]);
-                        for(var j in p){
-                            formattedParams[j] = p[j];
-                        }
-                    }
-                }
-            } else {
-                if(Object.keys(params).length === 0){
-                    return url;
-                }
-                // if in object form {a:true, b:"en_us",...}
-                formattedParams = params;
-            }
-            break;
-        case "undefined":
-            return url;
-
-        default:
-            if(params.length === 0) {
-                return url;
-            }
-            // if in string form "?a=true&b=en_us&..."
-            formattedParams = ozpIwc.util.parseQueryParams(params);
-            break;
-    }
-    var hash = "";
-    // Separate the hash temporarily (if exists)
-    var hashSplit = url.split("#");
-    if(hashSplit.length > 2){
-        throw new Error("Invalid url.");
-    } else {
-        url = hashSplit[0];
-        hash = hashSplit[1] || "";
-    }
-
-    //if the url has no query params  we append the initial "?"
-    if(url.indexOf("?") === -1) {
-        url += "?";
-    } else {
-        url += "&";
-    }
-    //skip on first iteration
-    var ampersand = "";
-    for(var k in formattedParams){
-        url += ampersand + k +"=" + formattedParams[k];
-        ampersand = "&";
-    }
-
-    if(hash.length > 0){
-        url += "#" + hash;
-    }
-
-    return url;
-};
-
-/**
- * Determines the origin of a given url.  
- * @method determineOrigin
- * @param url
- * @returns {String}
- */
-ozpIwc.util.protocolPorts={
-    "http:" : "80",
-    "https:" : "443",
-    "ws:" : "80",
-    "wss:" : "443"
-};
-ozpIwc.util.determineOrigin=function(url) {
-    var a=document.createElement("a");
-    a.href = url;
-    if(a.origin) {
-        return a.origin;
-    }
-    var origin=a.protocol + "//" + a.hostname;
-    /* Internet Explorer adds the port to urls in <a> tags created by a script, even
-     * if it wasn't there to start with.  Thanks, IE!
-     * https://connect.microsoft.com/IE/feedback/details/817343/ie11-scripting-value-of-htmlanchorelement-host-differs-between-script-created-link-and-link-from-document
-     * 
-     * Other browsers seem to drop the port if it's the default, so we'll do the same.
-    */
-   
-    if(a.port && ozpIwc.util.protocolPorts[a.protocol] !== a.port) {
-        origin+= ":" + a.port;
-    }
-    return origin;
-};
-
-/**
- * Escapes regular expression characters in a string.
- * @method escapeRegex
- * @param {String} str
- * @returns {String}
- */
-ozpIwc.util.escapeRegex=function(str) {
-    return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-};
-
-/**
- * 
- * @method parseOzpUrl
- * @param {type} url
- * @returns {ozpIwc.TransportPacket}
- */
-ozpIwc.util.parseOzpUrl=function(url) {
-    var m = /^(?:(?:web\+ozp|ozp):\/\/)?([0-9a-zA-Z](?:[-.\w])*)(\/[^?#]*)(\?[^#]*)?(#.*)?$/.exec(decodeURIComponent(url));
-    if (m) {
-        // an action of "get" is implied
-        var packet = {
-            'dst': m[1],
-            'resource': m[2],
-            'action': "get"
-        };
-        // TODO: parse the query params into fields
-
-        return packet;
-    }
-    return null;
-};
-
-/**
- * Returns true if the specified packet meets the criteria of an IWC Packet.
- * @method isIwcPacket
- * @static
- * @param {ozpIwc.TransportPacket} packet
- * @returns {Boolean}
- */
-ozpIwc.util.isIWCPacket=function(packet) {
-    if(typeof packet.src !== "string" ||typeof packet.dst !== "string" ||
-        typeof packet.ver !== "number" || typeof packet.msgId !== "string") {
-        return false;
-    } else {
-        return true;
-    }
-};
-
-
-/**
- * Returns the version of Internet Explorer or a -1
- * (indicating the use of another browser).
- * @returns {number}
- */
-ozpIwc.util.getInternetExplorerVersion= function() {
-    var rv = -1; // Return value assumes failure.
-    if (navigator.appName === 'Microsoft Internet Explorer')
-    {
-        var ua = navigator.userAgent;
-        var re  = /MSIE ([0-9]{1,}[\.0-9]{0,})/;
-        if (re.exec(ua) !== null) {
-            rv = parseFloat(RegExp.$1);
-        }
-    }
-    return rv;
-};
-/*
- * The MIT License (MIT) Copyright (c) 2012 Mike Ihbe
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated 
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation 
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in all copies or substantial 
- * portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO 
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
-
-/*
- * Original code owned by Mike Ihbe.  Modifications licensed under same terms.
- */
-var ozpIwc=ozpIwc || {};
-/**
- * @submodule metrics.statistics
- */
-
-/**
- *
- * @class metricStats
- * @namespace ozpIwc
- */
-ozpIwc.metricsStats=ozpIwc.metricsStats || {};
-
-/**
- * @property DEFAULT_POOL_SIZE
- * @type {Number}
- * @default 1028
- */
-ozpIwc.metricsStats.DEFAULT_POOL_SIZE=1028;
-
-/**
- * @Class Sample
- * @namespace ozpIwc.metricsStats
- * @constructor
- */
-ozpIwc.metricsStats.Sample = function(){
-    /**
-     * @property values
-     * @type Array
-     */
-	this.clear();
-};
-
-/**
- * Appends the value.
- * @method update
- * @param {Number} val
- */
-ozpIwc.metricsStats.Sample.prototype.update = function(val){ 
-	this.values.push(val); 
-};
-
-/**
- * Clears the values.
- * @method clear
- */
-ozpIwc.metricsStats.Sample.prototype.clear = function(){ 
-	this.values = []; 
-	this.count = 0; 
-};
-
-/**
- * Returns the number of the values.
- * @method size
- * @returns {Number}
- */
-ozpIwc.metricsStats.Sample.prototype.size = function(){ 
-	return this.values.length;
-};
-
-/**
- * Returns the array of values.
- * @method getValues
- * @returns {Array}
- */
-ozpIwc.metricsStats.Sample.prototype.getValues = function(){ 
-	return this.values; 
-};
-
-
-/**
- *  Take a uniform sample of size size for all values
- *  @class UniformSample
- *  @param {Number} [size=ozpIwc.metricsStats.DEFAULT_POOL_SIZE] - The size of the sample pool.
- */
-ozpIwc.metricsStats.UniformSample=ozpIwc.util.extend(ozpIwc.metricsStats.Sample,function(size) {
-	ozpIwc.metricsStats.Sample.apply(this);
-  this.limit = size || ozpIwc.metricsStats.DEFAULT_POOL_SIZE;
-});
-
-ozpIwc.metricsStats.UniformSample.prototype.update = function(val) {
-  this.count++;
-  if (this.size() < this.limit) {
-    this.values.push(val);
-  } else {
-    var rand = parseInt(Math.random() * this.count);
-    if (rand < this.limit) {
-      this.values[rand] = val;
-    }
-  }
-};
-
-// From http://eloquentjavascript.net/appendix2.html, 
-// licensed under CCv3.0: http://creativecommons.org/licenses/by/3.0/
-
-var ozpIwc=ozpIwc || {};
-
-/**
- * Statistics classes for the ozpIwc Metrics
- * @module metrics
- * @submodule metrics.statistics
- */
-/**
- * metricStats namespace
- * @class metricStats
- * @namespace ozpIwc
- * @static
- */
-ozpIwc.metricsStats=ozpIwc.metricsStats || {};
-/**
- * This acts as a ordered binary heap for any serializeable JS object or collection of such objects 
- * <p>Borrowed from https://github.com/mikejihbe/metrics. Originally from from http://eloquentjavascript.net/appendix2.html
- * <p>Licenced under CCv3.0
- *
- * @class BinaryHeap
- * @namespace ozpIwc.metricStats
- * @param {Function} scoreFunction
- * @returns {ozpiwc.metricStats.BinaryHeap}
- */
-ozpIwc.metricsStats.BinaryHeap = function BinaryHeap(scoreFunction){
-  this.content = [];
-  this.scoreFunction = scoreFunction;
-};
-
-ozpIwc.metricsStats.BinaryHeap.prototype = {
-
-  clone: function() {
-    var heap = new ozpIwc.metricsStats.BinaryHeap(this.scoreFunction);
-    // A little hacky, but effective.
-    heap.content = JSON.parse(JSON.stringify(this.content));
-    return heap;
-  },
-
-  push: function(element) {
-    // Add the new element to the end of the array.
-    this.content.push(element);
-    // Allow it to bubble up.
-    this.bubbleUp(this.content.length - 1);
-  },
-
-  peek: function() {
-    return this.content[0];
-  },
-
-  pop: function() {
-    // Store the first element so we can return it later.
-    var result = this.content[0];
-    // Get the element at the end of the array.
-    var end = this.content.pop();
-    // If there are any elements left, put the end element at the
-    // start, and let it sink down.
-    if (this.content.length > 0) {
-      this.content[0] = end;
-      this.sinkDown(0);
-    }
-    return result;
-  },
-
-  remove: function(node) {
-    var len = this.content.length;
-    // To remove a value, we must search through the array to find
-    // it.
-    for (var i = 0; i < len; i++) {
-      if (this.content[i] === node) {
-        // When it is found, the process seen in 'pop' is repeated
-        // to fill up the hole.
-        var end = this.content.pop();
-        if (i !== len - 1) {
-          this.content[i] = end;
-          if (this.scoreFunction(end) < this.scoreFunction(node)) {
-              this.bubbleUp(i);
-          }
-          else {
-              this.sinkDown(i);
-          }
-        }
-        return true;
-      }
-    }
-    throw new Error("Node not found.");
-  },
-
-  size: function() {
-    return this.content.length;
-  },
-
-  bubbleUp: function(n) {
-    // Fetch the element that has to be moved.
-    var element = this.content[n];
-    // When at 0, an element can not go up any further.
-    while (n > 0) {
-      // Compute the parent element's index, and fetch it.
-      var parentN = Math.floor((n + 1) / 2) - 1,
-          parent = this.content[parentN];
-      // Swap the elements if the parent is greater.
-      if (this.scoreFunction(element) < this.scoreFunction(parent)) {
-        this.content[parentN] = element;
-        this.content[n] = parent;
-        // Update 'n' to continue at the new position.
-        n = parentN;
-      }
-      // Found a parent that is less, no need to move it further.
-      else {
-        break;
-      }
-    }
-  },
-
-  sinkDown: function(n) {
-    // Look up the target element and its score.
-    var length = this.content.length,
-        element = this.content[n],
-        elemScore = this.scoreFunction(element);
-
-    while(true) {
-      // Compute the indices of the child elements.
-      var child2N = (n + 1) * 2, child1N = child2N - 1;
-      // This is used to store the new position of the element,
-      // if any.
-      var swap = null;
-      var child1Score = null;
-      // If the first child exists (is inside the array)...
-      if (child1N < length) {
-        // Look it up and compute its score.
-        var child1 = this.content[child1N];
-        child1Score = this.scoreFunction(child1);
-        // If the score is less than our element's, we need to swap.
-        if (child1Score < elemScore) {
-            swap = child1N;
-        }
-      }
-      // Do the same checks for the other child.
-      if (child2N < length) {
-        var child2 = this.content[child2N],
-            child2Score = this.scoreFunction(child2);
-        if (child2Score < (swap === null ? elemScore : child1Score)) {
-            swap = child2N;
-        }
-      }
-
-      // If the element needs to be moved, swap it, and continue.
-      if (swap !== null) {
-        this.content[n] = this.content[swap];
-        this.content[swap] = element;
-        n = swap;
-      }
-      // Otherwise, we are done.
-      else {
-        break;
-      }
-    }
-  }
-};
-
-
-/*
- * The MIT License (MIT) Copyright (c) 2012 Mike Ihbe
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated 
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation 
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in all copies or substantial 
- * portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO 
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
-
-/*
- * Original code owned by Mike Ihbe.  Modifications licensed under same terms.
- */
-var ozpIwc=ozpIwc || {};
-ozpIwc.metricsStats=ozpIwc.metricsStats || {};
-
-/**
- * @submodule metrics.statistics
- */
-
-//  Take an exponentially decaying sample of size size of all values
-/**
- *
- * @class metricStats
- * @namespace ozpIwc
- */
-
-/**
- * @property DEFAULT_RESCALE_THRESHOLD
- * @type {Number}
- * @default 3600000
- */
-ozpIwc.metricsStats.DEFAULT_RESCALE_THRESHOLD = 60 * 60 * 1000; // 1 hour in milliseconds
-
-/**
- * @property DEFAULT_DECAY_ALPHA
- * @type {Number}
- * @default 0.015
- */
-ozpIwc.metricsStats.DEFAULT_DECAY_ALPHA=0.015;
-
-/**
- * This acts as a ordered binary heap for any serializeable JS object or collection of such objects 
- * <p>Borrowed from https://github.com/mikejihbe/metrics. 
- * @class ExponentiallyDecayingSample
- * @namespace ozpIwc.metricStats
- */
-ozpIwc.metricsStats.ExponentiallyDecayingSample=ozpIwc.util.extend(ozpIwc.metricsStats.Sample,function(size, alpha) {
-	ozpIwc.metricsStats.Sample.apply(this);
-  this.limit = size || ozpIwc.metricsStats.DEFAULT_POOL_SIZE;
-  this.alpha = alpha || ozpIwc.metricsStats.DEFAULT_DECAY_ALPHA;
-	this.rescaleThreshold = ozpIwc.metricsStats.DEFAULT_RESCALE_THRESHOLD;
-});
-
-// This is a relatively expensive operation
-/**
- * @method getValues
- * @returns {Array}
- */
-ozpIwc.metricsStats.ExponentiallyDecayingSample.prototype.getValues = function() {
-  var values = [];
-  var heap = this.values.clone();
-	var elt;
-  while((elt = heap.pop()) !== undefined) {
-    values.push(elt.val);
-  }
-  return values;
-};
-
-/**
- * @method size
- * @returns {Number}
- */
-ozpIwc.metricsStats.ExponentiallyDecayingSample.prototype.size = function() {
-  return this.values.size();
-};
-
-/**
- * @method newHeap
- * @returns {ozpIwc.metricsStats.BinaryHeap}
- */
-ozpIwc.metricsStats.ExponentiallyDecayingSample.prototype.newHeap = function() {
-  return new ozpIwc.metricsStats.BinaryHeap(function(obj){return obj.priority;});
-};
-
-/**
- * @method now
- * @returns {Number}
- */
-ozpIwc.metricsStats.ExponentiallyDecayingSample.prototype.now = function() {
-  return ozpIwc.util.now();
-};
-
-/**
- * @method tick
- * @returns {Number}
- */
-ozpIwc.metricsStats.ExponentiallyDecayingSample.prototype.tick = function() {
-  return this.now() / 1000;
-};
-
-/**
- * @method clear
- */
-ozpIwc.metricsStats.ExponentiallyDecayingSample.prototype.clear = function() {
-  this.values = this.newHeap();
-  this.count = 0;
-  this.startTime = this.tick();
-  this.nextScaleTime = this.now() + this.rescaleThreshold;
-};
-
-/**
- * timestamp in milliseconds
- * @method update
- * @param {Number} val
- * @param {Number} timestamp
- */
-ozpIwc.metricsStats.ExponentiallyDecayingSample.prototype.update = function(val, timestamp) {
-  // Convert timestamp to seconds
-  if (timestamp === undefined) {
-    timestamp = this.tick();
-  } else {
-    timestamp = timestamp / 1000;
-  }
-  var priority = this.weight(timestamp - this.startTime) / Math.random();
-  var value = {val: val, priority: priority};
-  if (this.count < this.limit) {
-    this.count += 1;
-    this.values.push(value);
-  } else {
-    var first = this.values.peek();
-    if (first.priority < priority) {
-      this.values.push(value);
-      this.values.pop();
-    }
-  }
-
-  if (this.now() > this.nextScaleTime) {
-    this.rescale();
-  }
-};
-
-/**
- * @method weight
- * @param {Number}time
- * @returns {Number}
- */
-ozpIwc.metricsStats.ExponentiallyDecayingSample.prototype.weight = function(time) {
-  return Math.exp(this.alpha * time);
-};
-
-/**
- * @method rescale
- */
-ozpIwc.metricsStats.ExponentiallyDecayingSample.prototype.rescale = function() {
-  this.nextScaleTime = this.now() + this.rescaleThreshold;
-  var oldContent = this.values.content;
-  var newContent = [];
-  var oldStartTime = this.startTime;
-  this.startTime = this.tick();
-  // Downscale every priority by the same factor. Order is unaffected, which is why we're avoiding the cost of popping.
-  for(var i = 0; i < oldContent.length; i++) {
-    newContent.push({val: oldContent[i].val, priority: oldContent[i].priority * Math.exp(-this.alpha * (this.startTime - oldStartTime))});
-  }
-  this.values.content = newContent;
-};
-
-/*
- * The MIT License (MIT) Copyright (c) 2012 Mike Ihbe
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated 
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation 
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in all copies or substantial 
- * portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO 
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
-
-/*
- * Original code owned by Mike Ihbe.  Modifications licensed under same terms.
- */
-var ozpIwc=ozpIwc || {};
-ozpIwc.metricsStats=ozpIwc.metricsStats || {};
-/**
- * @submodule metrics.statistics
- */
-
-/**
- *
- * @class metricStats
- * @namespace ozpIwc
- */
-
-/**
- * @property M1_ALPHA
- * @type {Number}
- * @default 1 - e^(-5/60)
- */
-ozpIwc.metricsStats.M1_ALPHA = 1 - Math.exp(-5/60);
-
-/**
- * @property M5_ALPHA
- * @type {Number}
- * @default 1 - e^(-5/60/5)
- */
-ozpIwc.metricsStats.M5_ALPHA = 1 - Math.exp(-5/60/5);
-
-/**
- * @property M15_ALPHA
- * @type {Number}
- * @default 1 - e^(-5/60/15)
- */
-ozpIwc.metricsStats.M15_ALPHA = 1 - Math.exp(-5/60/15);
-
-/**
- *  Exponentially weighted moving average.
- *  @method ExponentiallyWeightedMovingAverage
- *  @param {Number} alpha
- *  @param {Number} interval Time in milliseconds
- */
-ozpIwc.metricsStats.ExponentiallyWeightedMovingAverage=function(alpha, interval) {
-  this.alpha = alpha;
-  this.interval = interval || 5000;
-  this.currentRate = null;
-  this.uncounted = 0;
-	this.lastTick=ozpIwc.util.now();
-};
-
-/**
- * @method update
- * @param n
- */
-ozpIwc.metricsStats.ExponentiallyWeightedMovingAverage.prototype.update = function(n) {
-  this.uncounted += (n || 1);
-	this.tick();
-};
-
-/**
- * Update the rate measurements every interval
- *
- * @method tick
- */
-ozpIwc.metricsStats.ExponentiallyWeightedMovingAverage.prototype.tick = function() {
- 	var now=ozpIwc.util.now();
-	var age=now-this.lastTick;
-	if(age > this.interval) {
-		this.lastTick=now - (age % this.interval);
-		var requiredTicks=Math.floor(age / this.interval);
-		for(var i=0; i < requiredTicks; ++i) {
-			var instantRate = this.uncounted / this.interval;
-			this.uncounted = 0;
-			if(this.currentRate!==null) {
-				this.currentRate += this.alpha * (instantRate - this.currentRate);
-			} else {
-				this.currentRate = instantRate;
-			}
-		}
-	}
-};
-
-/**
- * Return the rate per second
- *
- * @returns {Number}
- */
-ozpIwc.metricsStats.ExponentiallyWeightedMovingAverage.prototype.rate = function() {
-  return this.currentRate * 1000;
-};
-
-var ozpIwc=ozpIwc || {};
-/**
- * Metrics capabilities for the IWC.
- * @module metrics
- */
-ozpIwc.metricTypes=ozpIwc.metricTypes || {};
-
-/**
- * @Class BaseMetric
- * @namespace ozpIwc.metricTypes
- */
-ozpIwc.metricTypes.BaseMetric=function() {
-    /**
-     * The value of the metric
-     * @property value
-     * @type Number
-     * @default 0
-     */
-	this.value=0;
-
-    /**
-     * The name of the metric
-     * @property name
-     * @type String
-     * @default ""
-     */
-    this.name="";
-
-    /**
-     * The unit name of the metric
-     * @property unitName
-     * @type String
-     * @default ""
-     */
-    this.unitName="";
-};
-
-/**
- * Returns the metric value
- * @method get
- * @returns {Number}
- */
-ozpIwc.metricTypes.BaseMetric.prototype.get=function() { 
-	return this.value; 
-};
-
-/**
- * Sets the unit name if parameter provided. Returns the unit name if no parameter provided.
- * @method unit
- * @param {String} val
- * @returns {ozpIwc.metricTypes.BaseMetric|String}
- */
-ozpIwc.metricTypes.BaseMetric.prototype.unit=function(val) { 
-	if(val) {
-		this.unitName=val;
-		return this;
-	}
-	return this.unitName; 
-};
-
-
-
-
-/**
- * Types of metrics available.
- * @module metrics
- * @submodule metrics.types
- */
-
-
-/**
- * A counter running total that can be adjusted up or down.
- * Where a meter is set to a known value at each update, a
- * counter is incremented up or down by a known change.
- *
- * @class Counter
- * @namespace ozpIwc.metricTypes
- * @extends ozpIwc.metricTypes.BaseMetric
- */
-ozpIwc.metricTypes.Counter=ozpIwc.util.extend(ozpIwc.metricTypes.BaseMetric,function() {
-	ozpIwc.metricTypes.BaseMetric.apply(this,arguments);
-	this.value=0;
-});
-
-/**
- * @method inc
- * @param {Number} [delta=1]  Increment by this value
- * @returns {Number} Value of the counter after increment
- */
-ozpIwc.metricTypes.Counter.prototype.inc=function(delta) { 
-	return this.value+=(delta?delta:1);
-};
-
-/**
- * @method dec
- * @param {Number} [delta=1]  Decrement by this value
- * @returns {Number} Value of the counter after decrement
- */
-ozpIwc.metricTypes.Counter.prototype.dec=function(delta) { 
-	return this.value-=(delta?delta:1);
-};
-
-ozpIwc.metricTypes=ozpIwc.metricTypes || {};
-/**
- * @submodule metrics.types
- */
-
-/**
- * @callback ozpIwc.metricTypes.Gauge~gaugeCallback
- * @returns {ozpIwc.metricTypes.MetricsTree} 
- */
-
-/**
- * A gauge is an externally defined set of metrics returned by a callback function
- *
- * @class Gauge
- * @namespace ozpIwc.metricTypes
- * @extends ozpIwc.metricTypes.BaseMetric
- * @param {ozpIwc.metricTypes.Gauge~gaugeCallback} metricsCallback
- */
-ozpIwc.metricTypes.Gauge=ozpIwc.util.extend(ozpIwc.metricTypes.BaseMetric,function(metricsCallback) {
-	ozpIwc.metricTypes.BaseMetric.apply(this,arguments);
-	this.callback=metricsCallback;
-});
-/**
- * Set the metrics callback for this gauge.
- *
- * @method set
- * @param {ozpIwc.metricTypes.Gauge~gaugeCallback} metricsCallback
- *
- * @returns {ozpIwc.metricTypes.Gauge} this
- */
-ozpIwc.metricTypes.Gauge.prototype.set=function(metricsCallback) { 
-	this.callback=metricsCallback;
-	return this;
-};
-/**
- * Executes the callback and returns a metrics tree.
- *
- * @method get
- *
- * @returns {ozpIwc.metricTypes.MetricsTree}
- */
-ozpIwc.metricTypes.Gauge.prototype.get=function() {
-    if (this.callback) {
-        return this.callback();
-    }
-    return undefined;
-};
-
-/**
- * @submodule metrics.types
- */
-
-/**
- * @class Histogram
- * @namespace ozpIwc.metricTypes
- * @extends ozpIwc.metricTypes.BaseMetric
- */
-ozpIwc.metricTypes.Histogram=ozpIwc.util.extend(ozpIwc.metricTypes.BaseMetric,function() {
-	ozpIwc.metricTypes.BaseMetric.apply(this,arguments);
-
-    /**
-     * @property sample
-     * @type {ozpIwc.metricsStats.ExponentiallyDecayingSample}
-     */
-	this.sample = new ozpIwc.metricsStats.ExponentiallyDecayingSample();
-	this.clear();
-});
-
-
-/**
- * @method clear
- */
-ozpIwc.metricTypes.Histogram.prototype.clear=function() {
-	this.sample.clear();
-	this.min=this.max=null;
-	this.varianceMean=0;
-	this.varianceM2=0;
-	this.sum=0;
-	this.count=0;	
-};
-
-/**
- * @method mark
- * @param {Number} val
- * @param {Number} timestamp Current time in milliseconds.
- * @returns {Number} Value of the counter after increment
- */
-ozpIwc.metricTypes.Histogram.prototype.mark=function(val,timestamp) { 
-	timestamp = timestamp || ozpIwc.util.now();
-	
-	this.sample.update(val,timestamp);
-	
-	this.max=(this.max===null?val:Math.max(this.max,val));
-	this.min=(this.min===null?val:Math.min(this.min,val));
-	this.sum+=val;
-	this.count++;
-	
-	var delta=val - this.varianceMean;
-	this.varianceMean += delta/this.count;
-	this.varianceM2 += delta * (val - this.varianceMean);
-
-	return this.count;
-};
-
-/**
- * @method get
- * @returns {{percentile10, percentile25, median, percentile75, percentile90, percentile95, percentile99,
- * percentile999, variance: null, mean: null, stdDev: null, count: *, sum: *, max: *, min: *}}
- */
-ozpIwc.metricTypes.Histogram.prototype.get=function() { 
-	var values=this.sample.getValues().map(function(v){
-		return parseFloat(v);
-	}).sort(function(a,b) { 
-		return a-b;
-	});
-	var percentile=function(p) {
-		var pos=p *(values.length);
-		if(pos >= values.length) {
-			return values[values.length-1];
-		}
-		pos=Math.max(0,pos);
-		pos=Math.min(pos,values.length+1);
-		var lower = values[Math.floor(pos)-1];
-		var upper = values[Math.floor(pos)];
-		return lower+(pos-Math.floor(pos))*(upper-lower);
-	};
-
-	return {
-		'percentile10': percentile(0.10),
-		'percentile25': percentile(0.25),
-		'median': percentile(0.50),				
-		'percentile75': percentile(0.75),
-		'percentile90': percentile(0.90),
-		'percentile95': percentile(0.95),
-		'percentile99': percentile(0.99),
-		'percentile999': percentile(0.999),
-		'variance' : this.count < 1 ? null : this.varianceM2 / (this.count -1),
-		'mean' : this.count === 0 ? null : this.varianceMean,
-		'stdDev' : this.count < 1 ? null : Math.sqrt(this.varianceM2 / (this.count -1)),
-		'count' : this.count,
-		'sum' : this.sum,
-		'max' : this.max,
-		'min' : this.min
-	};
-};
-
-
-/**
- * @submodule metrics.types
- */
-
-/**
- * @class Meter
- * @namespace ozpIwc.metricTypes
- * @extends ozpIwc.metricTypes.BaseMetric
- */
-ozpIwc.metricTypes.Meter=ozpIwc.util.extend(ozpIwc.metricTypes.BaseMetric,function() {
-	ozpIwc.metricTypes.BaseMetric.apply(this,arguments);
-    /**
-     * @property m1Rate
-     * @type {ozpIwc.metricsStats.ExponentiallyWeightedMovingAverage}
-     */
-	this.m1Rate= new ozpIwc.metricsStats.ExponentiallyWeightedMovingAverage(ozpIwc.metricsStats.M1_ALPHA);
-    /**
-     * @property m5Rate
-     * @type {ozpIwc.metricsStats.ExponentiallyWeightedMovingAverage}
-     */
-	this.m5Rate= new ozpIwc.metricsStats.ExponentiallyWeightedMovingAverage(ozpIwc.metricsStats.M5_ALPHA);
-    /**
-     * @property m15Rate
-     * @type {ozpIwc.metricsStats.ExponentiallyWeightedMovingAverage}
-     */
-	this.m15Rate= new ozpIwc.metricsStats.ExponentiallyWeightedMovingAverage(ozpIwc.metricsStats.M15_ALPHA);
-    /**
-     * @property startTime
-     * @type {Number}
-     */
-	this.startTime=ozpIwc.util.now();
-    /**
-     * @property value
-     * @type {Number}
-     * @default 0
-     */
-	this.value=0;
-});
-
-/**
- * @method mark
- * @param {Number} [delta=1] - Increment by this value
- * @returns {Number} - Value of the counter after increment
- */
-ozpIwc.metricTypes.Meter.prototype.mark=function(delta) { 
-	delta=delta || 1;
-	this.value+=delta;
-	this.m1Rate.update(delta);
-	this.m5Rate.update(delta);
-	this.m15Rate.update(delta);
-	
-	return this.value;
-};
-
-/**
- * @method get
- * @returns {{rate1m: (Number), rate5m: (Number), rate15m: (Number), rateMean: number, count: (Number)}}
- */
-ozpIwc.metricTypes.Meter.prototype.get=function() {
-	return {
-		'rate1m' : this.m1Rate.rate(),
-		'rate5m' : this.m5Rate.rate(),
-		'rate15m' : this.m15Rate.rate(),
-		'rateMean' : this.value / (ozpIwc.util.now() - this.startTime) * 1000,
-		'count' : this.value
-	};
-};
-
-/**
- * @method tick
- */
-ozpIwc.metricTypes.Meter.prototype.tick=function() { 
-	this.m1Rate.tick();
-	this.m5Rate.tick();
-	this.m15Rate.tick();
-};
-
-/**
- * @submodule metrics.types
- */
-
-/**
- * @class Timer
- * @namespace ozpIwc
- * @extends ozpIwc.metricTypes.BaseMetric
- * @type {Function}
- */
-ozpIwc.metricTypes.Timer=ozpIwc.util.extend(ozpIwc.metricTypes.BaseMetric,function() {
-	ozpIwc.metricTypes.BaseMetric.apply(this,arguments);
-    /**
-     * @property meter
-     * @type {ozpIwc.metricTypes.Meter}
-     */
-	this.meter=new ozpIwc.metricTypes.Meter();
-
-    /**
-     * @property histogram
-     * @type {ozpIwc.metricTypes.Histogram}
-     */
-	this.histogram=new ozpIwc.metricTypes.Histogram();
-});
-
-/**
- * @method mark
- * @param {Number} val
- * @param {Number} timestamp Current time in milliseconds.
- */
-ozpIwc.metricTypes.Timer.prototype.mark=function(val,time) {
-	this.meter.mark();
-	this.histogram.mark(val,time);
-};
-
-/**
- * Starts the timer
- *
- * @method start
- * @returns {Function}
- */
-ozpIwc.metricTypes.Timer.prototype.start=function() {
-	var self=this;
-	var startTime=ozpIwc.util.now();
-	return function() {
-		var endTime=ozpIwc.util.now();
-		self.mark(endTime-startTime,endTime);
-	};
-};
-
-/**
- * Times the length of a function call.
- *
- * @method time
- * @param {Function}callback
- */
-ozpIwc.metricTypes.Timer.prototype.time=function(callback) {
-	var startTime=ozpIwc.util.now();
-	try {
-		callback();
-	} finally {
-		var endTime=ozpIwc.util.now();
-		this.mark(endTime-startTime,endTime);
-	}
-};
-
-/**
- * Returns a histogram of the timer metrics.
- *
- * @method get
- * @returns {Object}
- */
-ozpIwc.metricTypes.Timer.prototype.get=function() {
-	var val=this.histogram.get();
-	var meterMetrics=this.meter.get();
-	for(var k in meterMetrics) {
-		val[k]=meterMetrics[k];
-	}
-	return val;
-};
-var ozpIwc=ozpIwc || {};
-/**
- * Metrics capabilities for the IWC.
- * @module metrics
- */
-
-/**
- * A repository of metrics
- * @class MetricsRegistry
- * @namespace ozpIwc
- */
-ozpIwc.MetricsRegistry=function() {
-    /**
-     * Key value store of metrics
-     * @property metrics
-     * @type Object
-     */
-	this.metrics={};
-    var self=this;
-    this.gauge('registry.metrics.types').set(function() {
-        return Object.keys(self.metrics).length;
-    });
-
-};
-
-/**
- * Finds or creates the metric in the registry.
- * @method findOrCreateMetric
- * @private
- * @param {String} name Name of the metric.
- * @param {Function} type The constructor of the requested type for this metric.
- * @returns {ozpIwc.MetricType} Null if the metric already exists of a different type. Otherwise a reference to
- * the metric.
- */
-ozpIwc.MetricsRegistry.prototype.findOrCreateMetric=function(name,Type) {
-	var m= this.metrics[name];
-    if(!m) {
-        m = this.metrics[name] = new Type();
-        m.name=name;
-        return m;
-    }
-	if(m instanceof Type){
-			return m;
-	} else {
-			return null;
-	}			
-};
-
-/**
- * Joins the arguments together into a name.
- * @method makeName
- * @private
- * @param {String[]} args Array or the argument-like "arguments" value.
- * @returns {String} the name.
- */
-ozpIwc.MetricsRegistry.prototype.makeName=function(args) {
-	// slice is necessary because "arguments" isn't a real array, and it's what
-	// is usually passed in, here.
-	return Array.prototype.slice.call(args).join(".");
-};
-
-/**
- * Returns the counter instance(s) for the given name(s). If it does not exist it will be created.
- *
- * @method counter
- * @param {String} name Components of the name.
- *
- * @returns {ozpIwc.metricTypes.Counter}
- */
-ozpIwc.MetricsRegistry.prototype.counter=function(name) {
-	return this.findOrCreateMetric(this.makeName(arguments),ozpIwc.metricTypes.Counter);
-};
-
-/**
- * Returns the meter instance(s) for the given name(s). If it does not exist it will be created.
- *
- * @method meter
- * @param {String} name Components of the name.
- *
- * @returns {ozpIwc.metricTypes.Meter}
- */
-ozpIwc.MetricsRegistry.prototype.meter=function(name) {
-	return this.findOrCreateMetric(this.makeName(arguments),ozpIwc.metricTypes.Meter);
-};
-
-/**
- * Returns the gauge instance(s) for the given name(s). If it does not exist it will be created.
- *
- * @method gauge
- * @param {String} name Components of the name.
- * @returns {ozpIwc.metricTypes.Gauge}
- */
-ozpIwc.MetricsRegistry.prototype.gauge=function(name) {
-	return this.findOrCreateMetric(this.makeName(arguments),ozpIwc.metricTypes.Gauge);
-};
-
-/**
- * Returns the histogram instance(s) for the given name(s). If it does not exist it will be created.
- *
- * @method histogram
- * @param {String} name Components of the name.
- *
- * @returns {ozpIwc.metricTypes.Histogram}
- */
-ozpIwc.MetricsRegistry.prototype.histogram=function(name) {
-	return this.findOrCreateMetric(this.makeName(arguments),ozpIwc.metricTypes.Histogram);
-};
-
-/**
- * Returns the timer instance(s) for the given name(s). If it does not exist it will be created.
- *
- * @method timer
- * @param {String} name Components of the name.
- *
- * @returns {ozpIwc.metricTypes.Timer}
- */
-ozpIwc.MetricsRegistry.prototype.timer=function(name) {
-	return this.findOrCreateMetric(this.makeName(arguments),ozpIwc.metricTypes.Timer);
-};
-
-/**
- * Registers a metric to the metric registry
- *
- * @method register
- * @param {String} name Components of the name.
- * @param {ozpIwc.MetricType} metric
- *
- * @returns {ozpIwc.MetricType} The metric passed in.
- */
-ozpIwc.MetricsRegistry.prototype.register=function(name,metric) {
-	this.metrics[this.makeName(name)]=metric;
-	
-	return metric;
-};
-
-/**
- * Converts the metric registry to JSON.
- *
- * @method toJson
- * @returns {Object} JSON converted registry.
- */
-ozpIwc.MetricsRegistry.prototype.toJson=function() {
-	var rv={};
-	for(var k in this.metrics) {
-		var path=k.split(".");
-		var pos=rv;
-		while(path.length > 1) {
-			var current=path.shift();
-			pos = pos[current]=pos[current] || {};
-		}
-		pos[path[0]]=this.metrics[k].get();
-	}
-	return rv;
-};
-
-/**
- * Returns an array of all metrics in the registry
- * @method allMetrics
- * @returns {ozpIwc.MetricType[]}
- */
-ozpIwc.MetricsRegistry.prototype.allMetrics=function() {
-    var rv=[];
-    for(var k in this.metrics) {
-        rv.push(this.metrics[k]);
-    }
-    return rv;
-};
-
-ozpIwc.metrics=new ozpIwc.MetricsRegistry();
-
-/**
- * Utility methods used on the IWC bus.
- * @module bus
- * @submodule bus.util
- */
-
-/**
- * @class util
- * @namespace ozpIwc
- * @static
- */
-ozpIwc.util=ozpIwc.util || {};
-
-/**
- * Sends an AJAX request. A promise is returned to handle the response.
- *
- * @method ajax
- * @static
- * @param {Object} config
- * @param {String} config.method
- * @param {String} config.href
- * @param [Object] config.headers
- * @param {String} config.headers.name
- * @param {String} config.headers.value
- * @param {boolean} config.withCredentials
- *
- * @returns {Promise}
- */
-ozpIwc.util.ajax = function (config) {
-    return new Promise(function(resolve,reject) {
-        var writeMethods = ["PUT", "POST", "PATCH"];
-        var request = new XMLHttpRequest();
-        request.open(config.method, config.href, true);
-        request.withCredentials = true;
-        var setContentType = true;
-        if (Array.isArray(config.headers)) {
-            config.headers.forEach(function(header) {
-                if(header.name ==="Content-Type"){
-                    setContentType = false;
-                }
-                request.setRequestHeader(header.name, header.value);
-            });
-        }
-        //IE9 does not default the Content-Type. Set it if it wasn't passed in.
-        if(writeMethods.indexOf(config.method) >= 0 && setContentType){
-            request.setRequestHeader("Content-Type", "text/plain;charset=UTF-8");
-        }
-
-        /*
-        /*
-         * Setting username and password as params to open() (and setting request.withCredentials = true)
-         * per the API does not work in FF. setting them explicitly in the Authorization header works
-         * (but only for BASIC authentication as coded here). If the credentials are set in the open command,
-         * FF will fail to make the request, even though the credentials are manually set in the Authorization header
-         * */
-
-        request.onload = function () {
-            if(Math.floor(this.status/100) === 2) {
-                var entity;
-                try {
-                    entity=JSON.parse(this.responseText);
-                } catch(e) {
-                        entity=this.reponseText || this.responseXML;
-                }
-                resolve({
-                    "response": entity,
-                    "header":  ozpIwc.util.ajaxResponseHeaderToJSON(this.getAllResponseHeaders())
-
-                });
-            } else {
-                reject(this);
-            }
-        };
-
-        request.onerror = function (e) {
-            reject(this);
-        };
-
-        try {
-            if ((config.method === "POST") || (config.method === "PUT")) {
-                request.send(config.data);
-            }
-            else {
-                request.send();
-            }
-        } catch (e) {
-            reject(e);
-        }
-    });
-};
-
-
-/**
- * Takes the Javascript ajax response header (string) and converts it to JSON
- * @method ajaxResponseHeaderToJSON
- * @param {String} header
- *
- * @returns {Object}
- */
-ozpIwc.util.ajaxResponseHeaderToJSON = function(header) {
-    var obj = {};
-    header.split("\n").forEach(function (property) {
-        var kv = property.split(":");
-        if (kv.length === 2) {
-            obj[kv[0].trim()] = kv[1].trim();
-        }
-    });
-
-    return obj;
-};
-
-
-/**
- * @class AjaxPersistenceQueue
- * @param {Object} config
- * @param {Number} config.poolSize
- * @constructor
- */
-ozpIwc.AjaxPersistenceQueue=function(config) {
-    config=config || {};
-    this.poolSize=config.poolSize || 1;
-    
-    this.syncPool=[]; // The tail of the promise chain for each pool
-    
-    // populate the slots with resolved promises
-    for(var i=0; i< this.poolSize; ++i) {
-        this.syncPool.push(Promise.resolve());
-    }
-
-    // a counter that round-robins the requests to persist among the slots
-    this.nextSlot=0;
-
-    // maps the iwcUri to the promise that is saving it
-    this.queuedSyncs={};
-};
-
-/**
- * @method doSync
- * param {String} iwcUri @TODO unused
- * @param {ozpIwc.ApiNode} node
- * @returns {*}
- */
-ozpIwc.AjaxPersistenceQueue.prototype.doSync=function(iwcUri,node) {
-		var uri=node.getSelfUri();
-		if(!uri) {
-			return Promise.resolve();
-		}
-    if(node.deleted) {
-       return ozpIwc.util.ajax({
-            href:  uri,
-            method: 'DELETE'
-        });        
-    } else {
-        var entity=node.serializedEntity();
-        if(typeof(entity) !== "string") {
-            entity=JSON.stringify(entity);
-        }
-        ozpIwc.log.debug("PUT " + uri,entity);
-        return ozpIwc.util.ajax({
-            href:  uri,
-            method: 'PUT',
-            data: entity,
-            headers: {
-                "Content-Type": node.serializedContentType()
-            }
-        }).then(function(result) {
-            ozpIwc.log.debug("  saving to " + uri,result);
-        },function(error) {
-            ozpIwc.log.error("  FAILED saving to " + uri,error);
-        });
-    }
-}; 
-
-/**
- * FIXME: it's possible to have poolSize updates in flight for a rapidly changing node when the pool is lightly utilized.
- *    The duplicate call will occur when all of these conditions are met:
- *     * An ajax request for the node is still active.
- *     * queueNode(n) is called
- *     * the new sync promise reaches the head of its pool queue
- *   Example with poolSize=3 and node "n"
- *     queueNode(n) -> assigns n to pool 1
- *        pool 1 -> starts AJAX call and clears queuedSyncs[n]
- *     queueNode(n) -> n is not queued, so assigns n to pool 2
- *        pool 2 -> starts AJAX call and clears queuedSyncs[n]
- *     queueNode(n) -> n is not queued, so assigns n to pool 3
- *        pool 3 -> starts AJAX call and clears queuedSyncs[n]
- *
- *
- * @method queueNode
- * @param {String} iwcUri
- * @param {ozpIwc.ApiNode} node
- * @returns {*}
- */
-ozpIwc.AjaxPersistenceQueue.prototype.queueNode=function(iwcUri,node) {
-    var self=this;
-    // the value of node is captured immediately before it is saved to the backend
-    // only add it to the queue if it isn't already there
-    if(!this.queuedSyncs[iwcUri]) {
-        // round robin between slots
-        this.nextSlot=(this.nextSlot+1) % this.poolSize;
-        
-        // chain off the syncPool, update the sync pool tail,
-        // and save it for the iwcUri for this node        
-        this.syncPool[this.nextSlot]= this.queuedSyncs[iwcUri]=
-            this.syncPool[this.nextSlot].then(function() {
-                // since doSync serializes the node, remove it from the queue now
-                // to capture post-serialization changes
-                delete self.queuedSyncs[iwcUri];
-                return self.doSync(iwcUri,node);
-            });
-    }
-    return this.queuedSyncs[iwcUri];
-};
-/**
- * @submodule bus.util
- */
-
-/**
- * A deferred action, but not in the sense of the Javascript standard.
- * @class AsyncAction
- * @constructor
- * @namespace ozpIwc
- */
-ozpIwc.AsyncAction=function() {
-    /**
-     * The result of the logic defered to.
-     * @property resolution
-     * @type string
-     */
-    /**
-     * Key value store of the callbacks to the deferred action.
-     * @property callbacks
-     * @type Object
-     */
-	this.callbacks={};
-};
-
-/**
- * Registers the callback to be called when the resolution matches the state. If resolution matches the state before
- * registration, the callback is fired rather than registered.
- *
- * @method when
- * @param state
- * @param callback
- * @param self
- * @returns {ozpIwc.AsyncAction}
- */
-ozpIwc.AsyncAction.prototype.when=function(state,callback,self) {
-    self=self || this;
-	
-	if(this.resolution === state) {
-		callback.apply(self,this.value);
-	} else {
-		this.callbacks[state]=function() { return callback.apply(self,arguments); };
-	}
-	return this;
-};
-
-/**
- * Sets the deferred action's resolution and calls any callbacks associated to that state.
- *
- * @method resolve
- * @param status
- * @returns {ozpIwc.AsyncAction}
- */
-ozpIwc.AsyncAction.prototype.resolve=function(status) {
-	if(this.resolution) {
-		throw "Cannot resolve an already resolved AsyncAction";
-	}
-	var callback=this.callbacks[status];
-	this.resolution=status;
-
-    /**
-     * @property value
-     * @type Array
-     */
-	this.value=Array.prototype.slice.call(arguments,1);
-	
-	if(callback) {
-		callback.apply(this,this.value);
-	}
-	return this;
-};
-
-/**
- * Gives implementation of an AsyncAction a chained success registration.
- * @method success
- * @param callback
- * @param self
- * @example
- * var a = new ozpIwc.AsyncAction().success(function(){...}, this).failure(function(){...}, this);
- * @returns {ozpIwc.AsyncAction}
- */
-ozpIwc.AsyncAction.prototype.success=function(callback,self) {
-	return this.when("success",callback,self);
-};
-
-/**
- * Gives implementation of an AsyncAction a chained failure registration.
- * @method success
- * @param callback
- * @param self
- * @example
- * var a = new ozpIwc.AsyncAction().success(function(){...}, this).failure(function(){...}, this);
- * @returns {ozpIwc.AsyncAction}
- */
-ozpIwc.AsyncAction.prototype.failure=function(callback,self) {
-	return this.when("failure",callback,self);
-};
-
-/**
- * Returns an async action that resolves when all async Actions are resolved with their resolved values (if applies).
- * @method all
- * @param asyncActions
- */
-ozpIwc.AsyncAction.all = function(asyncActions) {
-    var returnAction = new ozpIwc.AsyncAction();
-    var count = asyncActions.length;
-    var self = this;
-    var results = [];
-
-
-    //Register a callback for each action's "success"
-    asyncActions.forEach(function(action,index){
-        // If its not an asyncAction, pass it through as a result.
-        if(!self.isAnAction(action)){
-            results[index] = action;
-            if(--count === 0) {
-                returnAction.resolve('success',results);
-            }
-        }else {
-            action
-                .success(function (result) {
-                    results[index] = result;
-                    //once all actions resolved, intermediateAction resolve
-                    if (--count === 0) {
-                        returnAction.resolve('success', results);
-                    }
-                }, self)
-                .failure(function (err) {
-                    //fail the returnAction if any fail.
-                    returnAction.resolve('failure', err);
-                }, self);
-        }
-    });
-
-    return returnAction;
-};
-
-/**
- * Returns true if the object is an AsyncAction, otherwise false.
- * @method isAnAction
- * @param {*} action
- * @returns {Boolean}
- */
-ozpIwc.AsyncAction.isAnAction = function(action){
-    return ozpIwc.AsyncAction.prototype.isPrototypeOf(action);
-};
-/**
- * @submodule bus.util
- */
-var getStackTrace = function() {
-    var obj = {};
-    Error.captureStackTrace(obj, getStackTrace);
-    return obj.stack;
-};
-
-
-/**
- * A logging wrapper for the ozpIwc namespace
- * @class log
- * @static
- * @namespace ozpIwc
- */
-ozpIwc.log=ozpIwc.log || {
-    // syslog levels
-    NONE: { logLevel: true, severity: 0, name: "NONE"},
-    DEFAULT: { logLevel: true, severity: 1, name: "DEFAULT"},
-    ERROR: { logLevel: true, severity: 3, name: "ERROR"},
-    INFO: { logLevel: true, severity: 6, name: "INFO"},
-    DEBUG: { logLevel: true, severity: 7, name: "DEBUG"},
-    ALL: { logLevel: true, severity: 10, name: "ALL"},
-    
-    threshold: 3,
-
-    /**
-     * Sets the threshold for the IWC's logger.
-     * @method setThreshold
-     * @param {Number|Object} level
-     * @param {Number} [level.severity]
-     */
-    setThreshold: function(level) {
-        if(typeof(level)==="number") {
-            ozpIwc.log.threshold=level;
-        } else if(typeof(level.severity) === "number") {
-            ozpIwc.log.threshold=level.severity;
-        } else {
-            throw new TypeError("Threshold must be a number or one of the ozpIwc.log constants.  Instead got" + level);
-        }
-    },
-    
-    /**
-     * A wrapper for log messages. Forwards to console.log if available.
-     * @property log
-     * @type Function
-     */
-	log: function(level) {
-        if(level.logLevel === true && typeof(level.severity) === "number") {
-            ozpIwc.log.logMsg(level,Array.prototype.slice.call(arguments, 1));
-        } else {
-            ozpIwc.log.logMsg(ozpIwc.log.DEFAULT,Array.prototype.slice.call(arguments, 0));
-        }
-	},
-
-    /**
-     * Logs the given message if the severity is above the threshold.
-     * @method logMsg
-     * @param {Number} level
-     * @param {Arguments} args
-     */
-    logMsg: function(level,args) {
-        if(level.severity > ozpIwc.log.threshold) {
-            return;
-        }
-
-        // if no console, no logs.
-        if(!console || !console.log){
-            return;
-        }
-        
-        var msg=args.reduce(function(acc, val) {
-            if(val instanceof Error) {
-                return acc + val.toString() + (val.stack?(" -- " +val.stack):""); //"[" + val.name + ":" + val.message;
-            }else if(typeof(val) === "object") {
-                return acc + JSON.stringify(val,null,2);
-            }
-            return acc + val;
-        },"["+level.name+"] ");
-        
-        console.log(msg);
-//        var original = console.log;
-//        if(original.apply){
-//            original.apply(console,["["+level.name+"] "].concat(args));
-//        } else {
-//            // IE does not have apply on console functions
-//            var msg = ["["+level.name+"]"].concat(args).join(' ');
-//            original(msg);
-//        }
-    },
-    
-    /**
-     * A wrapper for error messages. Forwards to console.error if available.
-     * @property error
-     * @type Function
-     */
-	error: function() {
-        ozpIwc.log.logMsg(ozpIwc.log.ERROR,Array.prototype.slice.call(arguments, 0));
-	},
-
-    /**
-     * A wrapper for debug messages. Forwards to console.error if available.
-     * @property error
-     * @type Function
-     */
-    debug: function() {
-        ozpIwc.log.logMsg(ozpIwc.log.DEBUG,Array.prototype.slice.call(arguments, 0));
-//        window.console.log.apply(window.console,arguments);
-    },
-    /**
-     * A wrapper for debug messages. Forwards to console.error if available.
-     * @property error
-     * @type Function
-     */
-    info: function() {
-        ozpIwc.log.logMsg(ozpIwc.log.INFO,Array.prototype.slice.call(arguments, 0));
-//        window.console.log.apply(window.console,arguments);
-    }
-};
-
-(function (global, undefined) {
-    "use strict";
-
-    if (global.setImmediate) {
-        return;
-    }
-
-    var nextHandle = 1; // Spec says greater than zero
-    var tasksByHandle = {};
-    var currentlyRunningATask = false;
-    var doc = global.document;
-    var setImmediate;
-
-    function addFromSetImmediateArguments(args) {
-        tasksByHandle[nextHandle] = partiallyApplied.apply(undefined, args);
-        return nextHandle++;
-    }
-
-    // This function accepts the same arguments as setImmediate, but
-    // returns a function that requires no arguments.
-    function partiallyApplied(handler) {
-        var args = [].slice.call(arguments, 1);
-        return function() {
-            if (typeof handler === "function") {
-                handler.apply(undefined, args);
-            } else {
-                (new Function("" + handler))();
-            }
-        };
-    }
-
-    function runIfPresent(handle) {
-        // From the spec: "Wait until any invocations of this algorithm started before this one have completed."
-        // So if we're currently running a task, we'll need to delay this invocation.
-        if (currentlyRunningATask) {
-            // Delay by doing a setTimeout. setImmediate was tried instead, but in Firefox 7 it generated a
-            // "too much recursion" error.
-            setTimeout(partiallyApplied(runIfPresent, handle), 0);
-        } else {
-            var task = tasksByHandle[handle];
-            if (task) {
-                currentlyRunningATask = true;
-                try {
-                    task();
-                } finally {
-                    clearImmediate(handle);
-                    currentlyRunningATask = false;
-                }
-            }
-        }
-    }
-
-    function clearImmediate(handle) {
-        delete tasksByHandle[handle];
-    }
-
-    function installNextTickImplementation() {
-        setImmediate = function() {
-            var handle = addFromSetImmediateArguments(arguments);
-            process.nextTick(partiallyApplied(runIfPresent, handle));
-            return handle;
-        };
-    }
-
-    function canUsePostMessage() {
-        // The test against `importScripts` prevents this implementation from being installed inside a web worker,
-        // where `global.postMessage` means something completely different and can't be used for this purpose.
-        if (global.postMessage && !global.importScripts) {
-            var postMessageIsAsynchronous = true;
-            var oldOnMessage = global.onmessage;
-            global.onmessage = function() {
-                postMessageIsAsynchronous = false;
-            };
-            global.postMessage("", "*");
-            global.onmessage = oldOnMessage;
-            return postMessageIsAsynchronous;
-        }
-    }
-
-    function installPostMessageImplementation() {
-        // Installs an event handler on `global` for the `message` event: see
-        // * https://developer.mozilla.org/en/DOM/window.postMessage
-        // * http://www.whatwg.org/specs/web-apps/current-work/multipage/comms.html#crossDocumentMessages
-
-        var messagePrefix = "setImmediate$" + Math.random() + "$";
-        var onGlobalMessage = function(event) {
-            if (event.source === global &&
-                typeof event.data === "string" &&
-                event.data.indexOf(messagePrefix) === 0) {
-                runIfPresent(+event.data.slice(messagePrefix.length));
-            }
-        };
-
-        if (global.addEventListener) {
-            global.addEventListener("message", onGlobalMessage, false);
-        } else {
-            global.attachEvent("onmessage", onGlobalMessage);
-        }
-
-        setImmediate = function() {
-            var handle = addFromSetImmediateArguments(arguments);
-            global.postMessage(messagePrefix + handle, "*");
-            return handle;
-        };
-    }
-
-    function installMessageChannelImplementation() {
-        var channel = new MessageChannel();
-        channel.port1.onmessage = function(event) {
-            var handle = event.data;
-            runIfPresent(handle);
-        };
-
-        setImmediate = function() {
-            var handle = addFromSetImmediateArguments(arguments);
-            channel.port2.postMessage(handle);
-            return handle;
-        };
-    }
-
-    function installReadyStateChangeImplementation() {
-        var html = doc.documentElement;
-        setImmediate = function() {
-            var handle = addFromSetImmediateArguments(arguments);
-            // Create a <script> element; its readystatechange event will be fired asynchronously once it is inserted
-            // into the document. Do so, thus queuing up the task. Remember to clean up once it's been called.
-            var script = doc.createElement("script");
-            script.onreadystatechange = function () {
-                runIfPresent(handle);
-                script.onreadystatechange = null;
-                html.removeChild(script);
-                script = null;
-            };
-            html.appendChild(script);
-            return handle;
-        };
-    }
-
-    function installSetTimeoutImplementation() {
-        setImmediate = function() {
-            var handle = addFromSetImmediateArguments(arguments);
-            setTimeout(partiallyApplied(runIfPresent, handle), 0);
-            return handle;
-        };
-    }
-
-    // If supported, we should attach to the prototype of global, since that is where setTimeout et al. live.
-    var attachTo = Object.getPrototypeOf && Object.getPrototypeOf(global);
-    attachTo = attachTo && attachTo.setTimeout ? attachTo : global;
-
-    // Don't get fooled by e.g. browserify environments.
-    if ({}.toString.call(global.process) === "[object process]") {
-        // For Node.js before 0.9
-        installNextTickImplementation();
-
-    } else if (canUsePostMessage()) {
-        // For non-IE10 modern browsers
-        installPostMessageImplementation();
-
-    } else if (global.MessageChannel) {
-        // For web workers, where supported
-        installMessageChannelImplementation();
-
-    } else if (doc && "onreadystatechange" in doc.createElement("script")) {
-        // For IE 6–8
-        installReadyStateChangeImplementation();
-
-    } else {
-        // For older browsers
-        installSetTimeoutImplementation();
-    }
-
-    attachTo.setImmediate = setImmediate;
-    attachTo.clearImmediate = clearImmediate;
-}(new Function("return this")()));
-
-/**
-* @submodule bus.util
-*/
-
-/**
- * @class util
- * @namespace ozpIwc
- * @static
- */
-ozpIwc.util=ozpIwc.util || {};
-
-/**
- * Generates a large hexidecimal string to serve as a unique ID.  Not a guid.
- *
- * @method generateId
- * @static
- *
- * @returns {String}
- */
-ozpIwc.util.generateId=function() {
-    return Math.floor(Math.random() * 0xffffffff).toString(16);
-};
-
-/**
- * Invokes the callback handler on another event loop as soon as possible.
- *
- * @method setImmediate
- * @static
-*/
-ozpIwc.util.setImmediate=function(f) {
-//    window.setTimeout(f,0);
-    window.setImmediate(f);
-};
-
-/**
- * Returns true if every needle is found in the haystack.
- *
- * @method arrayContainsAll
- * @static
- * @param {Array} haystack The array to search.
- * @param {Array} needles All of the values to search.
- * @param {Function} [equal] What constitutes equality.  Defaults to a===b.
- *
- * @returns {Boolean}
- */
-ozpIwc.util.arrayContainsAll=function(haystack,needles,equal) {
-    equal=equal || function(a,b) { return a===b;};
-    return needles.every(function(needle) { 
-        return haystack.some(function(hay) { 
-            return equal(hay,needle);
-        });
-    });
-};
-
-
-/**
- * Returns true if the value every attribute in needs is equal to 
- * value of the same attribute in haystack.
- *
- * @method objectContainsAll
- * @static
- * @param {Array} haystack The object that must contain all attributes and values.
- * @param {Array} needles The reference object for the attributes and values.
- * @param {Function} [equal] What constitutes equality.  Defaults to a===b.
- *
- * @returns {Boolean}
- */
-ozpIwc.util.objectContainsAll=function(haystack,needles,equal) {
-    equal=equal || function(a,b) { return a===b;};
-    
-    for(var attribute in needles) {
-        if(!equal(haystack[attribute],needles[attribute])) {
-            return false;
-        }
-    }
-    return true;
-};
-
-/**
- * Wraps window.open.  If the bus is running in a worker, then
- * it doesn't have access to the window object and needs help from
- * a participant. 
- * @see window.open documentation for what the parameters actually do
- * 
- * @method openWindow
- * @static
- * @param {String} url The URL to open in a new window
- * @param {String} windowName The window name to open with.
- * @param {String} [features] The window features.
- *
- * @returns {undefined}
- */
-ozpIwc.util.openWindow=function(url,windowName,features) {
-    if(typeof windowName === "object") {
-        var str="";
-        for(var k in windowName) {
-            str+=k+"="+encodeURIComponent(windowName[k]) +"&";
-        }
-        windowName=str;
-    }
-    try {
-        window.open(url, windowName, features);
-    } catch (e){
-        //fallback for IE
-        window.open(url + "?" + windowName,null,features);
-    }
-};
-
-
-(function() {
-    ozpIwc.BUS_ROOT=window.location.protocol + "//" +
-            window.location.host +
-            window.location.pathname.replace(/[^\/]+$/,"");
-
-    ozpIwc.INTENT_CHOOSER_FEATURES = "width=330,height=500";
-})();
-
-
-/**
- * IWC alert handler.
- *
- * @method alert
- * @static
- * @param {String} message The string to display in the popup.
- * @param {Object} errorObject The object related to the alert to give as additional information
- * @todo fill with some form of modal popup regarding the alert.
- * @todo store a list of alerts to not notify if the user selects "don't show me this again" in the data.api
- *
- */
-ozpIwc.util.alert = function (message, errorObject) {
-    this.alerts = this.alerts || {};
-    if(this.alerts[message]){
-        this.alerts[message].error = errorObject;
-    } else {
-        this.alerts[message] = {
-            error: errorObject,
-            silence: false
-        };
-    }
-    if(!this.alerts[message].silence){
-        //TODO : trigger an angular/bootstrap modal alert to notify the user of the error.
-        // on return of the alert:
-            // set this.alerts[message].silence if the user silenced the alerts
-
-        // Temporary placement: all alerts are silenced after first instance, but since this is not in data.api its on
-        // a widget basis.
-        this.alerts[message].silence = true;
-        ozpIwc.log.log(message,errorObject);
-    }
-};
-
-/**
- * Solves a common pattern to handle data from a function which may return a single object or an array of objects
- * If given an array, returns the array.
- * If given a single object, returns the object as a single element in a list.
- *
- * @method ensureArray
- * @static
- * @param {Object} obj The object may be an array or single object
- *
- * @returns {Array}
- */
-ozpIwc.util.ensureArray=function(obj) {
-	return Array.isArray(obj)?obj:[obj];
-};
-
-ozpIwc = ozpIwc || {};
-ozpIwc.policyAuth = ozpIwc.policyAuth || {};
-
-/**
- * A security attribute constructor for policyAuth use. Structured to be common to both bus-internal and api needs.
- * @class SecurityAttribute
- * @namespace ozpIwc.policyAuth
- * @param config
- * @constructor
- */
-ozpIwc.policyAuth.SecurityAttribute = function(config){
-    config = config || {};
-    this.attributes =  config.attributes ||  {};
-    this.comparator = config.comparator || this.comparator;
-};
-
-/**
- * Adds a value to the security attribute if it does not already exist. Constructs the attribute object if it does not
- * exist
- *
- * @method pushIfNotExist
- * @param id
- * @param val
- */
-ozpIwc.policyAuth.SecurityAttribute.prototype.pushIfNotExist = function(id, val, comp) {
-    comp = comp || this.comparator;
-    if(!val){
-        return;
-    }
-    var value = ozpIwc.util.ensureArray(val);
-    if (!this.attributes[id]) {
-        this.attributes[id] = [];
-        this.attributes[id] = this.attributes[id].concat(value);
-    } else {
-        for (var i in this.attributes[id]) {
-            for (var j in value) {
-                if (!comp(this.attributes[id][i], value[j])) {
-                    this.attributes[id].push(val);
-                }
-            }
-        }
-    }
-};
-
-/**
- * Clears the attributes given to an id.
- * @param id
- */
-ozpIwc.policyAuth.SecurityAttribute.prototype.clear = function(id){
-    delete this.attributes[id];
-};
-
-/**
- * Clears all attributes.
- * @method clear
- */
-ozpIwc.policyAuth.SecurityAttribute.prototype.clearAll = function(){
-    this.attributes = {};
-};
-
-/**
- * Returns an object containing all of the attributes.
- * @returns {Object}
- */
-ozpIwc.policyAuth.SecurityAttribute.prototype.getAll = function(){
-    return this.attributes;
-};
-
-/**
- *
- * Determines the equality of an object against a securityAttribute value.
- * @method comparator
- * @param a
- * @param b
- * @returns {boolean}
- */
-ozpIwc.policyAuth.SecurityAttribute.prototype.comparator = function(a, b) {
-    return a === b;
-};
-ozpIwc = ozpIwc || {};
-
-ozpIwc.policyAuth = ozpIwc.policyAuth || {};
-
-/**
- * System entity that evaluates applicable policy and renders an authorization decision.
- * @class PDP
- * @namespace ozpIwc.policyAuth
- *
- * @param {Object} config
- * @param {ozpIwc.policyAuth.PRP} config.prp Policy Repository Point for the PDP to gather policies from.
- * @param {ozpIwc.policyAuth.PIP} config.pip Policy Information Point for the PDP to gather attributes from.
- * @constructor
- */
-ozpIwc.policyAuth.PDP = function(config){
-    config=config || {};
-
-    /**
-     * Policy Repository Point
-     * @property prp
-     * @type {ozpIwc.policyAuth.PRP}
-     * @default new ozpIwc.policyAuth.PRP()
-     */
-    this.prp = config.prp ||  new ozpIwc.policyAuth.PRP();
-
-
-    /**
-     * Policy Information Point
-     * @property pip
-     * @type {ozpIwc.policyAuth.PIP}
-     * @default new ozpIwc.policyAuth.PIP()
-     */
-    this.pip = config.pip || new ozpIwc.policyAuth.PIP();
-
-    this.policySets = config.policySets ||
-    {
-        'connectSet': ["policy://ozpIwc/connect"],
-        'apiSet': ["policy://policy/apiNode"],
-        'readSet': ["policy://policy/read"],
-        'receiveAsSet': ["policy://policy/receiveAs"],
-        'sendAsSet': ["policy://policy/sendAs"]
-    };
-};
-
-
-/**
- * @method isPermitted(request)
- * @param {Object | String} [request.subject]       The subject attributes or id performing the action.
- * @param {Object | String} [request.resource]      The resource attributes or id that is being acted upon.
- * @param {Object | String} [request.action]        The action attributes.  A string should be interpreted as the
- *                                                  value of the “action-id” attribute.
- * @param {Array<String>} [request.policies]        A list of URIs applicable to this decision.
- * @param {String} [request. combiningAlgorithm]    Only supports “deny-overrides”
- * @param {Object} [contextHolder]                  An object that holds 'securityAttribute' attributes to populate the
- *                                                  PIP cache with for request/policy use.
- * @returns {ozpIwc.AsyncAction} will resolve with 'success' if the policy gives a "Permit".
- *                                    rejects else wise. the async success will receive:
- * ```{
- *      'result': <String>,
- *      'request': <Object> // a copy of the request passed in,
- *      'formattedRequest': <Object> // a copy of the formatted request (for PDP user caching)
- *    }```
- */
-ozpIwc.policyAuth.PDP.prototype.isPermitted = function(request){
-    var asyncAction = new ozpIwc.AsyncAction();
-
-    var self = this;
-    //If there is no request information, its a trivial "Permit"
-    if(!request){
-        return asyncAction.resolve('success',{
-                'result':"Permit"
-            });
-    }
-
-
-    var onError = function(err){
-        asyncAction.resolve('failure',err);
-    };
-    //Format the request
-    this.formatRequest(request)
-        .success(function(formattedRequest){
-
-            // Get the policies from the PRP
-            self.prp.getPolicies(formattedRequest.policies)
-                .success(function(policies){
-
-                    var result = ozpIwc.policyAuth.PolicyCombining[formattedRequest.combiningAlgorithm](policies,formattedRequest.category);
-                    var response = {
-                        'result':result,
-                        'request': request,
-                        'formattedRequest': formattedRequest
-                    };
-                    if(result === "Permit"){
-                       asyncAction.resolve('success',response);
-                    } else {
-                        onError(response);
-                    }
-                }).failure(onError);
-        }).failure(onError);
-    return asyncAction;
-};
-
-
-ozpIwc.policyAuth.PDP.prototype.formatAttributes = function(attributes,pip){
-    attributes = ozpIwc.util.ensureArray(attributes);
-    var asyncAction = new ozpIwc.AsyncAction();
-    pip = pip || this.pip;
-    var asyncs = [];
-    for(var i in attributes){
-        asyncs.push(this.formatAttribute(attributes[i],pip));
-    }
-    ozpIwc.AsyncAction.all(asyncs).success(function(attrs){
-        var retObj = {};
-        for(var i in attrs){
-            if(Object.keys(attrs[i]).length > 0) {
-                for (var j in attrs[i]) {
-                    retObj[j] = attrs[i][j];
-                }
-            }
-        }
-        asyncAction.resolve("success",retObj);
-    });
-    return asyncAction;
-};
-
-
-
-
-    /**
- * Takes a URN, array of urns, object, array of objects, or array of any combination and fetches/formats to the
- * necessary structure to be used by a request of policy's category object.
- *
- * @method formatAttribute
- * @param {String|Object|Array<String|Object>}attribute The attribute to format
- * @param {ozpIwc.policyAuth.PIP} [pip] Policy information point, uses ozpIwc.authorization.pip by default.
- * @returns {ozpIwc.AsyncAction} returns an async action that will resolve with an object of the formatted attributes.
- *                               each attribute is ID indexed in the object, such that the formatting of id
- *                               `ozp:iwc:node` which has attributes `a` and `b`would resolve as follows:
- *                  ```
- *                  {
- *                      'ozp:iwc:node': {
- *                          'attributeValues': ['a','b']
- *                       }
- *                  }
- *                  ```
- *
- */
-ozpIwc.policyAuth.PDP.prototype.formatAttribute = function(attribute,pip){
-    var asyncAction = new ozpIwc.AsyncAction();
-    pip = pip || this.pip;
-    if(!attribute){
-        return asyncAction.resolve('success');
-    }
-
-
-    if(!attribute){
-        //do nothing and return an empty object.
-        asyncAction.resolve('success', {});
-
-    }else if(typeof attribute === "string") {
-        // If its a string, use it as a key and fetch its attrs from PIP
-        pip.getAttributes(attribute)
-            .success(function(attr){
-                //TODO check if is an array or string (APPLY RECURSION!)
-                asyncAction.resolve("success",attr);
-            });
-
-    } else if(Array.isArray(attribute)){
-        // If its an array, its multiple actions. Wrap as needed
-        return this.formatAttributes(attribute,pip);
-
-    } else if(typeof attribute === "object"){
-        // If its an object, make sure each key's value is an array.
-        var keys = Object.keys(attribute);
-        for (var i in keys) {
-            var tmp = attribute[keys[i]];
-            if (['string', 'number', 'boolean'].indexOf(typeof attribute[keys[i]]) >= 0) {
-                attribute[keys[i]] =  [tmp];
-            }
-            attribute[keys[i]] = attribute[keys[i]] || [];
-        }
-        asyncAction.resolve("success",attribute);
-    }
-    return asyncAction;
-};
-
-
-
-/**
- * Formats an action to be used by a request or policy. Actions are not gathered from the Policy Information Point.
- * Rather they are string values explaining the operation to be permitted. To comply with XACML, these strings are
- * wrapped in objects for easier comparison
- *
- * @method formatAction
- * @param {String|Object|Array<String|Object>} action
- * @returns {Object} An object of formatted actions indexed by the ozp action id `ozp:action:id`.
- *                   An example output for actions ['read','write'] is as follows:
- *      ```
- *      {
- *          'ozp:iwc:action': {
- *              'attributeValue': ['read', 'write']
- *          }
- *      }
- *      ```
- *
- */
-ozpIwc.policyAuth.PDP.prototype.formatAction = function(action){
-
-    var formatted =  [];
-
-    var objectHandler = function(object,formatted){
-        var values;
-        // We only care about attributeValues
-        if(object['ozp:iwc:action']){
-            values = object['ozp:iwc:action'];
-        }
-        if(Array.isArray(values)) {
-                return arrayHandler(values,formatted);
-        } else if(['string', 'number', 'boolean'].indexOf(typeof values) >= 0){
-            if(formatted.indexOf(values) < 0){
-                formatted.push(values);
-            }
-        }
-    };
-    var arrayHandler = function(array,formatted){
-        for(var i in array){
-            if(typeof array[i] === 'string') {
-                if (formatted.indexOf(array[i]) < 0) {
-                    formatted.push(array[i]);
-                }
-            } else if(Array.isArray(array[i])){
-                arrayHandler(array[i],formatted);
-            } else if(typeof array[i] === 'object') {
-                objectHandler(array[i],formatted);
-            }
-        }
-    };
-
-    if(!action){
-        //do nothing and return an empty array
-    }else if(typeof action === "string"){
-        // If its a string, its a single action.
-        formatted.push(action);
-    } else if(Array.isArray(action)){
-        arrayHandler(action,formatted);
-    } else if(typeof action === 'object'){
-        objectHandler(action,formatted);
-    }
-
-    return {'ozp:iwc:action': formatted};
-};
-
-/**
- * Takes a request object and applies any context needed from the PIP.
- *
- * @method formatRequest
- * @param {Object}          request
- * @param {String|Array<String>|Object}    request.subject URN(s) of attribute to gather, or formatted subject object
- * @param {String|Array<String>Object}     request.resource URN(s) of attribute to gather, or formatted resource object
- * @param {String|Array<String>Object}     request.action URN(s) of attribute to gather, or formatted action object
- * @param {String}                         request.combiningAlgorithm URN of combining algorithm
- * @param {Array<String|ozpIwc.policyAuth.Policy>}   request.policies either a URN or a formatted policy
- * @param {ozpIwc.policyAuth.PIP} [pip] custom policy information point for attribute gathering.
- * @returns {ozpIwc.AsyncAction}  will resolve when all attribute formatting completes.
- *                    The resolution will pass a formatted
- *                      structured as so:
- *                    ```{
- *                      'category':{
- *                          "urn:oasis:names:tc:xacml:1.0:subject-category:access-subject": {
- *                              <AttributeId>: {
- *                                  "attributeValues": Array<Primitive>
- *                              }
- *                          },
- *                          "urn:oasis:names:tc:xacml:3.0:attribute-category:resource": {
- *                              <AttributeId>: {
- *                                  "attributeValues": Array<Primitive>
- *                              }
- *                          },
- *                          "urn:oasis:names:tc:xacml:3.0:attribute-category:action": {
- *                              "ozp:iwc:action": {
- *                                  "attributeValues": Array<String>
- *                              }
- *                          }
- *                       },
- *                      'combiningAlgorithm': request.combiningAlgorithm,
- *                      'policies': request.policies
- *                     }```
- */
-ozpIwc.policyAuth.PDP.prototype.formatRequest = function(request,pip){
-    var asyncAction = new ozpIwc.AsyncAction();
-    pip = pip || this.pip;
-    request = request || {};
-    request.subject = request.subject || {};
-    request.resource = request.resource || {};
-    request.action = request.action || {};
-    request.combiningAlgorithm = request.combiningAlgorithm || this.defaultCombiningAlgorithm;
-    var asyncs = [];
-
-    var subjectAsync = this.formatAttribute(request.subject,pip);
-    var resourceAsync = this.formatAttribute(request.resource,pip);
-    var actions = this.formatAction(request.action);
-
-    asyncs.push(subjectAsync,resourceAsync,actions);
-
-    ozpIwc.AsyncAction.all(asyncs)
-        .success(function(gatheredAttributes){
-            var sub = gatheredAttributes[0];
-            var res = gatheredAttributes[1];
-            var act = gatheredAttributes[2];
-            asyncAction.resolve('success',{
-                'category':{
-                    "subject": sub,
-                    "resource": res,
-                    "action": act
-                },
-                'combiningAlgorithm': request.combiningAlgorithm,
-                'policies': request.policies
-            });
-        }).failure(function(err){
-            asyncAction.resolve('failure',err);
-        });
-    return asyncAction;
-};
-
-/**
- * The URN of the default combining algorithm to use when basing a decision on multiple policies.
- * @property defaultCombiningAlgorithm
- * @type {String}
- * @default "urn:oasis:names:tc:xacml:3.0:policy-combining-algorithm:deny-overrides"
- */
-ozpIwc.policyAuth.PDP.prototype.defaultCombiningAlgorithm = "deny-overrides";
-
-/**
- * Formats a category object. If needed the attribute data is gathered from the PIP.
- *
- * @method formatCategory
- * @param {String|Array<String>|Object} category the category (subject,resource,action) to format
- * @param {String} categoryId the category name used to map to its corresponding attributeId (see PDP.mappedID)
- * @param {ozpIwc.policyAuth.PIP} [pip] custom policy information point for attribute gathering.
- * @returns {ozpIwc.AsyncAction}  will resolve with a category object formatted as so:
- *      ```
- *      {
- *          <AttributeId>: {
- *              'attributeValue': {Array<Primative>}
- *          }
- *      }
- *      ```
- *
- */
-ozpIwc.policyAuth.PDP.prototype.formatCategory = function(category,pip){
-    var asyncAction = new ozpIwc.AsyncAction();
-    if(!category){
-        return asyncAction.resolve('success');
-    }
-
-    pip = pip || this.pip;
-
-    this.formatAttribute(category,pip)
-        .success(function(attributes){
-            for(var i in attributes['ozp:iwc:permissions']){
-                attributes[i] = attributes['ozp:iwc:permissions'][i];
-            }
-            delete attributes['ozp:iwc:permissions'];
-            asyncAction.resolve('success',attributes);
-        }).failure(function(err){
-            asyncAction.resolve('failure',err);
-        });
-    return asyncAction;
-};
-
-/**
- *
- * Category context handling for policy objects.
- * Takes object key-indexed categories for a policy
- * and returns an object key-indexed listing of formatted. Each category is keyed by its XACML URN. currently only
- * subject,resource, and action categories are supported.
- *
- * @method formatCategories
- * @param {Object} categoryObj An object of categories to format.
- * @param {Object|String|Array<String|Object>}[categoryObj[<categoryId>]] A category to format
- * @param {ozpIwc.policyAuth.PIP} [pip] custom policy information point for attribute gathering.
- * @returns {ozpIwc.AsyncAction} will resolve an object of categories be structured as so:
- * ```
- * {
- *   '<categoryId>' : {
- *      <AttributeId>:{
- *          'attributeValue' : Array<Primitive>
- *      },
- *      <AttributeId>:{
- *          'attributeValue' : Array<Primitive>
- *      }
- *   },
- *   '<categoryId>': {...},
- *   ...
- * }
- * ```
- */
-ozpIwc.policyAuth.PDP.prototype.formatCategories = function(categoryObj,pip){
-    var asyncAction = new ozpIwc.AsyncAction();
-    pip = pip || this.pip;
-    var categoryAsyncs = [];
-    var categoryIndexing = {};
-    for(var i in categoryObj){
-        categoryAsyncs.push(this.formatCategory(categoryObj[i],pip));
-        categoryIndexing[i] = categoryAsyncs.length - 1;
-    }
-    ozpIwc.AsyncAction.all(categoryAsyncs)
-        .success(function(categories){
-            var map = {};
-            var keys = Object.keys(categoryIndexing);
-            for(var i in keys){
-                map[keys[i]] = categories[categoryIndexing[keys[i]]] || {};
-            }
-            asyncAction.resolve('success',map);
-        }).failure(function(err){
-            asyncAction.resolve('failure',err);
-        });
-    return asyncAction;
-};
-
-ozpIwc = ozpIwc || {};
-
-
-ozpIwc.policyAuth = ozpIwc.policyAuth || {};
-
-/**
- * Policy Information Point
- *
- * @param config
- * @param {Object} config.attributes
- * @constructor
- */
-ozpIwc.policyAuth.PIP = ozpIwc.util.extend(ozpIwc.policyAuth.SecurityAttribute,function(config) {
-    ozpIwc.policyAuth.SecurityAttribute.apply(this,arguments);
-});
-
-
-/**
- * Returns an asyncAction that will resolve with the attributes stored at the given URN.
- *
- * @method getAttributes(id)
- * @param {String} [subjectId] – The authenticated identity to get attributes for.
- * @returns {ozpIwc.AsyncAction} – Resolves an object of the attributes of the subject.
- * @example URN "ozp:storage:myAttrs" may contain "ozp:iwc:loginTime" and "ozp:iwc:name".
- * getAttributes("ozp:storage:myAttrs") would resolve with the following:
- * ```
- * {
- *      'ozp:iwc:loginTime' : {
- *         'attributeValue': Array<Primative>
- *     },
- *      'ozp:iwc:name' : {
- *         'attributeValue': Array<Primative>
- *     }
- * }
- * ```
- */
-ozpIwc.policyAuth.PIP.prototype.getAttributes = function(id){
-    var asyncAction = new ozpIwc.AsyncAction();
-    var self = this;
-
-    if(this.attributes[id]) {
-        return asyncAction.resolve('success', self.attributes[id]);
-    } else {
-        ozpIwc.util.ajax({
-            href: id,
-            method: "GET"
-        }).then(function(data){
-            if(typeof data !== "object") {
-                return asyncAction.resolve('failure',"Invalid data loaded from the remote PIP");
-            }
-            self.attributes[id] = {};
-            for(var i in data){
-                self.attributes[id][i] =ozpIwc.util.ensureArray(data[i]);
-            }
-            asyncAction.resolve('success', self.attributes[id]);
-        })['catch'](function(err){
-            asyncAction.resolve('failure',err);
-        });
-        return asyncAction;
-    }
-
-};
-/**
- * Sets the desired attributes in the cache at the specified URN.
- *
- * @method grantAttributes(subjectId,attributes)
- * @param {String} [subjectId] – The recipient of attributes.
- * @param {object} [attributes] – The attributes to grant (replacing previous values, if applicable)
- */
-ozpIwc.policyAuth.PIP.prototype.grantAttributes = function(subjectId,attributes){
-    var attrs = {};
-    for(var i in attributes){
-        attrs[i] =ozpIwc.util.ensureArray(attributes[i]);
-    }
-    this.attributes[subjectId] = attrs;
-};
-
-/**
- * Merges the attributes stored at the parentId urn into the given subject. All merge conflicts take the parent
- * attribute. Will resolve with the subject when completed.
- *
- * @method grantParent(subjectId,parentSubjectId)
- * @param {String} [subjectId] – The recipient of attributes.
- * @param {String} [parentSubjectId] – The subject to inherit attributes from.
- * @returns {ozpIwc.AsyncAction} resolves with the subject and its granted attributes merged in.
- */
-ozpIwc.policyAuth.PIP.prototype.grantParent = function (subjectId,parentId){
-    var asyncAction = new ozpIwc.AsyncAction();
-    this.attributes[subjectId] = this.attributes[subjectId] || {};
-    var self = this;
-
-    if(self.attributes[parentId]){
-        for(var i in self.attributes[parentId]){
-            self.attributes[subjectId][i] = self.attributes[subjectId][i] || [];
-            for(var j in self.attributes[parentId][i]) {
-                if (self.attributes[subjectId][i].indexOf(self.attributes[parentId][i][j]) < 0) {
-                    self.attributes[subjectId][i].push(self.attributes[parentId][i][j]);
-                }
-            }
-        }
-        return asyncAction.resolve('success',self.attributes[subjectId]);
-
-    } else {
-        self.getAttributes(parentId)
-            .success(function(attributes){
-                for(var i in attributes){
-                    if(self.attributes[subjectId].indexOf(attributes[i]) < 0) {
-                        self.attributes[subjectId].push(attributes[i]);
-                    }
-                }
-                asyncAction.resolve('success',self.attributes[subjectId]);
-            }).failure(function(err){
-                asyncAction.resolve('failure',err);
-            });
-        return asyncAction;
-    }
-};
-
-/**
- * For the given attribute name, figure out what the value of that attribute should be 
- * given the two values.
- * @TODO Currently, this just promotes the two scalars to a bag
- *
- * @method combineAttributeValues
- * @param {type} attributeName
- * @param {type} value1
- * @param {type} value2
- * @returns {Array}
- */
-ozpIwc.policyAuth.PIP.prototype.combineAttributeValues=function(attributeName,value1,value2) {
-    return [value1,value2];
-};
-
-/**
- * Creates an attribute set that's the union of the two given attribute sets
- *
- * @method attributeUnion
- * @param {object} attr1
- * @param {object} attr2
- * @returns {object}
- */
-ozpIwc.policyAuth.PIP.prototype.attributeUnion=function(attr1,attr2) {
-    var rv={};
-    ozpIwc.object.eachEntry(attr1,function(key,value) {
-        if(Array.isArray(value)) {
-            rv[key]=value.slice();
-        } else {
-            rv[key]=value;
-        }
-    });
-    ozpIwc.object.eachEntry(attr2,function(key,value) {
-        if(!(key in rv)) {
-            rv[key]=value;
-        } else if(Array.isArray(rv[key])) {
-            rv[key]=rv[key].concat(value);
-        } else {
-            rv[key]=this.combineAttributeValues(rv[key],value);
-        }
-    },this);
-    return rv;
-};
-
-/**
- * Classes related to security aspects of the IWC.
- * @module bus
- * @submodule bus.security
- */
-
-/**
- * Attribute Based Access Control policies.
- * @class ozpIwcPolicies
- * @static
- */
-ozpIwc.ozpIwcPolicies={};
-
-/**
- * Returns `permit` when the request's object exists and is empty.
- *
- * @static
- * @method permitWhenObjectHasNoAttributes
- * @param request
- *
- * @returns {String}
- */
-ozpIwc.ozpIwcPolicies.permitWhenObjectHasNoAttributes=function(request) {
-    if(request.object && Object.keys(request.object).length===0) {
-        return "Permit";
-    }
-    return "Undetermined";
-};
-/**
- * Returns `permit` when the request's subject contains all of the request's object.
- *
- * @static
- * @method subjectHasAllObjectAttributes
- * @param request
- *
- * @returns {String}
- */
-ozpIwc.ozpIwcPolicies.subjectHasAllObjectAttributes=function(request) {
-    // if no object permissions, then it's trivially true
-    if(!request.object) {
-        return "Permit";
-    }
-    var subject = request.subject || {};
-    if(ozpIwc.util.objectContainsAll(subject,request.object,this.implies)) {
-        return "Permit";
-    }
-    return "Deny";
-};
-
-/**
- * Returns `permit` for any scenario.
- *
- * @static
- * @method permitAll
- * @returns {String}
- */
-ozpIwc.ozpIwcPolicies.permitAll=function() {
-    return "Permit";
-};
-
-
-/**
- * Returns `Deny` for any scenario.
- *
- * @static
- * @method denyAll
- * @returns {String}
- */
-ozpIwc.ozpIwcPolicies.denyAll=function() {
-    return "Deny";
-};
-
-
-
-/**
- * Applies trivial logic to determing a subject's containing of object values
- * @static
- * @method implies
- * @param {Array} subjectVal
- * @param {Array} objectVal
- *
- * @returns {Boolean}
- */
-ozpIwc.ozpIwcPolicies.implies=function(subjectVal,objectVal) {
-    // no object value is trivially true
-    if(objectVal===undefined || objectVal === null) {
-        return true;
-    }
-    // no subject value when there is an object value is trivially false
-    if(subjectVal===undefined || subjectVal === null) {
-        return false;
-    }
-
-    // convert both to arrays, if necessary
-    subjectVal=ozpIwc.util.ensureArray(subjectVal);
-    objectVal=ozpIwc.util.ensureArray(objectVal);
-
-    // confirm that every element in objectVal is also in subjectVal
-    return ozpIwc.util.arrayContainsAll(subjectVal,objectVal);
-};
-
-/**
- * Determines if a request should be permitted by comparing its action to the requested policies action. Then testing
- * if the request subject passes all of the request resources.
- * @method defaultPolicy
- * @param request
- * @param action
- * @returns {string} NotApplicable, Deny, or Permit
- */
-ozpIwc.ozpIwcPolicies.defaultPolicy = function(request,action){
-    action = ozpIwc.util.ensureArray(action);
-    if(!ozpIwc.util.arrayContainsAll(action,request.action['ozp:iwc:action'])) {
-        return "NotApplicable";
-    } else if(!ozpIwc.util.objectContainsAll(request.subject,request.resource,ozpIwc.ozpIwcPolicies.implies)) {
-        return "Deny";
-    } else {
-        return "Permit";
-    }
-};
-
-ozpIwc.ozpIwcPolicies.defaultPolicies = {};
-
-/**
- * Allows origins to connect that are included in the hard coded whitelist.
- * @method '/policy/connect'
- * @param request
- * @returns {string}
- */
-ozpIwc.ozpIwcPolicies.defaultPolicies['policy://ozpIwc/connect'] = function(request){
-    var policyActions = ['connect'];
-
-    if(!ozpIwc.util.arrayContainsAll(policyActions,request.action['ozp:iwc:action'])){
-        return "NotApplicable";
-    } else {
-        return "Permit";
-    }
-};
-
-/**
- * Applies the sendAs policy requirements to a default policy. The given request must have an action of 'sendAs'.
- * @method '/policy/sendAs'
- * @param request
- * @param {Object} request.subject
- * @param {Object} request.resource
- * @returns {string}
- */
-ozpIwc.ozpIwcPolicies.defaultPolicies['policy://policy/sendAs'] = function(request){
-    return ozpIwc.ozpIwcPolicies.defaultPolicy(request,'sendAs');
-};
-
-/**
- * Applies the receiveAs policy requirements to a default policy. The given request must have an action of 'receiveAs'.
- * @method '/policy/sendAs'
- * @param request
- * @param {Object} request.subject
- * @param {Object} request.resource
- * @returns {string}
- */
-ozpIwc.ozpIwcPolicies.defaultPolicies['policy://policy/receiveAs'] = function(request){
-    return ozpIwc.ozpIwcPolicies.defaultPolicy(request,'receiveAs');
-};
-
-/**
- * Applies the read policy requirements to a default policy. The given request must have an action of 'read'.
- * @method '/policy/sendAs'
- * @param request
- * @param {Object} request.subject
- * @param {Object} request.resource
- * @returns {string}
- */
-ozpIwc.ozpIwcPolicies.defaultPolicies['policy://policy/read'] = function(request){
-    return ozpIwc.ozpIwcPolicies.defaultPolicy(request,'read');
-};
-
-/**
- * Applies the api access policy requirements to a default policy. The given request must have an action of 'access'.
- * @method '/policy/sendAs'
- * @param request
- * @param {Object} request.subject
- * @param {Object} request.resource
- * @returns {string}
- */
-ozpIwc.ozpIwcPolicies.defaultPolicies['policy://policy/apiNode'] = function(request){
-    return ozpIwc.ozpIwcPolicies.defaultPolicy(request,'access');
-};
-
-ozpIwc = ozpIwc || {};
-ozpIwc.policyAuth = ozpIwc.policyAuth || {};
-ozpIwc.policyAuth.PolicyCombining = ozpIwc.policyAuth.PolicyCombining || {};
-
-
-/**
- *
- *
- * @method urn:oasis:names:tc:xacml:3.0:policy-combining-algorithm:deny-overrides
- */
-ozpIwc.policyAuth.PolicyCombining['deny-overrides'] =
-        function(policies,request){
-    var atLeastOneErrorD,
-        atLeastOneErrorP,
-        atLeastOneErrorDP,
-        atLeastOnePermit = false;
-
-    for(var i in policies){
-        var decision = policies[i](request);
-        switch(decision){
-            case "Deny":
-                return "Deny";
-            case "Permit":
-                atLeastOnePermit = true;
-                break;
-            case "NotApplicable":
-                continue;
-            case "Indeterminate{D}":
-                atLeastOneErrorD = true;
-                break;
-            case "Indeterminate{P}":
-                atLeastOneErrorP = true;
-                break;
-            case "Indeterminate{DP}":
-                atLeastOneErrorDP = true;
-                break;
-            default:
-                continue;
-        }
-    }
-
-    if(atLeastOneErrorDP){
-        return "Indeterminate{DP}";
-    } else if(atLeastOneErrorD && (atLeastOneErrorP || atLeastOnePermit)){
-        return "Indeterminate{DP}";
-    } else if(atLeastOneErrorD){
-        return "Indeterminate{D}";
-    } else if(atLeastOnePermit) {
-        return "Permit";
-    } else if(atLeastOneErrorP){
-        return "Indeterminate{P}";
-    }
-
-    return "NotApplicable";
-
-};
-
-
-/**
- * @method urn:oasis:names:tc:xacml:3.0:policy-combining-algorithm:permit-overrides
- */
-ozpIwc.policyAuth.PolicyCombining['permit-overrides'] =
-        function(){
-
-};
-
-/**
- * @method urn:oasis:names:tc:xacml:1.0:policy-combining-algorithm:first-applicable
- */
-ozpIwc.policyAuth.PolicyCombining['first-applicable'] =
-        function(){
-
-};
-
-/**
- * @method urn:oasis:names:tc:xacml:1.0:policy-combining-algorithm:only-one-applicable
- */
-ozpIwc.policyAuth.PolicyCombining['only-one-applicable'] =
-        function(){
-
-};
-
-/**
- * @method urn:oasis:names:tc:xacml:3.0:rule-combining-algorithm:ordered-deny-overrides
- */
-ozpIwc.policyAuth.PolicyCombining['ordered-deny-overrides'] =
-        function(){
-
-};
-
-/**
- * @method urn:oasis:names:tc:xacml:3.0:policy-combining-algorithm:ordered-permit-overrides
- */
-ozpIwc.policyAuth.PolicyCombining['ordered-permit-overrides'] =
-        function(){
-
-};
-
-/**
- * @method urn:oasis:names:tc:xacml:3.0:policy-combining-algorithm:deny-unless-permit
- */
-ozpIwc.policyAuth.PolicyCombining['deny-unless-permit'] =
-        function(){
-
-};
-
-/**
- * @method urn:oasis:names:tc:xacml:3.0:policy-combining-algorithm:permit-unless-deny
- */
-ozpIwc.policyAuth.PolicyCombining['permit-unless-deny'] =
-        function(){
-
-};
-ozpIwc = ozpIwc || {};
-
-
-ozpIwc.policyAuth = ozpIwc.policyAuth || {};
-
-/**
- * Policy Repository Point
- *
- * @param config
- * @param {Object} config.policyCache
- * @constructor
- */
-ozpIwc.policyAuth.PRP = function(config){
-    config = config || {};
-
-    this.persistentPolicies = config.persistentPolicies || [];
-    this.policyCache = config.policyCache || ozpIwc.ozpIwcPolicies.defaultPolicies;
-
-
-};
-
-
-/**
- * Gathers policies by their URN. These policies may need formatting by the formatPolicies function to gather any
- * attribute data needed for the policy evaluation.
- * If a policy cannot be found, it is labeled as a "denyAll" policy and placed in the cache. Thus, making any permission
- * check using said policy always deny.
- *
- * @method getPolicy(policyURIs)
- * @param {String | Array<String> } [policyURIs] The subject attributes or id performing the action.
- * @param {String} [combiningAlgorithm] Defaults to “deny-overrides”.
- * @return {ozpIwc.AsyncAction} will resolve with an array of policy data.
- */
-ozpIwc.policyAuth.PRP.prototype.getPolicies = function(policyURIs){
-    var asyncAction = new ozpIwc.AsyncAction();
-    policyURIs = policyURIs || [];
-    policyURIs = ozpIwc.util.ensureArray(policyURIs);
-    var policies = [];
-
-    var policiesToGather = this.persistentPolicies.concat(policyURIs);
-    for(var i in policiesToGather){
-        if(this.policyCache[policiesToGather[i]]){
-            policies.push(ozpIwc.util.clone(this.policyCache[policiesToGather[i]]));
-        } else {
-            var async = this.fetchPolicy(policiesToGather[i]);
-
-            //Push the policy fetch to the array, when it resolves its value (policy) will be part of the array
-            policies.push(async);
-        }
-    }
-
-    // If there are no policies to check against, assume trivial and permit
-    if(policies.length === 0){
-        return asyncAction.resolve('success',[ozpIwc.ozpIwcPolicies.permitAll]);
-    }
-
-    return ozpIwc.AsyncAction.all(policies);
-};
-
-
-
-/**
- * The URN of the default combining algorithm to use when basing a decision on multiple rules in a policy.
- * @TODO not used.
- * @property defaultCombiningAlgorithm
- * @type {String}
- * @default 'urn:oasis:names:tc:xacml:3.0:rule-combining-algorithm:deny-overrides'
- */
-ozpIwc.policyAuth.PRP.prototype.defaultCombiningAlgorithm =
-    'urn:oasis:names:tc:xacml:3.0:rule-combining-algorithm:deny-overrides';
-
-/**
- * Fetches the requested policy and stores a copy of it in the cache. Returns a denyAll if policy is unobtainable.
- * @method fetchPolicy
- * @param {String} policyURI the uri to gather the policy from
- * @returns {AsyncAction} will resolve with the gathered policy constructed as an ozpIwc.policyAuth.Policy.
- */
-ozpIwc.policyAuth.PRP.prototype.fetchPolicy = function(policyURI){
-    var asyncAction = new ozpIwc.AsyncAction();
-    var self = this;
-    ozpIwc.util.ajax({
-        'method': "GET",
-        'href': policyURI
-    }).then(function(data){
-        self.policyCache[policyURI] = self.formatPolicy(data.response);
-        asyncAction.resolve('success',ozpIwc.util.clone(self.policyCache[policyURI]));
-    })['catch'](function(e){
-        //Note: failure resolves success because we force a denyAll policy.
-        asyncAction.resolve('success',self.getDenyall(policyURI));
-    });
-    return asyncAction;
-};
-
-/**
- * Turns JSON data in to ozpIwc.policyAuth.Policy
- * @method formatPolicy
- * @param data
- * @returns {ozpIwc.policyAuth.Policy}
- */
-ozpIwc.policyAuth.PRP.prototype.formatPolicy = function(data){
-    return new ozpIwc.policyAuth.Policy(data);
-};
-
-/**
- * Returns a policy that will always deny any request. Said policy is stored in the cache under the given URN
- * @param urn
- * @returns {ozpIwc.policyAuth.Policy} a denyAll policy
- */
-ozpIwc.policyAuth.PRP.prototype.getDenyall = function(urn){
-    if(this.policyCache[urn]){
-        return this.policyCache[urn];
-    } else {
-        this.policyCache[urn] = ozpIwc.ozpIwcPolicies.denyAll;
-        return this.policyCache[urn];
-    }
-};
-
-/** @namespace **/
-
-/**
- * Classes related to security aspects of the IWC.
- * @module bus
- * @submodule bus.network
- */
-
-/**
- * <p>This link connects peers using the HTML5 localstorage API.  It is a second generation version of
- * the localStorageLink that bypasses most of the garbage collection issues.
- *
- * <p> When a packet is sent, this link turns it to a string, creates a key with that value, and
- * immediately deletes it.  This still sends the storage event containing the packet as the key.
- * This completely eliminates the need to garbage collect the localstorage space, with the associated
- * mutex contention and full-buffer issues.
- *
- * @todo Compress the key
- *
- * @class KeyBroadcastLocalStorageLink
- * @namespace ozpIwc
- * @constructor
- *
- * @param {Object} [config] Configuration for this link
- * @param {ozpIwc.Peer} [config.peer=ozpIwc.defaultPeer] The peer to connect to.
- * @param {String} [config.prefix='ozpIwc'] Namespace for communicating, must be the same for all peers on the same network.
- * @param {String} [config.selfId] Unique name within the peer network.  Defaults to the peer id.
- * @param {Number} [config.maxRetries] Number of times packet transmission will retry if failed. Defaults to 6.
- * @param {Number} [config.queueSize] Number of packets allowed to be queued at one time. Defaults to 1024.
- * @param {Number} [config.fragmentSize] Size in bytes of which any TransportPacket exceeds will be sent in FragmentPackets.
- * @param {Number} [config.fragmentTime] Time in milliseconds after a fragment is received and additional expected
- * fragments are not received that the message is dropped.
- */
-ozpIwc.KeyBroadcastLocalStorageLink = function (config) {
-    config = config || {};
-
-    /**
-     * Namespace for communicating, must be the same for all peers on the same network.
-     * @property prefix
-     * @type String
-     * @default "ozpIwc"
-     */
-    this.prefix = config.prefix || 'ozpIwc';
-
-    /**
-     * The peer this link will connect to.
-     * @property peer
-     * @type ozpIwc.Peer
-     * @default ozpIwc.defaultPeer
-     */
-    this.peer = config.peer || ozpIwc.defaultPeer;
-
-    /**
-     * Unique name within the peer network.  Defaults to the peer id.
-     * @property selfId
-     * @type String
-     * @default ozpIwc.defaultPeer.selfId
-     */
-    this.selfId = config.selfId || this.peer.selfId;
-
-    this.metricsPrefix="keyBroadcastLocalStorageLink."+this.selfId;
-    this.droppedFragmentsCounter=ozpIwc.metrics.counter(this.metricsPrefix,'fragmentsDropped');
-    this.fragmentsReceivedCounter=ozpIwc.metrics.counter(this.metricsPrefix,'fragmentsReceived');
-
-    this.packetsSentCounter=ozpIwc.metrics.counter(this.metricsPrefix,'packetsSent');
-    this.packetsReceivedCounter=ozpIwc.metrics.counter(this.metricsPrefix,'packetsReceived');
-    this.packetParseErrorCounter=ozpIwc.metrics.counter(this.metricsPrefix,'packetsParseError');
-    this.packetsFailedCounter=ozpIwc.metrics.counter(this.metricsPrefix,'packetsFailed');
-    
-    this.latencyInTimer=ozpIwc.metrics.timer(this.metricsPrefix,'latencyIn');
-    this.latencyOutTimer=ozpIwc.metrics.timer(this.metricsPrefix,'latencyOut');
-    /**
-     * Milliseconds to wait before deleting this link's keys
-     * @todo UNUSUED
-     * @property myKeysTimeout
-     * @type Number
-     * @default 5000
-     */
-    this.myKeysTimeout = config.myKeysTimeout || 5000; // 5 seconds
-
-    /**
-     * Milliseconds to wait before deleting other link's keys
-     * @todo UNUSUED
-     * @property otherKeysTimeout
-     * @type Number
-     * @default 120000
-     */
-    this.otherKeysTimeout = config.otherKeysTimeout || 2 * 60000; // 2 minutes
-
-
-    /**
-     * The maximum number of retries the link will take to send a package. A timeout of
-     * max(1, 2^( <retry count> -1) - 1) milliseconds occurs between send attempts.
-     * @property maxRetries
-     * @type Number
-     * @default 6
-     */
-    this.maxRetries = config.maxRetries || 6;
-
-    /**
-     * Maximum number of packets that can be in the send queue at any given time.
-     * @property queueSize
-     * @type Number
-     * @default 1024
-     */
-    this.queueSize = config.queueSize || 1024;
-
-    /**
-     * A queue for outgoing packets. If this queue is full further packets will not be added.
-     * @property sendQueue
-     * @type Array[]
-     * @default []
-     */
-    this.sendQueue = this.sendQueue || [];
-
-    /**
-     * An array of temporarily held received packet fragments indexed by their message key.
-     * @type Array[]
-     * @default []
-     */
-    this.fragments = this.fragments || [];
-
-    /**
-     * Minimum size in bytes that a packet will broken into fragments.
-     * @property fragmentSize
-     * @type Number
-     * @default 1310720
-     */
-    this.fragmentSize = config.fragmentSize || (5 * 1024 * 1024) / 2 / 2; //50% of 5mb, divide by 2 for utf-16 characters
-
-    /**
-     * The amount of time allotted to the Link to wait between expected fragment packets. If an expected fragment
-     * is not received within this timeout the packet is dropped.
-     * @property fragmentTimeout
-     * @type Number
-     * @default 1000
-     */
-    this.fragmentTimeout = config.fragmentTimeout || 1000; // 1 second
-
-    //Add fragmenting capabilities
-    String.prototype.chunk = function (size) {
-        var res = [];
-        for (var i = 0; i < this.length; i += size) {
-            res.push(this.slice(i, i + size));
-        }
-        return res;
-    };
-
-    // Hook into the system
-    var self = this;
-    var packet;
-    var receiveStorageEvent = function (event) {
-        if(event.newValue) {
-            try {
-                packet = JSON.parse(event.newValue);
-            } catch (e) {
-                ozpIwc.log.log("Parse error on " + event.newValue);
-                self.packetParseErrorCounter.inc();
-                return;
-            }
-            if (packet.data.fragment) {
-                self.handleFragment(packet);
-            } else {
-                self.forwardToPeer(packet);
-            }
-        }
-    };
-    if(ozpIwc.util.getInternetExplorerVersion() >= 0) {
-        // IE can keep storage events between refreshes.  If we give it a second, it'll
-        // dump all of them on the floor
-        window.setTimeout(function () {
-            ozpIwc.util.addEventListener('storage', receiveStorageEvent);
-        }, 500);
-    } else {
-        ozpIwc.util.addEventListener('storage', receiveStorageEvent);
-    }
-
-    this.peer.on("send", function (event) {
-        self.send(event.packet);
-    });
-
-    this.peer.on("beforeShutdown", function () {
-        ozpIwc.util.removeEventListener('storage', receiveStorageEvent);
-    }, this);
-
-};
-
-ozpIwc.KeyBroadcastLocalStorageLink.prototype.forwardToPeer=function(packet) {
-    this.peer.receive(this.linkId, packet);
-    this.packetsReceivedCounter.inc();
-    if(packet.data.time) {
-        this.latencyInTimer.mark(ozpIwc.util.now() - packet.data.time);
-    }
-};
-
-/**
- * Handles fragmented packets received from the router. When all fragments of a message have been received,
- * the resulting packet will be passed on to the
- * {{#crossLink "ozpIwc.KeyBroadcastLocalStorageLink/peer:property"}}registered peer{{/crossLink}}.
- *
- * @method handleFragment
- * @param {ozpIwc.NetworkPacket} packet NetworkPacket containing an ozpIwc.FragmentPacket as its data property
- */
-ozpIwc.KeyBroadcastLocalStorageLink.prototype.handleFragment = function (packet) {
-    // Check to make sure the packet is a fragment and we haven't seen it
-    if (this.peer.haveSeen(packet)) {
-        return;
-    }
-
-    var key = packet.data.msgId;
-
-    this.storeFragment(packet);
-
-    var defragmentedPacket = this.defragmentPacket(this.fragments[key]);
-
-    if (defragmentedPacket) {
-
-        // clear the fragment timeout
-        window.clearTimeout(this.fragments[key].fragmentTimer);
-
-        // Remove the last sequence from the known packets to reuse it for the defragmented packet
-        var packetIndex = this.peer.packetsSeen[defragmentedPacket.srcPeer].indexOf(defragmentedPacket.sequence);
-        delete this.peer.packetsSeen[defragmentedPacket.srcPeer][packetIndex];
-
-        this.forwardToPeer(defragmentedPacket);
-
-        delete this.fragments[key];
-    }
-};
-
-/**
- *  Stores a received fragment. When the first fragment of a message is received, a timer is set to destroy the storage
- *  of the message fragments should not all messages be received.
- *
- * @method storeFragment
- * @param {ozpIwc.NetworkPacket} packet NetworkPacket containing an {{#crossLink "ozpIwc.FragmentPacket"}}{{/crossLink}} as its data property
- *
- * @returns {Boolean} result true if successful.
- */
-ozpIwc.KeyBroadcastLocalStorageLink.prototype.storeFragment = function (packet) {
-    if (!packet.data.fragment) {
-        return null;
-    }
-
-    // NetworkPacket properties
-    var sequence = packet.sequence;
-    var srcPeer = packet.srcPeer;
-    // FragmentPacket Properties
-    var key = packet.data.msgId;
-    var id = packet.data.id;
-    var chunk = packet.data.chunk;
-    var total = packet.data.total;
-
-    if (key === undefined || id === undefined) {
-        return null;
-    }
-
-    // If this is the first fragment of a message, add the storage object
-    if (!this.fragments[key]) {
-        this.fragments[key] = {};
-        this.fragments[key].chunks = [];
-
-        var self = this;
-        self.key = key;
-        self.total = total ;
-
-        // Add a timeout to destroy the fragment should the whole message not be received.
-        this.fragments[key].timeoutFunc = function () {
-            self.droppedFragmentsCounter.inc(self.total);
-            delete self.fragments[self.key];
-        };
-    }
-
-    // Restart the fragment drop countdown
-    window.clearTimeout(this.fragments[key].fragmentTimer);
-    this.fragments[key].fragmentTimer = window.setTimeout(this.fragments[key].timeoutFunc, this.fragmentTimeout);
-
-    // keep a copy of properties needed for defragmenting, the last sequence & srcPeer received will be
-    // reused in the defragmented packet
-    this.fragments[key].total = total || this.fragments[key].total ;
-    this.fragments[key].sequence = (sequence !== undefined) ? sequence : this.fragments[key].sequence;
-    this.fragments[key].srcPeer = srcPeer || this.fragments[key].srcPeer;
-    this.fragments[key].chunks[id] = chunk;
-
-    // If the necessary properties for defragmenting aren't set the storage fails
-    if (this.fragments[key].total === undefined || this.fragments[key].sequence === undefined ||
-        this.fragments[key].srcPeer === undefined) {
-        return null;
-    } else {
-        this.fragmentsReceivedCounter.inc();
-        return true;
-    }
-};
-
-/**
- * Rebuilds the original packet sent across the keyBroadcastLocalStorageLink from the fragments it was broken up into.
- *
- * @method defragmentPacket
- * @param {ozpIwc.FragmentStore} fragments the grouping of fragments to reconstruct
- *
- * @returns {ozpIwc.NetworkPacket} result the reconstructed NetworkPacket with TransportPacket as its data property.
- */
-ozpIwc.KeyBroadcastLocalStorageLink.prototype.defragmentPacket = function (fragments) {
-    if (fragments.total !== fragments.chunks.length) {
-        return null;
-    }
-    try {
-        var result = JSON.parse(fragments.chunks.join(''));
-        return {
-            defragmented: true,
-            sequence: fragments.sequence,
-            srcPeer: fragments.srcPeer,
-            data: result
-        };
-    } catch (e) {
-        return null;
-    }
-};
-
-/**
- * Publishes a packet to other peers. If the sendQueue is full the send will not occur. If the TransportPacket is larger
- * than the {{#crossLink "ozpIwc.KeyBroadcastLocalStorageLink/fragmentSize:property"}}{{/crossLink}}, an
- * {{#crossLink "ozpIwc.FragmentPacket"}}{{/crossLink}} will be sent instead.
- *
- * @method send
- * @param {ozpIwc.NetworkPacket} packet
- */
-ozpIwc.KeyBroadcastLocalStorageLink.prototype.send = function (packet) {
-    var str;
-    try {
-       str = JSON.stringify(packet.data);
-    } catch (e){
-        this.packetsFailedCounter.inc();
-        var msgId = packet.msgId || "unknown";
-        ozpIwc.log.error("Failed to write packet(msgId=" + msgId+ "):" + e.message);
-        return;
-    }
-
-    if (str.length < this.fragmentSize) {
-        this.queueSend(packet);
-    } else {
-        var fragments = str.chunk(this.fragmentSize);
-
-        // Use the original packet as a template, delete the data and
-        // generate new packets.
-        var self = this;
-        self.data= packet.data;
-        delete packet.data;
-
-        var fragmentGen = function (chunk, template) {
-
-            template.sequence = self.peer.sequenceCounter++;
-            template.data = {
-                fragment: true,
-                msgId: self.data.msgId,
-                id: i,
-                total: fragments.length,
-                chunk: chunk
-            };
-            return template;
-        };
-
-        // Generate & queue the fragments
-        for (var i = 0; i < fragments.length; i++) {
-            this.queueSend(fragmentGen(fragments[i], packet));
-        }
-    }
-};
-
-/**
- * Places a packet in the {{#crossLink "ozpIwc.KeyBroadcastLocalStorageLink/sendQueue:property"}}{{/crossLink}}
- * if it does not already hold {{#crossLink "ozpIwc.KeyBroadcastLocalStorageLink/queueSize:property"}}{{/crossLink}}
- * amount of packets.
- *
- * @method queueSend
- * @param packet
- */
-ozpIwc.KeyBroadcastLocalStorageLink.prototype.queueSend = function (packet) {
-    if (this.sendQueue.length < this.queueSize) {
-        this.sendQueue = this.sendQueue.concat(packet);
-        while (this.sendQueue.length > 0) {
-            this.attemptSend(this.sendQueue.shift());
-        }
-    } else {
-        this.packetsFailedCounter.inc();
-        ozpIwc.log.error("Failed to write packet(len=" + packet.length + "):" + " Send queue full.");
-    }
-};
-
-/**
- * Recursively tries sending the packet
- * {{#crossLink "ozpIwc.KeyBroadcastLocalStorageLink/maxRetries:property"}}{{/crossLink}} times.
- * The packet is dropped and the send fails after reaching max attempts.
- *
- * @method attemptSend
- * @param {ozpIwc.NetworkPacket} packet
- * @param {Number} [attemptCount] number of times attempted to send packet.
- */
-ozpIwc.KeyBroadcastLocalStorageLink.prototype.attemptSend = function (packet, retryCount) {
-
-    var sendStatus = this.sendImpl(packet);
-    if (sendStatus) {
-        var self = this;
-        retryCount = retryCount || 0;
-        var timeOut = Math.max(1, Math.pow(2, (retryCount - 1))) - 1;
-
-        if (retryCount < self.maxRetries) {
-            retryCount++;
-            // Call again but back off for an exponential amount of time.
-            window.setTimeout(function () {
-                self.attemptSend(packet, retryCount);
-            }, timeOut);
-        } else {
-            this.packetsFailedCounter.inc();
-            ozpIwc.log.error("Failed to write packet(len=" + packet.length + "):" + sendStatus);
-            return sendStatus;
-        }
-    }
-};
-
-/**
- * Implementation of publishing packets to peers through localStorage. If the localStorage is full or a write collision
- * occurs, the send will not occur. Returns status of localStorage write, null if success.
- *
- * @todo move counter.inc() out of the impl and handle in attemptSend?
- * @method sendImpl
- * @param {ozpIwc.NetworkPacket} packet
- */
-ozpIwc.KeyBroadcastLocalStorageLink.prototype.sendImpl = function (packet) {
-    var sendStatus;
-    try {
-        var p = JSON.stringify(packet);
-        localStorage.setItem("x", p);
-        this.packetsSentCounter.inc();
-        if(packet.data.time) {
-            this.latencyOutTimer.mark(ozpIwc.util.now() - packet.data.time);
-        }
-        localStorage.removeItem("x");
-        sendStatus = null;
-    }
-    catch (e) {
-        if(e.message === "localStorage is null"){
-            // Firefox about:config dom.storage.enabled = false : no mitigation with current links
-            ozpIwc.util.alert("Cannot locate localStorage. Contact your system administrator.", e);
-        } else if(e.code === 18){
-            // cookies disabled : no mitigation with current links
-            ozpIwc.util.alert("Ozone requires your browser to accept cookies. Contact your system administrator.", e);
-        } else {
-            // If the error can't be mitigated, bubble it up
-            sendStatus = e;
-        }
-    }
-    finally {
-        return sendStatus;
-    }
-};
-
-
-/**
- * The peer handles low-level broadcast communications between multiple browser contexts.
- * Links do the actual work of moving the packet to other browser contexts.  The links
- * call {{#crossLink "ozpIwc.Peer/receive:method"}}{{/crossLink}} when they need to deliver a packet to this peer and
- * hook the {{#crossLink "ozpIwc.Peer/send:method"}}{{/crossLink}} event in order to send packets.
- * @class Peer
- * @namespace ozpIwc
- * @constructor
- * @mixin ozpIwc.Events
- */
-ozpIwc.Peer=function() {
-
-
-    /**
-     * A generated random 4 byte id
-     * @property selfId
-     * @type String
-     * @default {{#crossLink "ozpIwc.util/generateId:method"}}{{/crossLink}}
-     */
-    this.selfId=ozpIwc.util.generateId();
-
-    this.metricPrefix="peer."+this.selfId;
-
-    /**
-     * @TODO (DOC)
-     * @property sequenceCounter
-     * @type Number
-     * @default 0
-     */
-    this.sequenceCounter=0;
-
-    /**
-     * A history of packets seen from each peer. Each key is a peer name, each value is an array of the last 50 packet
-     * ids seen.
-     * @property packetsSeen
-     * @type Object
-     * @default {}
-     */
-    this.packetsSeen={};
-
-    /**
-     * @property knownPeers
-     * @type Object
-     * @default {}
-     */
-    this.knownPeers={};
-
-    /**
-     * Eventing module for the Peer.
-     * @property events
-     * @type ozpIwc.Event
-     * @default ozpIwc.Event
-     */
-    this.events=new ozpIwc.Event();
-    this.events.mixinOnOff(this);
-
-    var self=this;
-
-    // Shutdown handling
-    this.unloadListener=function() {
-        self.shutdown();
-    };
-    ozpIwc.util.addEventListener('beforeunload',this.unloadListener);
-
-};
-
-/**
- * The peer has received a packet from other peers.
- * @event #receive
- *
- * @param {ozpIwc.NetworkPacket} packet
- * @param {String} linkId
- */
-
-
-/**
- * A cancelable event that allows listeners to override the forwarding of
- * a given packet to other peers.
- * @event #preSend
- * @extends ozpIwc.CancelableEvent
- *
- * @param {ozpIwc.NetworkPacket} packet
- */
-
-/**
- * Notifies that a packet is being sent to other peers.  Links should use this
- * event to forward packets to other peers.
- * @event #send
- *
- * @param {ozpIwc.NetworkPacket} packet
- */
-
-/**
- * Fires when the peer is being explicitly or implicitly shut down.
- * @event #beforeShutdown
- */
-
-/**
- * Number of sequence Id's held in an entry of {{#crossLink "ozpIwc.Peer/packetsSeen:property"}}{{/crossLink}}
- * @property maxSeqIdPerSource
- * @static
- * @type Number
- * @default 500
- */
-ozpIwc.Peer.maxSeqIdPerSource=500;
-
-/**
- * Determine if the peer has already seen the packet in question.
- *
- * @method haveSeen
- * @param {ozpIwc.NetworkPacket} packet
- *
- * @returns {Boolean}
- */
-ozpIwc.Peer.prototype.haveSeen=function(packet) {
-    // don't forward our own packets
-    if (packet.srcPeer === this.selfId) {
-        ozpIwc.metrics.counter(this.metricPrefix,'droppedOwnPacket').inc();
-        return true;
-    }
-    var seen = this.packetsSeen[packet.srcPeer];
-    if (!seen) {
-        seen = this.packetsSeen[packet.srcPeer] = [];
-    }
-
-    // abort if we've seen the packet before
-    if (seen.indexOf(packet.sequence) >= 0) {
-        return true;
-    }
-
-    //remove oldest array members when truncate needed
-    seen.unshift(packet.sequence);
-    if (seen.length >= ozpIwc.Peer.maxSeqIdPerSource) {
-        seen.length = ozpIwc.Peer.maxSeqIdPerSource;
-    }
-    return false;
-};
-
-/**
- * Used by routers to broadcast a packet to network.
- *
- * Fires:
- *   - {{#crossLink "ozpIwc.Peer/#preSend:event"}}{{/crossLink}}
- *   - {{#crossLink "ozpIwc.Peer/#send:event"}}{{/crossLink}}
- *
- * @method send
- * @param {ozpIwc.NetworkPacket} packet
- */
-ozpIwc.Peer.prototype.send= function(packet) {
-    var networkPacket={
-        srcPeer: this.selfId,
-        sequence: this.sequenceCounter++,
-        data: packet
-    };
-
-    var preSendEvent=new ozpIwc.CancelableEvent({'packet': networkPacket});
-
-    this.events.trigger("preSend",preSendEvent);
-    if(!preSendEvent.canceled) {
-        ozpIwc.metrics.counter(this.metricPrefix,'sent').inc();
-        if(packet.time) {
-            ozpIwc.metrics.timer(this.metricPrefix,'latencyOut').mark(ozpIwc.util.now() - packet.time);
-        }
-        this.events.trigger("send",{'packet':networkPacket});
-    } else {
-        ozpIwc.metrics.counter(this.metricPrefix,'sendRejected').inc();
-    }
-};
-
-/**
- * Called by the links when a new packet is received.
- *
- * Fires:
- *   - {{#crossLink "ozpIwc.Peer/#receive:event"}}{{/crossLink}}
- *
- * @method receive
- * @param {String} linkId
- * @param {ozpIwc.NetworkPacket} packet
- */
-ozpIwc.Peer.prototype.receive=function(linkId,packet) {
-    // drop it if we've seen it before
-    if(this.haveSeen(packet)) {
-        ozpIwc.metrics.counter(this.metricPrefix,'dropped').inc();
-        return;
-    }
-    ozpIwc.metrics.counter(this.metricPrefix,'received').inc();
-    if(packet.data.time) {
-        ozpIwc.metrics.timer(this.metricPrefix,'latencyIn').mark(ozpIwc.util.now() - packet.data.time);
-    }
-
-    this.events.trigger("receive",{'packet':packet,'linkId': linkId});
-};
-
-/**
- * Explicitly shuts down the peer.
- *
- * Fires:
- *   - {{#crossLink "ozpIwc.Peer/#receive:event"}}{{/crossLink}}
- *
- * @method shutdown
- */
-ozpIwc.Peer.prototype.shutdown=function() {
-    this.events.trigger("beforeShutdown");
-    ozpIwc.util.removeEventListener('beforeunload',this.unloadListener);
-};
-
-
-/**
- * Various packet definitions for the network aspects of the IWC. These are not instantiable, rather guidelines for
- * conforming to classes that use them.
- * @module bus.network
- * @submodule bus.network.packets
- */
-
-/**
- * Network Packets
- * @class NetworkPacket
- * @namespace ozpIwc
- */
-
-/**
- * The id of the peer who broadcast this packet.
- * @property srcPeer
- * @type String
- */
-
-/**
- * A monotonically increasing, unique identifier for this packet.
- * @property sequence
- * @type String
- */
-
-/**
- * The payload of this packet.
- * @property data
- * @type Object
- */
-
-
-/**
- * Packet format for the data property of ozpIwc.NetworkPacket when working with fragmented packets.
- * @class FragmentPacket
- * @namespace ozpIwc
- */
-
-/**
- * Flag for knowing this is a fragment packet. Should be true.
- * @property fragment
- * @type boolean
- */
-
-/**
- * The msgId from the TransportPacket broken up into fragments.
- * @property msgId
- * @type Number
- */
-
-/**
- * The position amongst other fragments of the TransportPacket.
- * @property id
- * @type Number
- */
-
-/**
- * Total number of fragments of the TransportPacket expected.
- * @property total
- * @type Number
- */
-
-/**
- * A segment of the TransportPacket in string form.
- * @property chunk
- * @type String
- */
-
-/**
- * Storage for Fragment Packets
- * @class ozpIwc.FragmentStore
- */
-
-/**
- *  The sequence of the latest fragment received.
- * @property sequence
- * @type Number
- */
-
-/**
- * The total number of fragments expected.
- * @property total
- * @type Number
- */
-
-/**
- * The srcPeer of the fragments expected.
- * @property srcPeer
- * @type String
- */
-
-/**
- * String segments of the TransportPacket.
- * @property chunks
- * @type Array[String]
- */
-
-/**
- * @submodule bus.transport
- */
-
-/**
- * @class Participant
- * @namespace ozpIwc
- * @constructor
- * @mixes ozpIwc.security.Actor
- * @property {String} address The assigned address to this address.
- * @property {ozpIwc.policyAuth.SecurityAttribute} permissions The security attributes for this participant.
- */
-ozpIwc.Participant=function() {
-
-
-    /**
-     * An events module for the participant.
-     * @property events
-     * @type Event
-     */
-    this.events=new ozpIwc.Event();
-	this.events.mixinOnOff(this);
-
-    /**
-     * A key value store of the security attributes assigned to the participant.
-     * @property permissions
-     * @type Object
-     * @default {}
-     */
-	this.permissions= new ozpIwc.policyAuth.SecurityAttribute();
-
-    /**
-     * The message id assigned to the next packet if a packet msgId is not specified.
-     * @property msgId
-     * @type {Number}
-     */
-    this.msgId=0;
-
-    /**
-     * A Metrics meter for packets sent from the participant.
-     * @property sentPacketsmeter
-     * @type ozpIwc.metricTypes.Meter
-     */
-    this.sentPacketsMeter=new ozpIwc.metricTypes.Meter();
-
-    /**
-     * A Metrics meter for packets received by the participant.
-     * @property receivedPacketMeter
-     * @type ozpIwc.metricTypes.Meter
-     */
-    this.receivedPacketsMeter=new ozpIwc.metricTypes.Meter();
-
-    /**
-     * A Metrics meter for packets sent to the participant that did not pass authorization.
-     * @property forbiddenPacketMeter
-     * @type ozpIwc.metricTypes.Meter
-     */
-    this.forbiddenPacketsMeter=new ozpIwc.metricTypes.Meter();
-    this.latencyInTimer=new ozpIwc.metricTypes.Meter();
-    this.latencyOutTimer=new ozpIwc.metricTypes.Meter();
-
-    /**
-     * The type of the participant.
-     * @property participantType
-     * @type String
-     */
-    this.participantType=this.constructor.name;
-
-    /**
-     * Content type for the Participant's heartbeat status packets.
-     * @property heartBeatContentType
-     * @type String
-     * @default "application/vnd.ozp-iwc-address-v1+json"
-     */
-    this.heartBeatContentType="application/vnd.ozp-iwc-address-v1+json";
-
-    /**
-     * The heartbeat status packet of the participant.
-     * @property heartBeatStatus
-     * @type Object
-     */
-    this.heartBeatStatus={
-        name: this.name,
-        type: this.participantType || this.constructor.name
-    };
-
-    this.replyCallbacks = {};
-
-    // Handle leaving Event Channel
-    var self=this;
-    ozpIwc.util.addEventListener("beforeunload",function() {
-        // Unload events can't use setTimeout's. Therefore make all sending happen with normal execution
-        self.send = function(originalPacket,callback) {
-            var packet=this.fixPacket(originalPacket);
-            if(callback) {
-                self.replyCallbacks[packet.msgId]=callback;
-            }
-            ozpIwc.Participant.prototype.send.call(self,packet);
-
-            return packet;
-        };
-        self.leaveEventChannel();
-    });
-};
-
-/**
- * Processes packets sent from the router to the participant. If a packet does not pass authorization it is marked
- * forbidden.
- *
- * @method receiveFromRouter
- * @param {ozpIwc.PacketContext} packetContext
- * @returns {Boolean} true if this packet could have additional recipients
- */
-ozpIwc.Participant.prototype.receiveFromRouter=function(packetContext) {
-    var self = this;
-
-    var request = {
-        'subject': this.permissions.getAll(),
-        'resource': {'ozp:iwc:receiveAs': packetContext.packet.dst},
-        'action': {'ozp:iwc:action': 'receiveAs'},
-        'policies': ozpIwc.authorization.policySets.receiveAsSet
-    };
-
-    var onError = function(err){
-        self.forbiddenPacketsMeter.mark();
-        /** @todo do we send a "denied" message to the destination?  drop?  who knows? */
-        ozpIwc.metrics.counter("transport.packets.forbidden").inc();
-        console.error("failure",err);
-    };
-
-    ozpIwc.authorization.isPermitted(request,this)
-        .success(function() {
-            ozpIwc.authorization.formatCategory(packetContext.packet.permissions)
-                .success(function(permissions) {
-                    var request = {
-                        'subject': self.permissions.getAll(),
-                        'resource':permissions || {},
-                        'action': {'ozp:iwc:action': 'read'},
-                        'policies': ozpIwc.authorization.policySets.readSet
-                    };
-
-                    ozpIwc.authorization.isPermitted(request, self)
-                        .success(function (resolution) {
-                            self.receivedPacketsMeter.mark();
-                            if(packetContext.packet.time) {
-                                self.latencyInTimer.mark(ozpIwc.util.now() - packetContext.packet.time);
-                            }
-
-                            self.receiveFromRouterImpl(packetContext);
-                        }).failure(onError);
-                }).failure(onError);
-        }).failure(onError);
-};
-
-/**
- * Overridden by inherited Participants.
- *
- * @override
- * @method receiveFromRouterImple
- * @param packetContext
- * @returns {Boolean}
- */
-ozpIwc.Participant.prototype.receiveFromRouterImpl = function (packetContext) {
-    // doesn't really do anything other than return a bool and prevent "unused param" warnings
-    return !packetContext;
-};
-
-/**
- * Connects the participant to a given router.
- *
- * Fires:
- *     - {{#crossLink "ozpIwc.Participant/#connectedToRouter:event"}}{{/crossLink}}
- *
- * @method connectToRouter
- * @param {ozpIwc.Router} router The router to connect to
- * @param {String} address The address to assign to the participant.
- */
-ozpIwc.Participant.prototype.connectToRouter=function(router,address) {
-    this.address=address;
-    this.router=router;
-    this.msgId=0;
-    if(this.name) {
-        this.metricRoot="participants."+ this.name +"." + this.address.split(".").reverse().join(".");
-    } else {
-        this.metricRoot="participants."+ this.address.split(".").reverse().join(".");
-    }
-    this.sentPacketsMeter=ozpIwc.metrics.meter(this.metricRoot,"sentPackets").unit("packets");
-    this.receivedPacketsMeter=ozpIwc.metrics.meter(this.metricRoot,"receivedPackets").unit("packets");
-    this.forbiddenPacketsMeter=ozpIwc.metrics.meter(this.metricRoot,"forbiddenPackets").unit("packets");
-    this.latencyInTimer=ozpIwc.metrics.timer(this.metricRoot,"latencyIn").unit("packets");
-    this.latencyOutTimer=ozpIwc.metrics.timer(this.metricRoot,"latencyOut").unit("packets");
-    
-    this.namesResource="/address/"+this.address;
-    this.heartBeatStatus.address=this.address;
-    this.heartBeatStatus.name=this.name;
-    this.heartBeatStatus.type=this.participantType || this.constructor.name;
-
-    this.events.trigger("connectedToRouter");
-    this.joinEventChannel();
-};
-
-/**
- * Populates fields relevant to this packet if they aren't already set:
- * src, ver, msgId, and time.
- *
- * @method fixPacket
- * @param {ozpIwc.TransportPacket} packet
- *
- * @returns {ozpIwc.TransportPacket}
- */
-ozpIwc.Participant.prototype.fixPacket=function(packet) {
-    // clean up the packet a bit on behalf of the sender
-    packet.src=packet.src || this.address;
-    packet.ver = packet.ver || 1;
-
-    // if the packet doesn't have a msgId, generate one
-    packet.msgId = packet.msgId || this.generateMsgId();
-
-    // might as well be helpful and set the time, too
-    packet.time = packet.time || ozpIwc.util.now();
-    return packet;
-};
-
-/**
- * Sends a packet to this participants router.  Calls fixPacket
- * before doing so.
- *
- * @method send
- * @param {ozpIwc.TransportPacket} packet
- *
- * @returns {ozpIwc.TransportPacket}
- */
-ozpIwc.Participant.prototype.send=function(packet) {
-    var self = this;
-    var request = {
-        'subject': this.permissions.getAll(),
-        'resource': {'ozp:iwc:sendAs': packet.src},
-        'action': {'ozp:iwc:action': 'sendAs'},
-        'policies': ozpIwc.authorization.policySets.sendAsSet
-    };
-    packet = self.fixPacket(packet);
-    ozpIwc.authorization.isPermitted(request,self)
-        .success(function(resolution) {
-            self.sentPacketsMeter.mark();
-            if(packet.time) {
-                self.latencyOutTimer.mark(ozpIwc.util.now() - packet.time);
-            }
-            self.router.send(packet, self);
-        }).failure(function(e){
-            console.error("Participant " + self.address + " failed to send a packet:",e,packet);
-        });
-    return packet;
-};
-
-/**
- * Creates a message id for a packet by iterating {{#crossLink "ozpIwc.Participant.msgId"}}{{/crossLink}}
- *
- * @method generateMsgId
- * @returns {string}
- */
-ozpIwc.Participant.prototype.generateMsgId=function() {
-    return "i:" + this.msgId++;
-};
-
-/**
- * Sends a heartbeat packet to Participant's router.
- *
- * @method heartbeat
- */
-ozpIwc.Participant.prototype.heartbeat=function() {
-    if(this.router) {
-        this.send({
-            'dst': "names.api",
-            'resource': this.namesResource,
-            'action' : "set",
-            'entity' : this.heartBeatStatus,
-            'contentType' : this.heartBeatContentType
-        });
-    }
-};
-
-/**
- * Adds this participant to the $bus.multicast multicast group.
- *
- * @method joinEventChannel
- * @returns {boolean}
- */
-ozpIwc.Participant.prototype.joinEventChannel = function() {
-    if(this.router) {
-        this.router.registerMulticast(this, ["$bus.multicast"]);
-        this.send({
-            dst: "$bus.multicast",
-            action: "connect",
-            entity: {
-                address: this.address,
-                participantType: this.participantType
-            }
-        });
-        return true;
-    } else {
-        return false;
-    }
-};
-
-/**
- * Remove this participant from the $bus.multicast multicast group.
- *
- * @method leaveEventChannel
- */
-ozpIwc.Participant.prototype.leaveEventChannel = function() {
-    if(this.router) {
-        this.send({
-            dst: "$bus.multicast",
-            action: "disconnect",
-            entity: {
-                address: this.address,
-                participantType: this.participantType,
-                namesResource: this.namesResource
-            }
-        });
-        //TODO not implemented
-//        this.router.unregisterMulticast(this, ["$bus.multicast"]);
-        return true;
-    } else {
-        return false;
-    }
-
-};
-/**
- * @submodule bus.transport
- */
-
-/**
- * @class InternalParticipant
- * @namespace ozpIwc
- * @constructor
- * @extends ozpIwc.Participant
- * @param {Object} config
- * @param {String} config.name The name of the participant.
- */
-ozpIwc.InternalParticipant=ozpIwc.util.extend(ozpIwc.Participant,function(config) {
-    config=config || {};
-	ozpIwc.Participant.apply(this,arguments);
-    /**
-     * @property replyCallbacks
-     * @type {Object}
-     */
-	this.replyCallbacks={};
-
-    /**
-     * The type of the participant.
-     * @property participantType
-     * @type {String}
-     * @default "internal"
-     */
-	this.participantType="internal";
-
-    /**
-     * The name of the participant.
-     * @property name
-     * @type {String}
-     * @default ""
-     */
-	this.name=config.name;
-
-    var self = this;
-    this.on("connectedToRouter",function() {
-        self.permissions.pushIfNotExist('ozp:iwc:address', self.address);
-        self.permissions.pushIfNotExist('ozp:iwc:sendAs',self.address);
-        self.permissions.pushIfNotExist('ozp:iwc:receiveAs', self.address);
-
-        ozpIwc.metrics.gauge(self.metricRoot,"registeredCallbacks").set(function() {
-            return self.getCallbackCount();
-        });
-    });
-});
-
-/**
- * Gets the count of the registered reply callbacks.
- *
- * @method getCallbackCount
- * @returns {Number} The number of registered callbacks.
- */
-ozpIwc.InternalParticipant.prototype.getCallbackCount=function() {
-    if (!this.replyCallbacks || !Object.keys(this.replyCallbacks)) {
-        return 0;
-    }
-    return Object.keys(this.replyCallbacks).length;
-};
-
-/**
- * Handles packets received from the {{#crossLink "ozpIwc.Router"}}{{/crossLink}} the participant is registered to.
- *
- * Fires:
- *   - {{#crossLink "ozpIwc.Participant/#receive:event"}}{{/crossLink}}
- *
- * @method receiveFromRouterImpl
- * @param {ozpIwc.TransportPacketContext} packetContext
- */
-ozpIwc.InternalParticipant.prototype.receiveFromRouterImpl=function(packetContext) {
-	var packet=packetContext.packet;
-	if(packet.replyTo && this.replyCallbacks[packet.replyTo]) {
-        var cancel = false;
-        var done=function() {
-            cancel = true;
-        };
-        this.replyCallbacks[packet.replyTo](packet,done);
-		if (cancel) {
-            this.cancelCallback(packet.replyTo);
-        }
-	} else if (packet.dst === "$bus.multicast"){
-        this.events.trigger("receiveEventChannelPacket",packetContext);
-    } else {
-		this.events.trigger("receive",packetContext);
-	}
-};
-
-/**
- * Sends a packet to this participants router. Uses setImmediate to force messages out in queue order.
- *
- * @method send
- * @param originalPacket
- * @param callback
- *
- * @returns {ozpIwc.TransportPacket|*}
- */
-ozpIwc.InternalParticipant.prototype.send=function(originalPacket,callback) {
-    var packet=this.fixPacket(originalPacket);
-	if(callback) {
-		this.replyCallbacks[packet.msgId]=callback;
-	}
-    var self=this;
-    var send = ozpIwc.Participant.prototype.send;
-	ozpIwc.util.setImmediate(function() {
-        send.call(self,packet);
-    });
-
-	return packet;
-};
-
-/**
- * Cancels the callback corresponding to the given msgId.
- *
- * @method cancelCallback
- * @param {Number} msgId
- *
- * @returns {Boolean} returns true if successful.
- */
-ozpIwc.InternalParticipant.prototype.cancelCallback=function(msgId) {
-    var success=false;
-    if (msgId) {
-        delete this.replyCallbacks[msgId];
-        success=true;
-    }
-    return success;
-};
-
-/**
- * @submodule bus.transport
- */
-
-/**
- * @class ozpIwc.TransportPacket
- */
-
-/**
- * The participant address that sent this packet.
- * @property src
- * @type String
- */
-
-/**
- * The intended recipient of this packet.
- * @property dst
- * @type String
- */
-
-/**
- * Protocol Version.  Should be 1.
- * @property ver
- * @type Number
- */
-
-/**
- * A unique id for this packet.
- * @property msgId
- * @type Number
- */
-
-/**
- * The payload of this packet.
- * @property entity
- * @type Object
- */
-
-/**
- * Permissions required to see the payload of this packet.
- * @property [permissions]
- * @type Object
- */
-
-/**
- * The time in milliseconds since epoch that this packet was created.
- * @property [time]
- * @type Number
- */
-
-/**
- * Reference to the msgId that this is in reply to.
- * @property [replyTo]
- * @type Number
- */
-
-/**
- * Action to be performed.
- * @property [action]
- * @type String
- */
-
-/**
- * Resource to perform the action upon.
- * @property [resource]
- * @type String
- */
-
-/**
- * Marker for test packets.
- * @property [test]
- * @type Boolean
-*/
-
-/**
- * @class TransportPacketContext
- * @namespace ozpIwc
- * @param {Object} config
- * @param {ozpIwc.TransportPacket} config.packet
- * @param {ozpIwc.Router} config.router
- * @param {ozpIwc.Participant} [config.srcParticpant]
- * @param {ozpIwc.Participant} [config.dstParticpant]
- */
-ozpIwc.TransportPacketContext=function(config) {
-    /**
-     * @property packet
-     * @type ozpIwc.TransportPacket
-     */
-
-    /**
-     * @property router
-     * @type ozpIwc.Router
-     */
-
-    /**
-     * @property [srcParticipant]
-     * @type ozpIwc.Participant
-     */
-
-    /**
-     * @property [dstParticipant]
-     * @type ozpIwc.Participant
-     */
-    for(var i in config) {
-        this[i]=config[i];
-    }
-};
-
-/**
- * Formats a response packet,
- *
- * method makeReplyTo
- * @param {Object} response
- * @param {Number} [response.ver]
- * @param {Number} [response.time]
- * @param {String} [response.replyTo]
- * @param {String} [response.src]
- * @param {String} [response.dst]
- * @returns {Object}
- */
-ozpIwc.TransportPacketContext.prototype.makeReplyTo=function(response){
-    var now=new Date().getTime();
-    response.ver = response.ver || 1;
-    response.time = response.time || now;
-    response.replyTo=response.replyTo || this.packet.msgId;
-    response.src=response.src || this.packet.dst;
-    response.dst=response.dst || this.packet.src;
-    return response;
-};
-
-/**
- * Sends the given response to the sender of this context.
- * @method replyTo
- * @param {ozpIwc.TransportPacket} response
- *
- * @returns {ozpIwc.TransportPacket} the packet that was sent
- */
-ozpIwc.TransportPacketContext.prototype.replyTo=function(response) {
-    response=this.makeReplyTo(response);
-    if(this.dstParticipant) {
-        this.dstParticipant.send(response);
-    } else{
-        response.msgId = response.msgId || ozpIwc.util.now();
-        this.router.send(response);
-    }
-    return response;
-};
-
-
-/**
- * @class Router
- * @namespace ozpIwc
- * @constructor
- * @param {Object} [config]
- * @param {ozpIwc.Peer} [config.peer=ozpIwc.defaultPeer]
- */
-/**
- * @event ozpIwc.Router#preRegisterParticipant
- * @mixes ozpIwc.CancelableEvent
- * @param {ozpIwc.TransportPacket} [packet] - The packet to be delivered
- * @param {object} registration - Information provided by the participant about it's registration
- * @param {ozpIwc.Participant} participant - The participant that will receive the packet
- */
-
-/**
- * @event ozpIwc.Router#preSend
- * @mixes ozpIwc.CancelableEvent
- * @param {ozpIwc.TransportPacket} packet - The packet to be sent
- * @param {ozpIwc.Participant} participant - The participant that sent the packet
- */
-
-/**
- * @event ozpIwc.Router#preDeliver
- * @mixes ozpIwc.CancelableEvent
- * @param {ozpIwc.TransportPacket} packet - The packet to be delivered
- * @param {ozpIwc.Participant} participant - The participant that will receive the packet
- */
-
-/**
- * @event ozpIwc.Router#send
- * @param {ozpIwc.TransportPacket} packet - The packet to be delivered
- */
-
-/**
- * @event ozpIwc.Router#prePeerReceive
- * @mixes ozpIwc.CancelableEvent
- * @param {ozpIwc.TransportPacket} packet
- * @param {ozpIwc.NetworkPacket} rawPacket
- */
-
-ozpIwc.Router=function(config) {
-    config=config || {};
-
-    /**
-     * @property peer
-     * @type ozpIwc.Peer
-     */
-    this.peer=config.peer || ozpIwc.defaultPeer;
-
-//	this.nobodyAddress="$nobody";
-//	this.routerControlAddress='$transport';
-	var self=this;
-
-    /**
-     * @property selfId
-     * @type String
-     */
-	this.selfId=ozpIwc.util.generateId();
-	
-    /**
-     * A key value store of all participants local to the router.
-     * @property participants
-     * @type Object
-     * @default {}
-     */
-	this.participants={};
-	
-	ozpIwc.metrics.gauge("transport.participants").set(function() {
-		return Object.keys(self.participants).length;
-	});
-
-
-    /**
-     * Eventing module for the router.
-     * @property events
-     * @type ozpIwc.Event
-     * @default ozpIwc.Event
-     */
-	this.events=new ozpIwc.Event();
-	this.events.mixinOnOff(this);
-	
-	// Wire up to the peer
-	this.peer.on("receive",function(event) {
-		self.receiveFromPeer(event.packet);
-	});
-	
-	var checkFormat=function(event) {
-		var message=event.packet;
-		if(message.ver !== 1) {
-			event.cancel("badVersion");
-		}
-		if(!message.src) {
-			event.cancel("nullSource");
-		}
-		if(!message.dst) {
-			event.cancel("nullDestination");
-		}
-		if(event.canceled) {
-			ozpIwc.metrics.counter("transport.packets.invalidFormat").inc();
-		}
-	};
-	this.events.on("preSend",checkFormat);
-
-    if(!config.disableBus){
-        this.participants["$bus.multicast"]=new ozpIwc.MulticastParticipant("$bus.multicast");
-    }
-    /**
-     * @property watchdog
-     * @type ozpIwc.RouterWatchdog
-     */
-	this.watchdog=new ozpIwc.RouterWatchdog({
-        router: this,
-        heartbeatFrequency: config.heartbeatFrequency
-    });
-	this.registerParticipant(this.watchdog);
-    this.recursionDepth=0;
-    ozpIwc.metrics.gauge('transport.router.participants').set(function() {
-        return self.getParticipantCount();
-    });
-};
-
-/**
- * Gets the count of participants who have registered with the router.
- * @method getParticipantCount
- *
- * @returns {Number} the number of registered participants
- */
-ozpIwc.Router.prototype.getParticipantCount=function() {
-    if (!this.participants || !Object.keys(this.participants)) {
-        return 0;
-    }
-    return Object.keys(this.participants).length;
-
-};
-
-/**
- * @method shutdown
- */
-ozpIwc.Router.prototype.shutdown=function() {
-    this.watchdog.shutdown();
-};
-
-/**
- * Allows a listener to add a new participant.
- *
- * Fires:
- *     - {{#crossLink "ozpIwc.Router/#registerParticipant:event"}}{{/crossLink}}
- *
- * @method registerParticipant
- * @param {Object} participant the participant object that contains a send() function.
- * @param {Object} packet The handshake requesting registration.
- *
- * @returns {String} returns participant id
- */
-ozpIwc.Router.prototype.registerParticipant=function(participant,packet) {
-    packet = packet || {};
-    var address;
-    do {
-        address=ozpIwc.util.generateId()+"."+this.selfId;
-    } while(this.participants.hasOwnProperty(address));
-
-    var registerEvent=new ozpIwc.CancelableEvent({
-        'packet': packet,
-        'registration': packet.entity,
-        'participant': participant
-    });
-    this.events.trigger("preRegisterParticipant",registerEvent);
-
-    if(registerEvent.canceled){
-        // someone vetoed this participant
-        ozpIwc.log.log("registeredParticipant[DENIED] origin:"+participant.origin+
-            " because " + registerEvent.cancelReason);
-        return null;
-    }
-
-    this.participants[address] = participant;
-     participant.connectToRouter(this,address);
-    var registeredEvent=new ozpIwc.CancelableEvent({
-        'packet': packet,
-        'participant': participant
-    });
-    this.events.trigger("registeredParticipant",registeredEvent);
-
-//	ozpIwc.log.log("registeredParticipant["+participant_id+"] origin:"+participant.origin);
-    return address;
-};
-
-/**
- * Fires:
- *     - {{#crossLink "ozpIwc.Router/#preDeliver:event"}}{{/crossLink}}
- *
- * @method deliverLocal
- * @param {ozpIwc.TransportPacket} packet
- * @param {ozpIwc.Participant} sendingParticipant
- */
-ozpIwc.Router.prototype.deliverLocal=function(packet,sendingParticipant) {
-    if(!packet) {
-        throw "Cannot deliver a null packet!";
-    }
-    var localParticipant=this.participants[packet.dst];
-    if(!localParticipant) {
-        return;
-    }
-    this.recursionDepth++;
-    if(this.recursionDepth > 10) {
-        console.log("Recursing more than 10 levels deep on ",packet);
-    }
-    try {
-        var packetContext=new ozpIwc.TransportPacketContext({
-            'packet':packet,
-            'router': this,
-            'srcParticipant': sendingParticipant,
-            'dstParticipant': localParticipant
-        });
-        
-        var preDeliverEvent=new ozpIwc.CancelableEvent({
-            'packet': packet,
-            'dstParticipant': localParticipant,
-            'srcParticipant': sendingParticipant
-        });
-
-        if(this.events.trigger("preDeliver",preDeliverEvent).canceled) {
-            ozpIwc.metrics.counter("transport.packets.rejected").inc();
-            return;
-        }
-        ozpIwc.metrics.counter("transport.packets.delivered").inc();
-        localParticipant.receiveFromRouter(packetContext);
-    } finally {
-        this.recursionDepth--;
-    }
-};
-
-
-/**
- * Registers a participant for a multicast group
- *
- * Fires:
- *     - {{#crossLink "ozpIwc.Router/#registerMulticast:event"}}{{/crossLink}}
- *
- * @method registerMulticast
- * @param {ozpIwc.Participant} participant
- * @param {String[]} multicastGroups
- */
-ozpIwc.Router.prototype.registerMulticast=function(participant,multicastGroups) {
-    var self=this;
-    multicastGroups.forEach(function(groupName) {
-        var g=self.participants[groupName];
-        if(!g) {
-            g=self.participants[groupName]=new ozpIwc.MulticastParticipant(groupName);
-        }
-        g.addMember(participant);
-        if (participant.address) {
-            var registeredEvent = new ozpIwc.CancelableEvent({
-                'entity': {'group': groupName, 'address': participant.address}
-            });
-            participant.permissions.pushIfNotExist('ozp:iwc:sendAs', groupName);
-            participant.permissions.pushIfNotExist('ozp:iwc:receiveAs', groupName);
-
-            self.events.trigger("registeredMulticast", registeredEvent);
-        } else {
-            ozpIwc.log.log("no address for " +  participant.participantType + " " + participant.name + "with address " + participant.address + " for group " + groupName);
-        }
-        //ozpIwc.log.log("registered " + participant.participantType + " " + participant.name + "with address " + participant.address + " for group " + groupName);
-    });
-    return multicastGroups;
-};
-
-/**
- * Used by participant listeners to route a message to other participants.
- *
- * Fires:
- *     -{{#crossLink "ozpIwc.Router/#preSend:event"}}{{/crossLink}}
- *     -{{#crossLink "ozpIwc.Router/#send:event"}}{{/crossLink}}
- *
- * @method send
- * @param {ozpIwc.TransportPacket} packet The packet to route.
- * @param {ozpIwc.Participant} sendingParticipant Information about the participant that is attempting to send
- * the packet.
- */
-ozpIwc.Router.prototype.send=function(packet,sendingParticipant) {
-
-    var preSendEvent=new ozpIwc.CancelableEvent({
-        'packet': packet,
-        'participant': sendingParticipant
-    });
-    this.events.trigger("preSend",preSendEvent);
-
-    if(preSendEvent.canceled) {
-        ozpIwc.metrics.counter("transport.packets.sendCanceled");
-        return;
-    }
-    ozpIwc.metrics.counter("transport.packets.sent").inc();
-    this.deliverLocal(packet,sendingParticipant);
-    this.events.trigger("send",{'packet': packet});
-    this.peer.send(packet);
-};
-
-/**
- * Receive a packet from the peer.
- *
- * Fires:
- *     -{{#crossLink "ozpIwc.Router/#prePeerReceive:event"}}{{/crossLink}}
- *
- * @param packet {ozpIwc.TransportPacket} the packet to receive
- */
-ozpIwc.Router.prototype.receiveFromPeer=function(packet) {
-    ozpIwc.metrics.counter("transport.packets.receivedFromPeer").inc();
-    var now = Date.now();
-    ozpIwc.metrics.histogram("transport.packets.latency").mark(now-packet.data.time,now);
-    var peerReceiveEvent=new ozpIwc.CancelableEvent({
-        'packet' : packet.data,
-        'rawPacket' : packet
-    });
-    this.events.trigger("prePeerReceive",peerReceiveEvent);
-
-    if(!peerReceiveEvent.canceled){
-        this.deliverLocal(packet.data);
-    }
-};
-
-
-/**
- * Classes related to transport aspects of the IWC.
- * @module bus
- * @submodule bus.transport
- */
-
-/**
- * A participant for the client's communication needs.
- * @class ClientParticipant
- * @namespace ozpIwc
- *
- * @constructor
- * @extends ozpIwc.Participant
- * @uses ozpIwc.ClientMixin
- * @param {Object} config
- * @param {String} config.name The name of the participant.
- */
-ozpIwc.ClientParticipant=ozpIwc.util.extend(ozpIwc.Participant,function(config) {
-    config=config || {};
-    ozpIwc.Participant.apply(this,arguments);
-    /**
-     * The type of the participant.
-     * @property participantType
-     * @type {String}
-     * @default "internal"
-     */
-    this.participantType="internalClient";
-
-    /**
-     * Notes if this is a client participant internal to the bus.
-     * @property internal
-     * @type {Boolean}
-     * @default false
-     */
-    this.internal = config.internal || false;
-    /**
-     * The name of the participant.
-     * @property name
-     * @type {String}
-     * @default ""
-     */
-    this.name=config.name;
-
-    /**
-     * The router to connect to.
-     * @property router
-     * @type {*|ozpIwc.defaultRouter}
-     */
-    this.router=config.router || ozpIwc.defaultRouter;
-    var self = this;
-    this.on("connectedToRouter",function() {
-        self.permissions.pushIfNotExist('ozp:iwc:address', self.address);
-        self.permissions.pushIfNotExist('ozp:iwc:sendAs',self.address);
-        self.permissions.pushIfNotExist('ozp:iwc:receiveAs', self.address);
-
-        ozpIwc.metrics.gauge(self.metricRoot,"registeredCallbacks").set(function() {
-            if (!self.replyCallbacks || !Object.keys(self.replyCallbacks)) {
-                return 0;
-            }
-            return Object.keys(self.replyCallbacks).length;
-        });
-    });
-
-    ozpIwc.ApiPromiseMixin(this,config.autoConnect);
-});
-
-
-/**
- * Connects the client from the IWC bus.
- * Fires:
- *     - {{#crossLink "ozpIwc.Client/#connected"}}{{/crossLink}}
- *
- * @method connect
- */
-ozpIwc.ClientParticipant.prototype.connect = function(){
-
-    if(!this.connectPromise) {
-        var self = this;
-        /**
-         * Promise to chain off of for client connection asynchronous actions.
-         * @property connectPromise
-         *
-         * @type Promise
-         */
-        this.connectPromise = new Promise(function(resolve,reject){
-            resolve(self.router.registerParticipant(self));
-        }).then(function(addr){
-            return self.afterConnected(addr);
-        });
-    }
-
-    return this.connectPromise;
-};
-/**
- * Send functionality for the clientParticipant type Participant.
- *
- * @method sendImpl
- * @param {ozpIwc.TransportPacket} packet
- */
-ozpIwc.ClientParticipant.prototype.sendImpl=ozpIwc.Participant.prototype.send;
-/**
- * @submodule bus.transport
- */
-
-/**
- * Baseclass for APIs that need leader election.  Uses the Bully algorithm for leader election.
- *
- * Implementer is responsible for handling two events:
- *    <li> <b>"becameLeaderEvent"</b> - participant has finished its election process and is to become the leader. Handle
- *    any logic necessary above the LeaderGroupParticipant and then trigger the participant's event <b>"becameLeader"</b>
- *    <i>(ex. participant.events.trigger("becameLeader")</i></li>
- *    <li> <b>"newLeaderEvent"</b> - participant has finished its election process and is to become a member. Handle any logic necessary above
- *    the LeaderGroupParticipant then trigger the participant's event <b>"newLeader"</b>
- *    <i>(ex. participant.events.trigger("newLeader")</i></li>
- *
- * @class LeaderGroupParticipant
- * @namespace ozpIwc
- * @extends ozpIwc.InternalParticipant
- * @constructor
- *
- * @param {Object} config
- * @param {String} config.name
- *        The name of this API.
- * @param {String} [config.electionAddress=config.name+".election"]
- *        The multicast channel for running elections.  
- *        The leader will register to receive multicast on this channel.
- * @param {Number} [config.priority=Math.Random]
- *        How strongly this node feels it should be leader.
- * @param {Function} [config.priorityLessThan]
- *        Function that provides a strict total ordering on the priority.  Default is "<".
- * @param {Number} [config.electionTimeout=250]
- *        Number of milliseconds to wait before declaring victory on an election. 
- * @param {number} [config.electionTimeout=250]
- *        Number of milliseconds to wait before declaring victory on an election.
- * @param {Object} config.states  State machine states the participant will register and react to given their assigned category.
- *        Default states listed are always applied and need not be passed in configuration.
- * @param {Object} [config.states.leader=['leader']]
- *        Any state that the participant should deem itself the leader of its group.
- * @param {Object} [config.states.member=['member']]
- *        Any state that the participant should deem itself a member (not leader) of its group.
- * @param {Object} [config.states.election=['election']]
- *        Any state that the participant should deem itself in an election with its group.
- * @param {Object} [config.states.queueing=['connecting','election']]
- *        Any state that the participant should block non-election messages until not in a queueing state
- */
-ozpIwc.LeaderGroupParticipant=ozpIwc.util.extend(ozpIwc.InternalParticipant,function(config) {
-	ozpIwc.InternalParticipant.apply(this,arguments);
-    config.states = config.states || {};
-    this.getStateData = config.getStateData || function(){return{}; };
-
-
-	if(!config.name) {
-		throw "Config must contain a name value";
-	}
-
-
-	// Networking info
-    /**
-     * The name of the participant.
-     * @property name
-     * @type String
-     * @default ""
-     */
-	this.name=config.name;
-
-    /**
-     * The election address for common LeaderGroupParticipant's on the IWC bus.
-     * @property electionAddress
-     * @type String
-     * @default ".election"
-     */
-	this.electionAddress=config.electionAddress || (this.name + ".election");
-
-
-	// Election times and how to score them
-    /**
-     * A numeric value to determine who the leader of the group should be.
-     * @property priority
-     * @type Number
-     * @default {{#crossLink "ozpIwc.util/now:method"}}-ozpIwc.util.now(){{/crossLink}}
-     */
-	this.priority = config.priority || ozpIwc.defaultLeaderPriority || -ozpIwc.util.now();
-
-    /**
-     * Function to determine the lower value amongst two priorities.
-     * @property priorityLessThan
-     * @type Function
-     * @default function( l, r) { return l < r };
-     */
-	this.priorityLessThan = config.priorityLessThan || function(l,r) { return l < r; };
-
-
-    /**
-     * How long a participant partakes in an election.
-     * @property electionTimeout
-     * @type Number
-     * @default 250
-     */
-	this.electionTimeout=config.electionTimeout || 1000; // quarter second
-
-    /**
-     * The current state of the participant.
-     *
-     * The leaderGroupParticipant has the following states:
-     *   - connecting
-     *   - queueing
-     *   - election
-     *   - leader
-     *   - member
-     *
-     * @property leaderState
-     * @type String
-     * @default "connecting"
-     */
-	this.leaderState="connecting";
-
-    /**
-     * Packets received from the router that are not pertinent to the election. They will be processed post election
-     * if this participant becomes the leader.
-     * @property electionQueue
-     * @type ozpIwc.NetworkPacket[]
-     * @default []
-     */
-	this.electionQueue=[];
-
-    /**
-     * A registry of sub-states of the Election State Machine. While leaderGroupParticipant operates on states "leader",
-     * "member", "queueing", and "election", it can fire events for those states should a substate change.
-     * @property states
-     * @type {states|*|Object|{}}
-     */
-    this.states = config.states;
-
-    /**
-     * Leader sub-states of the State Machine.
-     * @property states.leader
-     * @type {String[]}
-     * @default ["leader"]
-     */
-    this.states.leader = this.states.leader || [];
-    this.states.leader = this.states.leader.concat(["leader"]);
-
-    /**
-     * Member sub-states of the State Machine.
-     * @property states.member
-     * @type {String[]}
-     * @default ["member"]
-     */
-    this.states.member = this.states.member || [];
-    this.states.member = this.states.member.concat(["member"]);
-
-    /**
-     * Election sub-states of the State Machine.
-     * @property states.election
-     * @type {String[]}
-     * @default ["election"]
-     */
-    this.states.election = this.states.election || [];
-    this.states.election = this.states.election.concat(["election"]);
-
-    /**
-     * Queueing sub-states of the State Machine.
-     * @property states.queueing
-     * @type {String[]}
-     * @default ["connecting", "election"]
-     */
-    this.states.queueing = this.states.queueing || [];
-    this.states.queueing = this.states.queueing.concat(["connecting", "election"]);
-
-    /**
-     * A snapshot of the current active states of the participant.
-     * @propery activeStates
-     * @type {Object}
-     */
-    this.activeStates = config.activeStates || {
-        'leader': false,
-        'member': false,
-        'election': false,
-        'queueing': true
-    };
-
-    this.changeState("connecting");
-
-
-	// tracking the current leader
-    /**
-     * The address of the current leader.
-     * @property leader
-     * @type String
-     * @default null
-     */
-	this.leader=null;
-
-    /**
-     * The priority of the current leader.
-     * @property leaderPriority
-     * @type Number
-     * @default null
-     */
-	this.leaderPriority=null;
-
-    /**
-     * The type of the participant.
-     * @property participantType
-     * @type String
-     * @default "leaderGroup"
-     */
-	this.participantType="leaderGroup";
-
-    /**
-     * The name of the participant.
-     * @property name
-     * @type String
-     * @default ""
-     */
-	this.name=config.name;
-
-
-    /**
-     * An internal flag used to debounce invalid leadership attempts due to high network traffic.
-     * @property toggleDrop
-     * @type Boolean
-     * @default false
-     */
-    this.toggleDrop = false;
-
-    this.victoryTS = -Number.MAX_VALUE;
-    /**
-     * Fires when the participant enters an election.
-     * @event #startElection
-     */
-	this.on("startElection",function() {
-        this.toggleDrop = false;
-	},this);
-
-    /**
-     * Fires when this participant becomes the leader.
-     * @event #becameLeader
-     *
-     */
-	this.on("becameLeader",function() {
-        this.leader = this.address;
-        this.leaderPriority = this.priority;
-		this.electionQueue.forEach(function(p) {
-			this.forwardToTarget(p);
-		},this);
-		this.electionQueue=[];
-	},this);
-
-    /**
-     * Fires when a leader has been assigned and this participant is not it.
-     * @event #newLeader
-     */
-	this.on("newLeader",function() {
-		this.electionQueue=[];
-	},this);
-
-
-
-    // Handle passing of state on unload
-    var self=this;
-    ozpIwc.util.addEventListener("beforeunload",function() {
-        //Priority has to be the minimum possible
-        self.priority=-Number.MAX_VALUE;
-
-        if(self.activeStates.leader) {
-            for (var part in self.router.participants) {
-                var participant = self.router.participants[part];
-
-                // Each leaderParticipant should report out what participants are on
-                // the router so that higher level elements can clean up soon to be dead references before passing on state.
-                if (participant.address) {
-                    self.events.trigger("receive", {
-                        packet: self.fixPacket({
-                            dst: "$bus.multicast",
-                            action: "disconnect",
-                            entity: {
-                                address: participant.address,
-                                participantType: participant.participantType,
-                                namesResource: participant.namesResource
-                            }
-                        })
-                    });
-                }
-            }
-        }
-
-        self.events.trigger("unloadState");
-    });
-
-
-    // Connect Metrics
-    ozpIwc.metrics.gauge('transport.leaderGroup.election').set(function() {
-        var queue = self.getElectionQueue();
-        return {'queue': queue ? queue.length : 0};
-    });
-
-    /**
-     * Fires when the participant has connected to its router.
-     * @event #connectedToRouter
-     */
-	this.on("connectedToRouter",function() {
-        this.router.registerMulticast(this,[this.electionAddress,this.name]);
-        var self = this;
-        ozpIwc.util.setImmediate(function(){
-            self.startElection();
-        });
-
-    },this);
-
-    this.on("receive",this.routePacket,this);
-});
-
-/**
- * Retrieve the election queue. Called by closures which need access to the queue as it grows
- *
- * @method getElectionQueue
- *
- * @returns {Array} the election queue
- */
-ozpIwc.LeaderGroupParticipant.prototype.getElectionQueue=function() {
-    return this.electionQueue;
-};
-
-
-/**
- * Checks to see if the leadership group is in an election
- *
- * @method inElection
- *
- * @returns {Boolean} True if in an election state, otherwise false
- */
-ozpIwc.LeaderGroupParticipant.prototype.inElection=function() {
-    return !!this.electionTimer || this.activeStates.election;
-};
-
-
-/**
- * Checks to see if this instance is the leader of it's group.
- *
- * @method isLeader
- *
- * @returns {Boolean} True if leader.
- */
-ozpIwc.LeaderGroupParticipant.prototype.isLeader=function() {
-    return this.leader === this.address;
-};
-
-
-/**
- * Sends an election message to the leadership group.
- *
- * @method sendElectionMessage
- * @private
- * @param {String} type The type of message -- "election" or "victory"
- */
-ozpIwc.LeaderGroupParticipant.prototype.sendElectionMessage=function(type, config, callback) {
-    config = config || {};
-    var state = config.state || {};
-    var previousLeader = config.previousLeader || this.leader;
-    var opponent = config.opponent || "";
-    // TODO: no state should have circular references, this will eventually go away.
-    try {
-        JSON.stringify(state);
-    } catch (ex) {
-        ozpIwc.log.error(this.name,this.address,"failed to send state.", ex);
-        state = {};
-    }
-
-    this.send({
-		'src': this.address,
-		'dst': this.electionAddress,
-		'action': type,
-		'entity': {
-			'priority': this.priority,
-            'state': state,
-            'previousLeader': previousLeader,
-            'opponent': opponent
-		}
-	},callback);
-};
-
-
-/**
- * Sends a message to the leadership group stating victory in the current election. LeaderGroupParticipant.priority
- * included to allow rebuttal. Will only send if participant's current state is in one of the following state categories:
- *      <li>leader</li>
- *      <li>election</li>
- * @returns {ozpIwc.TransportPacket} Packet returned if valid request, else false.
- */
-ozpIwc.LeaderGroupParticipant.prototype.sendVictoryMessage = function(){
-    if(this.activeStates.leader || this.activeStates.election) {
-        return this.send({
-            'src': this.address,
-            'dst': this.electionAddress,
-            'action': 'victory',
-            'entity': {
-                'priority': this.priority
-            }
-        });
-    } else {
-        return false;
-    }
-};
-
-ozpIwc.LeaderGroupParticipant.prototype.leaderQuery=function(config){
-    if(this.inElection()){
-        return;
-    }
-    this.leaderQueryTimer = window.setTimeout(function(){
-        self.cancelElection();
-        self.startElection();
-    },this.electionTimeout);
-
-    var self = this;
-    this.sendElectionMessage("leaderQuery",{},function(response){
-        window.clearTimeout(self.leaderQueryTimer);
-
-        if(response.entity.priority > self.priority) {
-            this.leader = response.src;
-            this.leaderPriority = response.entity.priority;
-            this.victoryTS = response.time;
-            self.events.trigger("newLeaderEvent");
-            this.stateStore = {};
-        }
-    });
-};
-
-/**
- * Attempt to start a new election.
- *
- * Fires:
- *     - {{#crossLink "ozpiwc.LeaderGroupParticipant/#startElection:event"}{{/crossLink}}
- *     - {{#crossLink "ozpiwc.LeaderGroupParticipant/#becameLeader:event"}{{/crossLink}}
- *
- * @method startElection
- * @param {Object} config
- * @param {Object} config.state
- * @protected
- *
- */
-ozpIwc.LeaderGroupParticipant.prototype.startElection=function(config) {
-    config = config || {};
-    var state = config.state || {};
-    var opponent = config.opponent || "";
-	// don't start a new election if we are in one
-	if(this.inElection()) {
-		return;
-	}
-    this.events.trigger("startElection");
-
-	var self=this;
-	// if no one overrules us, declare victory
-	this.electionTimer=window.setTimeout(function() {
-		self.cancelElection();
-        self.events.trigger("becameLeaderEvent");
-	},this.electionTimeout);
-
-	this.sendElectionMessage("election", {state: state, previousLeader: this.leader, opponent: opponent});
-};
-
-
-/**
- * Cancels participation in an in-progress election.
- *
- * Fires:
- *     - {{#crossLink "ozpiwc.LeaderGroupParticipant/#endElection:event"}{{/crossLink}}
- *
- * @method cancelElection
- *
- * @protected
- */
-ozpIwc.LeaderGroupParticipant.prototype.cancelElection=function() {
-	if(this.electionTimer) {
-        window.clearTimeout(this.electionTimer);
-        this.electionTimer=null;
-        this.events.trigger("endElection");
-	}
-};
-
-
-/**
- * Receives a packet on the election control group or forwards it to the target implementation of this leadership group.
- *
- * @method routePacket
- * @param {ozpIwc.TransportPacket} packetContext
- */
-ozpIwc.LeaderGroupParticipant.prototype.routePacket=function(packetContext) {
-	var packet=packetContext.packet;
-	packetContext.leaderState=this.leaderState;
-    if(packet.src === this.address) {
-        // drop our own packets that found their way here
-        return;
-    }
-    if(packet.dst === this.electionAddress) {
-        if(packet.src === this.address) {
-			// even if we see our own messages, we shouldn't act upon them
-			return;
-		} else if(packet.action === "leaderQuery"){
-            this.handleLeaderQueryMessage(packetContext);
-        } else if(packet.action === "election") {
-			this.handleElectionMessage(packet);
-		} else if(packet.action === "victory") {
-			this.handleVictoryMessage(packet);
-        }
-    } else {
-        this.forwardToTarget(packetContext);
-	}		
-};
-
-/**
- * Forwards received packets to the target implementation of the participant. If currently in an election, messages
- * are queued.
- *
- * Fires:
- *     - {{#crossLink "ozpiwc.LeaderGroupParticipant/#receiveApiPacket:event"}{{/crossLink}}
- *
- * @method forwardToTarget
- *
- * @param {ozpIwc.TransportPacket} packetContext
- */
-ozpIwc.LeaderGroupParticipant.prototype.forwardToTarget=function(packetContext) {
-    if(this.activeStates.queueing) {
-		this.electionQueue.push(packetContext);
-		return;
-	}
-	packetContext.leaderState=this.leaderState;
-	this.events.trigger("receiveApiPacket",packetContext);
-};
-
-
-ozpIwc.LeaderGroupParticipant.prototype.handleLeaderQueryMessage=function(electionMessage){
-    if(!this.activeStates.leader){
-        return;
-    }
-    electionMessage.replyTo({
-        action: "leaderResponse",
-        entity: {
-            priority: this.priority
-        }
-    });
-};
-	
-/**
- * Respond to someone else starting an election.
- *
- * @method handleElectionMessage
- *
- * @private
- * @param {ozpIwc.TransportPacket} electionMessage
- */
-ozpIwc.LeaderGroupParticipant.prototype.handleElectionMessage=function(electionMessage) {
-    //If a state was received, store it case participant becomes the leader
-    if(Object.keys(electionMessage.entity.state).length > 0){
-        this.stateStore = electionMessage.entity.state;
-        this.events.trigger("receivedState", electionMessage.entity.state);
-    }
-
-    // If knowledge of a previousLeader was received, store it case participant becomes the leader and requests state
-    // from said participant.
-    if(electionMessage.entity.previousLeader){
-        if (electionMessage.entity.previousLeader !== this.address) {
-            this.previousLeader = electionMessage.entity.previousLeader;
-        }
-    }
-
-
-	// is the new election lower priority than us?
-	if(this.priorityLessThan(electionMessage.entity.priority,this.priority) && this.victoryTS < electionMessage.time) {
-        if(electionMessage.entity.priority === -Number.MAX_VALUE){
-            this.cancelElection();
-            this.activeStates.election = false;
-        } else {
-            if(!this.inElection()) {
-                this.electionQueue = [];
-            }
-        }
-        // Quell the rebellion!
-        this.startElection({opponent: electionMessage.src, state: this.getStateData()});
-
-    } else if(this.activeStates.leader) {
-        // If this participant is currently the leader but will loose the election, it sends out notification that their
-        // is currently a leader (for state retrieval purposes)
-        this.sendElectionMessage("election", {previousLeader: this.address});
-
-    } else {
-
-        // Abandon dreams of leadership
-        this.cancelElection();
-
-        // If set, after canceling, the participant will force itself to a membership state. Used to debounce invalid
-        // leadership attempts due to high network traffic.
-        if(this.toggleDrop){
-            this.toggleDrop = false;
-            this.events.trigger("newLeaderEvent");
-        }
-	}
-
-};
-
-
-/**
- * Handle someone else declaring victory.
- *
- * Fires:
- *     - {{#crossLink "ozpiwc.LeaderGroupParticipant/#newLeader:event"}{{/crossLink}}
- *
- * @param {ozpIwc.TransportPacket} victoryMessage
- */
-ozpIwc.LeaderGroupParticipant.prototype.handleVictoryMessage=function(victoryMessage) {
-	if(this.priorityLessThan(victoryMessage.entity.priority,this.priority)) {
-		// someone usurped our leadership! start an election!
-            this.startElection({opponent: victoryMessage.src +"USURPER"});
-	} else {
-		// submit to the bully
-		this.leader=victoryMessage.src;
-		this.leaderPriority=victoryMessage.entity.priority;
-        this.victoryTS = victoryMessage.time;
-		this.cancelElection();
-		this.events.trigger("newLeaderEvent");
-        this.stateStore = {};
-	}
-};
-
-/**
- * Returns the status of the participant.
- *
- * @method heartbeatStatus
- * @returns {Object}
- */
-ozpIwc.LeaderGroupParticipant.prototype.heartbeatStatus=function() {
-	var status= ozpIwc.Participant.prototype.heartbeatStatus.apply(this,arguments);
-	status.leaderState=this.leaderState;
-	status.leaderPriority=this.priority;
-	return status;
-};
-
-
-/**
- * Changes the current state of the participant.
- * @param state {string} The state to change to.
- * @param config {object} properties to change in the participant should the state transition be valid
- * @returns {boolean}
- *      Will return true if a state transition occurred.
- *      Will not change state and return false if:
- *      <li>the new state was the current state</li>
- *      <li>the new state is not a registered state @see ozpIwc.LeaderGroupParticipant</li>
- */
-ozpIwc.LeaderGroupParticipant.prototype.changeState=function(state,config) {
-    if(state !== this.leaderState){
-//        ozpIwc.log.log(this.address, this.leaderState, state);
-        if(this._validateState(state)){
-            for(var key in config){
-                this[key] = config[key];
-            }
-            return true;
-        }
-    }
-    return false;
-};
-
-
-/**
- *  Validates if the desired state transition is possible.
- *
- * @param state {string} The desired state to transition to.
- * @returns {boolean}
- *      Will return true if a state transition occured. </br>
- *      Will not change state and return false if:
- *      <li>the new state was the current state</li>
- *      <li>the new state is not a registered state</li>
- * @private
- */
-ozpIwc.LeaderGroupParticipant.prototype._validateState = function(state){
-    var newState = {};
-    var validState = false;
-    for(var x in this.states) {
-        if(ozpIwc.util.arrayContainsAll(this.states[x], [state])){
-            newState[x] = true;
-            validState = true;
-        } else {
-            newState[x] = false;
-        }
-    }
-    if(validState){
-        this.activeStates = newState;
-        this.leaderState = state;
-        return true;
-    } else {
-        ozpIwc.log.error(this.address, this.name, "does not have state:", state);
-        return false;
-    }
-};
-/**
- * @submodule bus.transport
- */
-
-/**
- * A participant to handle multicast communication on the IWC.
- *
- * @class MulticastParticipant
- * @namespace ozpIwc
- * @extends ozpIwc.Participant
- * @constructor
- *
- * @param {String} name The name of the participant.
- */
-ozpIwc.MulticastParticipant=ozpIwc.util.extend(ozpIwc.Participant,function(name) {
-
-    /**
-     * The address of the participant.
-     * @property address
-     * @type String
-     */
-	this.address = name;
-
-    /**
-     * The name of the participant.
-     * @property name
-     * @type String
-     */
-    this.name=name;
-
-    /**
-     * The type of the participant
-     * @property participantType
-     * @type String
-     * @default "multicast"
-     */
-	this.participantType="multicast";
-
-    ozpIwc.Participant.apply(this,arguments);
-
-    /**
-     * Array of Participants that are part of the multicast group.
-     * @property members
-     * @type ozpIwc.Participant[]
-     * @default []
-     */
-	this.members=[];
-
-    /**
-     * The participants resource path for the Names API.
-     * @property namesResource
-     * @type String
-     * @default "/multicast/"
-     */
-    this.namesResource="/multicast/"+this.name;
-
-    /**
-     * Content type for the Participant's heartbeat status packets.
-     * @property heartBeatContentType
-     * @type String
-     * @default "application/vnd.ozp-iwc-multicast-address-v1+json"
-     */
-    this.heartBeatContentType="application/vnd.ozp-iwc-multicast-address-v1+json";
-
-    /**
-     *
-     * @property heartBeatStatus.members
-     * @type Array
-     * @default []
-     */
-    this.heartBeatStatus.members=[];
-
-    /**
-     * Fires when the participant has connected to its router.
-     * @event #connectedToRouter
-     */
-    this.on("connectedToRouter",function() {
-        this.namesResource="/multicast/" + this.name;
-    },this);
-
-    //At creation the multicast participant knows what it can sendAs/receiveAs
-    this.permissions.pushIfNotExist('ozp:iwc:address', name);
-    this.permissions.pushIfNotExist('ozp:iwc:sendAs', name);
-    this.permissions.pushIfNotExist('ozp:iwc:receiveAs', name);
-});
-
-/**
- * Receives a packet on behalf of the multicast group.
- *
- * @method receiveFromRouterImpl
- *
- * @param {ozpIwc.TransportPacket} packet
- * @returns {Boolean} always false.
- */
-ozpIwc.MulticastParticipant.prototype.receiveFromRouterImpl=function(packet) {
-
-    this.receivedPacketsMeter.mark();
-	this.members.forEach(function(m) {
-        // as we send to each member, update the context to make it believe that it's the only recipient
-        packet.dstParticipant=m;
-        m.receiveFromRouter(packet);
-    });
-	return false;
-};
-
-/**
- * Adds a member to the multicast group.
- *
- * @method addMember
- *
- * @param {ozpIwc.Participant} participant
- */
-ozpIwc.MulticastParticipant.prototype.addMember=function(participant) {
-	this.members.push(participant);
-    this.heartBeatStatus.members.push(participant.address);
-};
-/** @namespace */
-var ozpIwc=ozpIwc || {};
-
-/**
- * @submodule bus.transport
- */
-
-/**
- * @class PostMessageParticipant
- * @namespace ozpIwc
- * @extends ozpIwc.Participant
- *
- * @param {Object} config
- * @param {String} config.origin
- * @param {Object} config.sourceWindow
- * @param {Object} config.credentials
- */
-ozpIwc.PostMessageParticipant=ozpIwc.util.extend(ozpIwc.Participant,function(config) {
-	ozpIwc.Participant.apply(this,arguments);
-
-    /**
-     * The origin of the Participant.
-     * @property origin
-     */
-    /**
-     * The name of the Participant.
-     * @property name
-     */
-	this.origin=this.name=config.origin;
-
-    /**
-     * The window of the Participant.
-     * @property sourceWindow
-     * @type Window
-     */
-	this.sourceWindow=config.sourceWindow;
-
-    /**
-     * @property credentials
-     * @type {Object}
-     */
-    this.credentials=config.credentials;
-
-    /**
-     * The type of the participant.
-     * @property participantType
-     * @type  String
-     * @default "postMessageProxy"
-     */
-	this.participantType="postMessageProxy";
-
-    /**
-     * @property permissions.attributes['ozp:iwc:origin']
-     * @type String
-     */
-    this.permissions.pushIfNotExist("ozp:iwc:origin",this.origin);
-
-    this.on("connectedToRouter",function() {
-        this.permissions.pushIfNotExist('ozp:iwc:address', this.address);
-        this.permissions.pushIfNotExist('ozp:iwc:sendAs', this.address);
-        this.permissions.pushIfNotExist('ozp:iwc:receiveAs', this.address);
-    },this);
-    /**
-     * @property heartBeatStatus.origin
-     * @type String
-     */
-    this.heartBeatStatus.origin=this.origin;
-});
-
-/**
- * Receives a packet on behalf of this participant and forwards it via PostMessage.
- *
- * @method receiveFromRouterImpl
- * @param {ozpIwc.TransportPacketContext} packetContext
- */
-ozpIwc.PostMessageParticipant.prototype.receiveFromRouterImpl=function(packetContext) {
-    this.sendToRecipient(packetContext.packet);
-};
-
-/**
- * Sends a message to the other end of our connection.  Wraps any string mangling
- * necessary by the postMessage implementation of the browser.
- *
- * @method sendToParticipant
- * @param {ozpIwc.TransportPacket} packet
- * @todo Only IE requires the packet to be stringified before sending, should use feature detection?
- */
-ozpIwc.PostMessageParticipant.prototype.sendToRecipient=function(packet) {
-	ozpIwc.util.safePostMessage(this.sourceWindow,packet,this.origin);
-};
-
-/**
- * The participant hijacks anything addressed to "$transport" and serves it
- * directly.  This isolates basic connection checking from the router, itself.
- *
- * @method handleTransportpacket
- * @param {Object} packet
- */
-ozpIwc.PostMessageParticipant.prototype.handleTransportPacket=function(packet) {
-	var reply={
-		'ver': 1,
-		'dst': this.address,
-		'src': '$transport',
-		'replyTo': packet.msgId,
-		'msgId': this.generateMsgId(),
-		'entity': {
-			"address": this.address
-		}
-	};
-	this.sendToRecipient(reply);
-};
-
-
-/**
- * Sends a packet received via PostMessage to the Participant's router.
- *
- * @method forwardFromPostMessage
- * @todo track the last used timestamp and make sure we don't send a duplicate messageId
- * @param {ozpIwc.TransportPacket} packet
- * @param {type} event
- */
-ozpIwc.PostMessageParticipant.prototype.forwardFromPostMessage=function(packet,event) {
-	if(typeof(packet) !== "object") {
-		ozpIwc.log.error("Unknown packet received: " + JSON.stringify(packet));
-		return;
-	}
-	if(event.origin !== this.origin) {
-		/** @todo participant changing origins should set off more alarms, probably */
-		ozpIwc.metrics.counter("transport."+this.address+".invalidSenderOrigin").inc();
-		return;
-	}
-
-	packet=this.fixPacket(packet);
-
-	// if it's addressed to $transport, hijack it
-	if(packet.dst === "$transport") {
-		this.handleTransportPacket(packet);
-	} else {
-		this.router.send(packet,this);
-	}
-};
-
-/**
- * @TODO (DOC)
- * Listens for PostMessage messages and forwards them to the respected Participant.
- *
- * @class PostMessageParticipantListener
- * @param {Object} config
- * @param {ozpIwc.Router} config.router
- */
-ozpIwc.PostMessageParticipantListener=function(config) {
-	config = config || {};
-
-    /**
-     * @property Participants
-     * @type ozpiwc.PostMessageParticipant[]
-     */
-	this.participants=[];
-
-    /**
-     * @property router
-     * @type ozpIwc.Router
-     */
-	this.router=config.router || ozpIwc.defaultRouter;
-
-	var self=this;
-
-	ozpIwc.util.addEventListener("message", function(event) {
-		self.receiveFromPostMessage(event);
-	});
-
-    ozpIwc.metrics.gauge('transport.postMessageListener.participants').set(function() {
-        return self.getParticipantCount();
-    });
-};
-
-/**
- * Gets the count of known participants
- *
- * @method getParticipantCount
- *
- * @returns {Number} the number of known participants
- */
-ozpIwc.PostMessageParticipantListener.prototype.getParticipantCount=function() {
-    if (!this.participants) {
-        return 0;
-    }
-    return this.participants.length;
-};
-
-/**
- * Finds the participant associated with the given window.  Unfortunately, this is an
- * o(n) algorithm, since there doesn't seem to be any way to hash, order, or any other way to
- * compare windows other than equality.
- *
- * @method findParticipant
- * @param {Object} sourceWindow - the participant window handle from message's event.source
- */
-ozpIwc.PostMessageParticipantListener.prototype.findParticipant=function(sourceWindow) {
-	for(var i=0; i< this.participants.length; ++i) {
-		if(this.participants[i].sourceWindow === sourceWindow) {
-			return this.participants[i];
-		}
-	}
-};
-
-/**
- * Process a post message that is received from a peer
- *
- * @method receiveFromPostMessage
- * @param {Object} event - The event received from the "message" event handler
- * @param {String} event.origin
- * @param {Object} event.source
- * @param {ozpIwc.TransportPacket} event.data
- */
-ozpIwc.PostMessageParticipantListener.prototype.receiveFromPostMessage=function(event) {
-	var participant=this.findParticipant(event.source);
-    var packet=event.data;
-    if(event.source === window) {
-        // the IE profiler seems to make the window receive it's own postMessages
-        // ... don't ask.  I don't know why
-        return;
-    }
-	if(typeof(event.data)==="string") {
-		try {
-            packet=JSON.parse(event.data);
-        } catch(e) {
-            // assume that it's some other library using the bus and let it go
-            return;
-        }
-	}
-
-    var isPacket = function(packet){
-        if (ozpIwc.util.isIWCPacket(packet)) {
-            participant.forwardFromPostMessage(packet, event);
-        } else {
-            ozpIwc.log.log("Packet does not meet IWC Packet criteria, dropping.", packet);
-        }
-    };
-
-	// if this is a window who hasn't talked to us before, sign them up
-	if(!participant) {
-
-        var self = this;
-        var request = {
-            'subject': {'ozp:iwc:origin': event.origin},
-            'action': {'ozp:iwc:action': 'connect'},
-            'policies': ozpIwc.authorization.policySets.connectSet
-        };
-        ozpIwc.authorization.isPermitted(request)
-            .success(function () {
-                participant = new ozpIwc.PostMessageParticipant({
-                    'origin': event.origin,
-                    'sourceWindow': event.source,
-                    'credentials': packet.entity
-                });
-                self.router.registerParticipant(participant, packet);
-                self.participants.push(participant);
-                isPacket(packet);
-
-            }).failure(function (err) {
-                console.error("Failed to connect. Could not authorize:", err);
-            });
-	} else{
-        isPacket(packet);
-    }
-
-};
-
-/**
- * @submodule bus.transport
- */
-
-/**
- * @class RouterWatchdog
- * @extends ozpIwc.InternalParticipant
- * @namespace ozpIwc
- */
-ozpIwc.RouterWatchdog = ozpIwc.util.extend(ozpIwc.InternalParticipant, function(config) {
-    ozpIwc.InternalParticipant.apply(this, arguments);
-
-    /**
-     * The type of the participant.
-     * @property participantType
-     * @type String
-     */
-    this.participantType = "routerWatchdog";
-
-    /**
-     * Fired when connected.
-     * @event #connected
-     */
-    this.on("connected", function() {
-        this.name = this.router.selfId;
-    }, this);
-
-    /**
-     * Frequency of heartbeats
-     * @property heartbeatFrequency
-     * @type Number
-     * @defualt 10000
-     */
-    this.heartbeatFrequency = config.heartbeatFrequency || 10000;
-
-    /**
-     * Fired when connected to the router.
-     * @event #connectedToRouter
-     */
-    this.on("connectedToRouter", this.setupWatches, this);
-
-
-});
-
-/**
- * Removes this participant from the $bus.multicast multicast group.
- *
- * @method leaveEventChannel
- */
-ozpIwc.RouterWatchdog.prototype.leaveEventChannel = function() {
-    // handle anything before leaving.
-    if(this.router) {
-
-        this.send({
-            dst: "$bus.multicast",
-            action: "disconnect",
-            entity: {
-                address: this.address,
-                participantType: this.participantType,
-                namesResource: this.namesResource
-            }
-        });
-
-        this.send({
-            dst: "$bus.multicast",
-            action: "disconnect",
-            entity: {
-                address: this.router.selfId,
-                namesResource: "/router/"+this.router.selfId
-            }
-        });
-        //TODO not implemented
-//        this.router.unregisterMulticast(this, ["$bus.multicast"]);
-        return true;
-    } else {
-        return false;
-    }
-
-};
-/**
- * Sets up the watchdog for all participants connected to the router. Reports heartbeats based on
- * {{#crossLink "ozpIwc.RouterWatchdogParticipant/heartbeatFrequency:property"}}{{/crossLink}}
- * @method setupWatches
- */
-ozpIwc.RouterWatchdog.prototype.setupWatches = function() {
-    this.name = this.router.selfId;
-    var self=this;
-    var heartbeat=function() {
-        self.send({
-            dst: "names.api",
-            action: "set",
-            resource: "/router/" + self.router.selfId,
-            contentType: "application/vnd.ozp-iwc-router-v1+json",
-            entity: {
-                'address': self.router.selfId,
-                'participants': self.router.getParticipantCount(),
-                'time': ozpIwc.util.now()
-            }
-        });
-
-        for (var k in self.router.participants) {
-            var participant=self.router.participants[k];
-            participant.heartBeatStatus.time = ozpIwc.util.now();
-            if(participant instanceof ozpIwc.MulticastParticipant) {
-                /*jshint loopfunc:true*/
-                participant.members.forEach(function(member){
-                    self.send({
-                        'dst': "names.api",
-                        'resource': participant.namesResource + "/"+ member.address,
-                        'action' : "set",
-                        'entity' : member.heartBeatStatus,
-                        'contentType' : participant.heartBeatContentType
-                    });
-                });
-            } else {
-                participant.heartbeat();
-            }            
-        }
-
-    };
-//    heartbeat();
-
-    /**
-     * The timer for the heartBeat
-     * @property timer
-     * @type window.setInterval
-     */
-    this.timer = window.setInterval(heartbeat, this.heartbeatFrequency);
-};
-
-/**
- * Removes the watchdog.
- * @method shutdown
- */
-ozpIwc.RouterWatchdog.prototype.shutdown = function() {
-    window.clearInterval(this.timer);
-};
-
-
-/**
- * @submodule bus.api.Value
- */
-
-/**
- * The base class for values in the various APIs.  Designed to be extended with API-specific
- * concerns and validation.
- *
- * @class CommonApiValue
- * @namespace ozpIwc
- * @param {object} config
- * @param {string} config.name the name of this resource
- */
-ozpIwc.CommonApiValue = function(config) {
-	config = config || {};
-
-    /**
-     * @property watchers
-     * @type Array[String]
-     * @default []
-     */
-	this.watchers= config.watchers || [];
-
-    /**
-     * @property resource
-     * @type String
-     */
-	this.resource=config.resource;
-
-    /**
-     * @property allowedContentTypes
-     * @type Array
-     */
-    this.allowedContentTypes=config.allowedContentTypes;
-
-    /**
-     * @property entity
-     * @type Object
-     */
-    this.entity=config.entity;
-
-    /**
-     * @property contentType
-     * @type String
-     */
-	this.contentType=config.contentType;
-
-    /**
-     * @property permissions
-     * @type Object
-     * @default {}
-     */
-	this.permissions=new ozpIwc.policyAuth.SecurityAttribute();
-    for(var i in config.permissions){
-        this.permissions.pushIfNotExist(i, config.permissions[i]);
-    }
-
-    /**
-     * @property version
-     * @type Number
-     * @default 0
-     */
-	this.version=config.version || 0;
-
-    /**
-     * @property persist
-     * @type Boolean
-     * @default false
-     */
-    this.persist=false;
-
-    /**
-     * @property deleted
-     * @type Boolean
-     * @default true
-     */
-    this.deleted=true;
-};
-
-/**
- * Sets a data based upon the content of the packet.  Automatically updates the content type,
- * permissions, entity, and updates the version.
- *
- * @method set
- * @param {ozpIwc.TransportPacket} packet
- * @returns {undefined}
- */
-ozpIwc.CommonApiValue.prototype.set=function(packet) {
-	if(this.isValidContentType(packet.contentType)) {
-
-        if(!Array.isArray(packet.permissions)){
-            for(var i in packet.permissions) {
-                //If a permission was passed, wipe its value and set it to the new value;
-                this.permissions.clear(i);
-                this.permissions.pushIfNotExist(i,packet.permissions[i]);
-            }
-        }
-		this.contentType=packet.contentType;
-		this.entity=packet.entity;
-		this.version++;
-	}
-};
-/**
- * Adds a new watcher based upon the contents of the packet.
- *
- * @method watch
- * @param {ozpIwc.TransportPacket} packet
- * @returns {undefined}
- */
-ozpIwc.CommonApiValue.prototype.watch=function(packet) {
-	this.watchers.push({
-		src: packet.src,
-		msgId: packet.msgId
-	});
-};
-
-/**
- * Removes a previously registered watcher.  An unwatch on
- * someone who isn't actually watching is not an error-- 
- * the post condition is satisfied.
- *
- * @method unwatch
- * @param {ozpIwc.TransportPacket} packet
- * @returns {undefined}
- */
-ozpIwc.CommonApiValue.prototype.unwatch=function(packet) {
-	this.watchers=this.watchers.filter(function(w) {
-		return packet.replyTo !== w.msgId && packet.src !==w.src;
-	});
-};
-
-/**
- * Invokes the callback on each watcher.
- *
- * @method eachWatcher
- * @param {function} callback
- * @param {object} [self]  Used as 'this' for the callback.  Defaults to the Value object.
- * @returns {undefined}
- */
-ozpIwc.CommonApiValue.prototype.eachWatcher=function(callback,self) {
-	self=self || this;
-	return this.watchers.map(callback,self);
-};
-
-/**
- * Resets the data to an empy state-- undefined entity and contentType, no permissions,
- * and version of 0.  It does NOT remove watchers.  This allows for watches on values
- * that do not exist yet, or will be created in the future.
- *
- * @method deleteData
- * @returns {undefined}
- */
-ozpIwc.CommonApiValue.prototype.deleteData=function() {
-	this.entity=undefined;
-	this.contentType=undefined;
-    this.permissions.clearAll();
-	this.version=0;
-    this.deleted=true;
-};
-
-/**
- * Turns this value into a packet.
- *
- * @method toPacket
- * @param {ozpIwc.TransportPacket} base Fields to be merged into the packet.
- * @returns {ozpIwc.TransportPacket}
- */
-ozpIwc.CommonApiValue.prototype.toPacket=function(base) {
-	base = base || {};
-	base.entity=ozpIwc.util.clone(this.entity);
-	base.contentType=this.contentType;
-	base.permissions=ozpIwc.util.clone(this.permissions.getAll());
-	base.eTag=this.version;
-	base.resource=this.resource;
-	return base;
-};
-
-/**
- * Determines if the contentType is acceptable to this value.  Intended to be
- * overriden by subclasses.
- *
- * @method isValidContentType
- * @param {string} contentType
- * @returns {Boolean}
- */
-ozpIwc.CommonApiValue.prototype.isValidContentType=function(contentType) {
-    if(this.allowedContentTypes && this.allowedContentTypes.indexOf(contentType) < 0) {
-        throw new ozpIwc.ApiError("badContent",
-                "Bad contentType " + contentType +", expected " + this.allowedContentTypes.join(","));
-     } else {
-        return true;
-    }
-};
-
-/**
- * Generates a point-in-time snapshot of this value that can later be sent to
- * {@link ozpIwc.CommonApiValue#changesSince} to determine the changes made to the value.
- * This value should be considered opaque to consumers.
- * 
- * <p> For API subclasses, the default behavior is to simply call toPacket().  Subclasses
- * can override this, but should likely override {@link ozpIwc.CommonApiValue#changesSince}
- * as well.
- *
- * @method snapshot
- * @returns {object}
- */
-ozpIwc.CommonApiValue.prototype.snapshot=function() {
-	return this.toPacket();
-};
-
-/**
- * From a given snapshot, create a change notifications.  This is not a delta, rather it's
- * change structure.
- * <p> API subclasses can override if there are additional change notifications (e.g. children in DataApi).
- *
- * @method changesSince
- * @param {object} snapshot The state of the value at some time in the past.
- * @returns {Object} A record of the current value and the value of the snapshot.
- */
-ozpIwc.CommonApiValue.prototype.changesSince=function(snapshot) {
-	if(snapshot.eTag === this.version) {
-        return null;
-    }
-	return {
-			'newValue': ozpIwc.util.clone(this.entity),
-			'oldValue': snapshot.entity
-	};
-};
-
-/**
- * Returns true if the value of this is impacted by the value of node.
- * For nodes that base their value off of other nodes, override this function.
- *
- * @method isUpdateNeeded
- * @param {type} node 
- * @returns boolean
- */
-ozpIwc.CommonApiValue.prototype.isUpdateNeeded=function(node) {
-    return false;
-};
-
-/**
- * Update this node based upon the changes made to changedNodes.
- *
- * @method updateContent
- * @param {ozpIwc.CommonApiValue[]} changedNodes Array of all nodes for which isUpdatedNeeded returned true.
- * @returns {ozpIwc.CommonApiValue.changes}
- */
-ozpIwc.CommonApiValue.prototype.updateContent=function(changedNodes) {
-    return null;
-};
-
-/**
- * Handles deserializing an {{#crossLink "ozpIwc.TransportPacket"}}{{/crossLink}} and setting this value with
- * the contents.
- *
- * @method deserialize
- * @param {ozpIwc.TransportPacket} serverData
- */
-ozpIwc.CommonApiValue.prototype.deserialize=function(serverData) {
-    var clone = ozpIwc.util.clone(serverData);
-// we need the persistent data to conform with the structure of non persistent data.
-    this.entity= clone.entity || {};
-    this.contentType=clone.contentType || this.contentType;
-    for(var i in clone.permissions){
-        this.permissions.pushIfNotExist(i, clone.permissions[i]);
-    }
-    this.version=clone.version || this.version;
-    this.watchers = serverData.watchers || this.watchers;
-};
-
-/**
- * Serializes a Common Api value to a packet.
- *
- * @method serialize
- * @return {ozpIwc.TransportPacket}
- */
-ozpIwc.CommonApiValue.prototype.serialize=function() {
-    var serverData = {};
-    serverData.entity=this.entity;
-    serverData.contentType=this.contentType;
-    serverData.permissions=this.permissions.getAll();
-    serverData.version=this.version;
-    serverData.watchers=this.watchers;
-    return serverData;
-};
-
-/**
- * @submodule bus.api.Value
- */
-
-/**
- * @class CommonApiCollectionValue
- * @namespace ozpIwc
- * @extends ozpIwc.CommonApiValue
- *
- * @type {Function}
- * @param {Object} config
- * @oaram {String} config.pattern
- */
-ozpIwc.CommonApiCollectionValue = ozpIwc.util.extend(ozpIwc.CommonApiValue,function(config) {
-	ozpIwc.CommonApiValue.apply(this,arguments);
-
-    /**
-     * @property persist
-     * @type Boolean
-     * @default false
-     */
-    this.persist=false;
-
-    /**
-     * @property pattern
-     * @type RegExp
-     * @default ''
-     */
-    this.pattern=config.pattern || '';
-    this.pattern.toJSON = RegExp.prototype.toString;
-    this.entity=[];
-});
-
-/**
- * Returns if an update is needed.
- *
- * @method isUpdateNeeded
- * @param node
- * @returns {Boolean}
- */
-ozpIwc.CommonApiCollectionValue.prototype.isUpdateNeeded=function(node) {
-    return node.resource.match(this.pattern);
-};
-
-/**
- * Update the content of this value with an array of changed nodes.
- *
- * @method updateContent
- * @param {ozpIwc.commonApiValue[]} changedNodes
- */
-ozpIwc.CommonApiCollectionValue.prototype.updateContent=function(changedNodes) {
-    this.version++;
-    this.entity=changedNodes.map(function(changedNode) { return changedNode.resource; });
-};
-
-/**
- * Handles set actions on the value.
- *
- * @method set
- */
-ozpIwc.CommonApiCollectionValue.prototype.set=function() {
-    throw new ozpIwc.ApiError("noPermission","This resource cannot be modified.");
-};
-
-/**
- * Deserializes a Common Api Collection value from a packet.
- *
- * @method deserialize
- * @param {ozpIwc.TransportPacket} serverData
- */
-ozpIwc.CommonApiCollectionValue.prototype.deserialize=function(serverData) {
-    ozpIwc.CommonApiValue.prototype.deserialize.apply(this,arguments);
-    var clone = ozpIwc.util.clone(serverData);
-
-    this.pattern = (typeof clone.pattern === "string") ? new RegExp(clone.pattern.replace(/^\/|\/$/g, '')) : this.pattern;
-    this.pattern.toJSON = RegExp.prototype.toString;
-};
-
-/**
- * Serializes a Common Api Collection value to a packet.
- *
- * @method serialize
- * @return {ozpIwc.TransportPacket}
-*/
-ozpIwc.CommonApiCollectionValue.prototype.serialize=function() {
-    var serverData = {};
-    serverData.entity=this.entity;
-    serverData.pattern=this.pattern;
-    serverData.contentType=this.contentType;
-    serverData.permissions=this.permissions.getAll();
-    serverData.version=this.version;
-    serverData.watchers=this.watchers;
-    return serverData;
-};
-
-/**
- * ```
-    .---------------------------.
-   /,--..---..---..---..---..--. `.
-  //___||___||___||___||___||___\_|
-  [j__ ######################## [_|
-     \============================|
-  .==|  |"""||"""||"""||"""| |"""||
- /======"---""---""---""---"=|  =||
- |____    []*  IWC     ____  | ==||
- //  \\        BUS    //  \\ |===||  hjw -(& kjk)
- "\__/"---------------"\__/"-+---+'
- * ```
- * @module bus
- */
-
-/**
- * Classes related to api aspects of the IWC.
- * @module bus
- * @submodule bus.api
- */
-/**
- * The API classes that can be used on the IWC bus. All of which subclass {{#crossLink "ozpIwc.CommonApiBase"}}{{/crossLink}}
- * @module bus.api
- * @submodule bus.api.Type
- */
-/**
- * The API Value types that can be used in IWC apis. All of which subclass
- * {{#crossLink "CommonApiValue"}}{{/crossLink}}
- * @module bus.api
- * @submodule bus.api.Value
- */
-
-/**
- * A base class for IWC error objects.
- *
- * @class ApiError
- * @namespace ozpIwc
- * @constructor
- *
- * @type {Function}
- * @param {String} action The action of the error.
- * @param {String} message The message corresponding to the error.
- */
-ozpIwc.ApiError=ozpIwc.util.extend(Error,function(action,message) {
-    Error.call(this,message);
-    this.name="ApiError";
-    this.errorAction=action;
-    this.message=message;
-});
-
-/**
- * Stringifies the error.
- *
- * @method toString
- * @returns {String}
- */
-ozpIwc.ApiError.prototype.toString=function() {
-    return this.name+":"+JSON.stringify(this.message);
-};
-
-/**
- * Creates a subclass of the ApiError with the given error name prefix.
- *
- * @method subclass
- * @param response
- * @returns {Function}
- */
-ozpIwc.ApiError.subclass=function(response) {
-    return ozpIwc.util.extend(ozpIwc.ApiError,function(message) {
-        ozpIwc.ApiError.call(this,response,message);
-        this.name=response+"Error";
-    });
-};
-
-/**
- * Thrown when an invalid action is called on an api.
- *
- * @class BadActionError
- * @extends ozpIwc.ApiError
- * @static
- */
-ozpIwc.BadActionError=ozpIwc.ApiError.subclass("badAction");
-
-/**
- * Thrown when an invalid resource is called on an api.
- *
- * @class BadResourceError
- * @extends ozpIwc.ApiError
- * @static
- */
-ozpIwc.BadResourceError=ozpIwc.ApiError.subclass("badResource");
-
-/**
- * Thrown when an invalid request is made against an api.
- *
- * @class BadRequestError
- * @extends ozpIwc.ApiError
- * @static
- */
-ozpIwc.BadRequestError=ozpIwc.ApiError.subclass("badRequest");
-
-/**
- * Thrown when an invalid contentType is used in a request against an api.
- *
- * @class BadContentError
- * @extends ozpIwc.ApiError
- * @static
- */
-ozpIwc.BadContentError=ozpIwc.ApiError.subclass("badContent");
-
-/**
- * Thrown when the action or entity is not valid for the resource's state.
- *
- * @class BadStateError
- * @extends ozpIwc.ApiError
- * @static
- */
-ozpIwc.BadStateError=ozpIwc.ApiError.subclass("badState");
-
-/**
- * Thrown when no action is given in a request against an api.
- *
- * @class NoActionError
- * @extends ozpIwc.ApiError
- * @static
- */
-ozpIwc.NoActionError=ozpIwc.ApiError.subclass("noAction");
-
-/**
- * Thrown when no resource is given in a request against an api.
- *
- * @class NoResourceError
- * @extends ozpIwc.ApiError
- * @static
- */
-ozpIwc.NoResourceError=ozpIwc.ApiError.subclass("noResource");
-
-/**
- * Thrown if an api request packets ifTag exists but does not match the node's version property.
- *
- * @class NoMatchError
- * @extends ozpIwc.ApiError
- * @static
- */
-ozpIwc.NoMatchError=ozpIwc.ApiError.subclass("noMatch");
-
-/**
- * Thrown when an api request is not permitted.
- *
- * @class NoPermissionError
- * @extends ozpIwc.ApiError
- * @static
- */
-ozpIwc.NoPermissionError=ozpIwc.ApiError.subclass("noPermission");
-
-
-/**
- * @submodule bus.api.Type
- */
-
-/**
- * The Common API Base implements the API Common Conventions.  It is intended to be subclassed by
- * the specific API implementations.
- * @class CommonApiBase
- * @namespace ozpIwc
- * @constructor
- * @param {Object} config
- * @params {Participant} config.participant  the participant used for the Api communication
- */
-ozpIwc.CommonApiBase = function(config) {
-    config = config || {};
-
-    /**
-     * The participant used for the Api communication on the bus.
-     * @property participant
-     * @type Participant
-     * @default {}
-     */
-    this.participant=config.participant;
-    this.participant.on("receiveApiPacket",this.routePacket,this);
-    this.participant.on("becameLeaderEvent", this.becameLeader,this);
-    this.participant.on("newLeaderEvent", this.newLeader,this);
-    this.participant.on("startElection", this.startElection,this);
-    this.participant.on("receiveEventChannelPacket",this.routeEventChannel,this);
-    this.participant.on("receivedState", this.receiveState,this);
-   /**
-    * An events module for the API.
-    * @property events
-    * @type Event
-    */
-	this.events = new ozpIwc.Event();
-    this.events.mixinOnOff(this);
-
-    /**
-     * Api nodes that are updated based on other api nodes. Used for keeping dynamic lists of related resources.
-     * @property dynamicNodes
-     * @type Array
-     * @default []
-     */
-    this.dynamicNodes=[];
-
-    /**
-     * Key value storage for the API. each element of the object is a node of the API.
-     * @property data
-     * @type Object
-     * @default {}
-     */
-    this.data={};
-
-    /**
-     * A count for the recursive gathering of server data. Keeps track of the number of expected branches to traverse
-     * through the HAL data. Set to 1 at the start of
-     * {{#crossLink "ozpIwc.CommonApiBase/loadFromEndpoint:method"}}{{/crossLink}}
-     * @private
-     * @type Number
-     * @default 1
-     */
-    this.expectedBranches = 1;
-
-    /**
-     * A count for the recursive gathering of server data. Keeps track of the number of branches that have been fully
-     * retrieved in the HAL data. Set to 0 at the start of
-     * {{#crossLink "ozpIwc.CommonApiBase/loadFromEndpoint:method"}}{{/crossLink}}
-     * @private
-     * @type Number
-     * @default 0
-     */
-    this.retrievedBranches = 0;
-
-    this.endpointUrls=[];
-};
-ozpIwc.CommonApiBase.prototype.receiveState = function (state) {
-    state = state || this.participant.stateStore;
-    this.setState(state);
-};
-
-
-/**
- * Finds or creates the corresponding node to store a server loaded resource.
- *
- * @method findNodeForServerResource
- * @param {ozpIwc.TransportPacket} serverObject The object to be stored.
- * @param {String} objectPath The full path resource of the object including it's root path.
- * @param {String} rootPath The root path resource of the object.
- *
- * @returns {ozpIwc.CommonApiValue} The node that is now holding the data provided in the serverObject parameter.
- */
-ozpIwc.CommonApiBase.prototype.findNodeForServerResource=function(object,objectPath,endpoint) {
-    var resource = '/';
-    //Temporarily hard-code prefix. Will derive this from the server response eventually
-    switch (endpoint.name) {
-        case ozpIwc.linkRelPrefix + ':intent' :
-            if (object.type) {
-                resource += object.type;
-                if (object.action) {
-                    resource += '/' + object.action;
-                    if (object.handler) {
-                        resource += '/' + object.handler;
-                    }
-                }
-            }
-            break;
-        case ozpIwc.linkRelPrefix + ':application':
-            if (object.id) {
-                resource += 'application/' + object.id;
-            }
-            break;
-        case ozpIwc.linkRelPrefix + ':system':
-            resource += 'system';
-            break;
-        case ozpIwc.linkRelPrefix + ':user':
-            resource += 'user';
-            break;
-        case ozpIwc.linkRelPrefix + ':user-data':
-            if (object.key) {
-                resource += object.key;
-            }
-            break;
-        default:
-            resource+= 'FIXME_UNKNOWN_ENDPOINT_' + endpoint.name;
-    }
-
-    if (resource === '/') {
-        return null;
-    }
-
-    return this.findOrMakeValue({
-        'resource': resource,
-        'entity': {},
-        'contentType': object.contentType,
-        'children': object.children // for data.api only
-    });
-};
-
-/**
- * Loads api data from the server.  Intended to be overrided by subclasses to load data
- * when this instance becomes a leader without receiving data from the previous leader.
- *
- * @method loadFromServer
- */
-ozpIwc.CommonApiBase.prototype.loadFromServer=function() {
-    // Do nothing by default, resolve to prevent clashing with overridden promise implementations.
-    return new Promise(function(resolve,reject){
-        resolve();
-    });
-};
-
-/**
- * TO BE DEPRECATED - This is the recursive tree scanning approach.  Replaced by iterative loadFromEndpointIterative.
- * Loads api data from a specific endpoint.
- *
- * @method loadFromEndpoint
- * @param {String} endpointName The name of the endpoint to load from the server.
- * @param [Object] requestHeaders
- * @param {String} requestHeaders.name
- * @param {String} requestHeaders.value
- *
- */
-ozpIwc.CommonApiBase.prototype.loadFromEndpoint=function(endpointName, requestHeaders) {
-    this.expectedBranches = 1;
-    this.retrievedBranches = 0;
-
-    // fetch the base endpoint. it should be a HAL Json object that all of the
-    // resources and keys in it
-    var endpoint=ozpIwc.endpoint(endpointName);
-    var resolveLoad, rejectLoad;
-
-    var p = new Promise(function(resolve,reject){
-        resolveLoad = resolve;
-        rejectLoad = reject;
-    });
-
-    var self=this;
-    endpoint.get("/")
-        .then(function(data) {
-            var payload = data.response;
-            var responseHeader = data.header;
-            self.loadLinkedObjectsFromServer(endpoint,payload,resolveLoad, requestHeaders,responseHeader);
-            self.updateResourceFromServer(payload,payload._links.self.href,endpoint,resolveLoad,responseHeader);
-            // update all the collection values
-            self.dynamicNodes.forEach(function(resource) {
-                self.updateDynamicNode(self.data[resource]);
-            });
-        })['catch'](function(e) {
-            ozpIwc.log.error("Could not load from api (" + endpointName + "): " + e.message,e);
-            rejectLoad("Could not load from api (" + endpointName + "): " + e.message + e);
-        });
-    return p;
-};
-
-/*
- * REPLACES loadFromEndpoint with an iterative approach
- * 
- * Loads api data from a specific endpoint.
- *
- * @method loadFromEndpointIterative
- * @param {String} endpointName The name of the endpoint to load from the server.
- * @param [Object] requestHeaders
- * @param {String} requestHeaders.name
- * @param {String} requestHeaders.value
- *
- */
-ozpIwc.CommonApiBase.prototype.loadFromEndpointIterative=function(endpointName, requestHeaders) {
-    // fetch the base endpoint. it should be a HAL Json object with all of the
-    // resources and keys in it
-    var endpoint=ozpIwc.endpoint(endpointName);
-
-	var self=this;
-    return endpoint.get("/")
-        .then(function(data) {
-			var embeddedList = {};
-			var unresolvedLinks = [];
-			// if any embedded items exist, convert them to a list (primarily to cover the single element case
-			if (data.response._embedded && data.response._embedded.item) {
-				var items = ozpIwc.util.ensureArray(data.response._embedded.item);
-				for (var i in items) {
-					if (items[i]._links && items[i]._links.self && items[i]._links.self.href) {
-						embeddedList[items[i]._links.self.href] = items[i];
-					} else {
-						ozpIwc.log.info("Unable to load embedded item " + JSON.stringify(items[i]));
-					}
-				}
-				
-				for (var path in embeddedList) {
-					self.updateResourceFromServerIterative(embeddedList[path], path, endpoint, requestHeaders);
-				}
-			}
-			
-			// Follow up here with loop on _links section, creating a promise to load each link if it is not in the _embedded section
-			// At end, return promise.all to activate when all outstanding loads are completed.
-			if (data.response._links && data.response._links.item) {
-				var links = ozpIwc.util.ensureArray(data.response._links.item);
-				// scan the list of links.  If there is no href match to an embedded item, push a promise to load the link into the list
-				links.forEach(function(link) {
-					if (embeddedList[link.href] === undefined) {  // if undefined
-						unresolvedLinks.push(
-							endpoint.get(link.href, requestHeaders)
-								.then(function(data){
-									if (!data || !data.header || !data.response) {
-										ozpIwc.log.info("Unable to load link item " + link.href);
-										return null;
-									}
-									return data;
-								})
-						);
-					}
-				});
-			}
-			return Promise.all(unresolvedLinks);
-		}).then(function(unresolvedLinks) {
-			unresolvedLinks.forEach(function(payload) {
-				if (payload !== null) {
-					var header = payload.header;
-					var response = payload.response;
-					self.updateResourceFromServerIterative(response, response._links.self.href, endpoint, header);
-				}
-			});
-
-			// update all the collection values
-			self.dynamicNodes.forEach(function(resource) {
-				self.updateDynamicNode(self.data[resource]);
-			});
-		});
-};
-					
-/**
- * Updates an Api node with server loaded HAL data.  (Was updateResourceFromServer, modified to be iterative, not recursive)
- *
- * @method updateResourceFromServerIterative
- * @param {ozpIwc.TransportPacket} object The object retrieved from the server to store.
- * @param {String} path The path of the resource retrieved.
- * @param {ozpIwc.Endpoint} endpoint the endpoint of the HAL data.
- */
-ozpIwc.CommonApiBase.prototype.updateResourceFromServerIterative=function(item,path,endpoint,requestHeaders) {
-    //TODO where should we get content-type?
-    var header = requestHeaders || {};
-    item.contentType = item.contentType || header['Content-Type'] || 'application/json';
-
-    var parseEntity;
-    if(typeof item.entity === "string"){
-        try{
-            parseEntity = JSON.parse(item.entity);
-            item.entity = parseEntity;
-        }catch(e){
-            // fail silently for now
-        }
-    }
-    var node = this.findNodeForServerResource(item,path,endpoint);
-
-    if (node) {
-        var snapshot = node.snapshot();
-
-        var halLess = ozpIwc.util.clone(item);
-        delete halLess._links;
-        delete halLess._embedded;
-        node.deserialize(this.formatServerData(halLess));
-
-        this.notifyWatchers(node, node.changesSince(snapshot));
-    }
-};
-
-/**
- * Updates an Api node with server loaded HAL data.
- *
- * @method updateResourceFromServer
- * @param {ozpIwc.TransportPacket} object The object retrieved from the server to store.
- * @param {String} path The path of the resource retrieved.
- * @param {ozpIwc.Endpoint} endpoint the endpoint of the HAL data.
- */
-ozpIwc.CommonApiBase.prototype.updateResourceFromServer=function(object,path,endpoint,res,header) {
-    //TODO where should we get content-type?
-    var lheader = header || {};
-    object.contentType = object.contentType || lheader['Content-Type'] || 'application/json';
-
-    var parseEntity;
-    if(typeof object.entity === "string"){
-        try{
-            parseEntity = JSON.parse(object.entity);
-            object.entity = parseEntity;
-        }catch(e){
-            // fail silently for now
-        }
-    }
-    var node = this.findNodeForServerResource(object,path,endpoint);
-
-    if (node) {
-        var snapshot = node.snapshot();
-
-        var halLess = ozpIwc.util.clone(object);
-        delete halLess._links;
-        delete halLess._embedded;
-        node.deserialize(this.formatServerData(halLess));
-
-        this.notifyWatchers(node, node.changesSince(snapshot));
-        this.loadLinkedObjectsFromServer(endpoint, object, res);
-    }
-};
-
-/**
- * A middleware function used to format server data to be deserialized into Api nodes
- *
- * @method formatServerData
- * @param {Object} the data to format.
- * @returns {{entity: object}}
- */
-ozpIwc.CommonApiBase.prototype.formatServerData = function(object){
-    return {
-        entity: object
-    };
-};
-
-/**
- * Traverses through HAL data from the server and updates api resources based on the data it finds.
- *
- * @method loadLinkedObjectsFromServer
- * @param {ozpIwc.Endpoint} endpoint the endpoint of the HAL data.
- * @param data the HAL data.
- * @parm [Object] headers
- * @param {String} headers.name
- * @param {String} headers.value
- */
-ozpIwc.CommonApiBase.prototype.loadLinkedObjectsFromServer=function(endpoint,data,res, requestHeaders) {
-    // fetch the base endpoint. it should be a HAL Json object that all of the 
-    // resources and keys in it
-    if(!data) {
-        return;
-    }
-
-    var self=this;
-    var noEmbedded = true;
-    var noLinks = true;
-    var branchesFound = 0;
-    var itemLength = 0;
-
-    if(data._embedded && data._embedded.item) {
-        data._embedded.item = ozpIwc.util.ensureArray(data._embedded.item);
-        noEmbedded = false;
-        if (Array.isArray(data._embedded.item)) {
-            itemLength=data._embedded.item.length;
-        } else {
-            itemLength=1;
-        }
-        branchesFound+=itemLength;
-    }
-
-    if(data._links && data._links.item) {
-        data._links.item = ozpIwc.util.ensureArray(data._links.item);
-        noLinks = false;
-        if (Array.isArray(data._links.item)) {
-            itemLength=data._links.item.length;
-        } else {
-            itemLength=1;
-        }
-        branchesFound+=itemLength;
-    }
-
-    if(noEmbedded && noLinks) {
-        this.retrievedBranches++;
-        if(this.retrievedBranches >= this.expectedBranches){
-            res("RESOLVING");
-        }
-    } else {
-
-        this.expectedBranches += branchesFound - 1;
-
-        //TODO should we parse objects from _links and _embedded not wrapped in an item object?
-
-        if(data._embedded && data._embedded.item) {
-            var object = {};
-
-            if (Array.isArray(data._embedded.item)) {
-                for (var i in data._embedded.item) {
-                    object = data._embedded.item[i];
-                    this.updateResourceFromServer(object, object._links.self.href, endpoint, res);
-                }
-            } else {
-                object = data._embedded.item;
-                this.updateResourceFromServer(object, object._links.self.href, endpoint, res);
-            }
-        }
-
-        if(data._links && data._links.item) {
-
-            if (Array.isArray(data._links.item)) {
-                data._links.item.forEach(function (object) {
-                    var href = object.href;
-                    endpoint.get(href, requestHeaders).then(function (objectResource) {
-                        var payload = objectResource.response;
-                        var header = objectResource.header;
-                        self.updateResourceFromServer(payload, href, endpoint, res,header);
-                    })['catch'](function (error) {
-                        ozpIwc.log.info("unable to load " + object.href + " because: ", error);
-                    });
-                });
-            } else {
-                var href = data._links.item.href;
-                endpoint.get(href, requestHeaders).then(function (objectResource) {
-                    var payload = objectResource.response;
-                    var header = objectResource.header;
-                    self.updateResourceFromServer(payload, href, endpoint, res,header);
-                })['catch'](function (error) {
-                    ozpIwc.log.info("unable to load " + object.href + " because: ", error);
-                });
-            }
-        }
-    }
-};
-
-
-/**
- * Creates a new value for the given packet's request.  Subclasses must override this
- * function to return the proper value based upon the packet's resource, content type, or
- * other parameters.
- *
- * @method makeValue
- * @abstract
- * @param {ozpIwc.TransportPacket} packet
- *
- * @returns {CommonApiValue} an object implementing the commonApiValue interfaces
- */
-ozpIwc.CommonApiBase.prototype.makeValue=function(/*packet*/) {
-    throw new Error("Subclasses of CommonApiBase must implement the makeValue(packet) function.");
-};
-
-/**
- * Determines whether the action implied by the packet is permitted to occur on
- * node in question.
- *
- * @todo the refactoring of security to allow action-level permissions
- * @todo make the packetContext have the srcSubject inside of it
- *
- * @method isPermitted
- * @param {ozpIwc.TransportPacketContext} packetContext The packet of which permission is in question.
- * @param {ozpIwc.CommonApiValue} node The node of the api that permission is being checked against
- *
- * @returns {ozpIwc.AsyncAction} An asynchronous response, the response will call either success or failure depending on
- * the result of the check.
- *
- * @example
- * ```
- * foo.isPermitted(node,packetContext)
- *      .success(function(){
- *          ...
- *      }).failure(function(){
- *          ...
- *      });
- * ```
- */
-ozpIwc.CommonApiBase.prototype.isPermitted=function(packetContext,node) {
-    var asyncAction = new ozpIwc.AsyncAction();
-
-    ozpIwc.authorization.formatCategory(packetContext.packet.permissions)
-        .success(function(permissions) {
-            var request = {
-                'subject': node.permissions.getAll(),
-                'resource': permissions || {},
-                'action': {'ozp:iwc:action': 'access'},
-                'policies': ozpIwc.authorization.policySets.apiSet
-            };
-
-            ozpIwc.authorization.isPermitted(request, node)
-                .success(function (resolution) {
-                        asyncAction.resolve("success",resolution);
-                }).failure(function (err) {
-                    console.error("Api could not perform action:", err);
-                    asyncAction.resolve("failure",err);
-                });
-        }).failure(function(err){
-            console.error("Api could not format permission check on packet", err);
-            asyncAction.resolve("failure",err);
-        });
-
-    return asyncAction;
-};
-
-
-/**
- * Turn an event into a list of change packets to be sent to the watchers.
- *
- * @method notifyWatchers
- * @param {ozpIwc.CommonApiValue} node The node being changed.
- * @param {Object} changes The changes to the node.
- */
-ozpIwc.CommonApiBase.prototype.notifyWatchers=function(node,changes) {
-
-    if(!this.participant.activeStates.leader)	{
-        // if not leader, just drop it.
-        return;
-    }
-    if(!changes) {
-        return;
-    }
-    this.events.trigger("changedNode",node,changes);
-    node.eachWatcher(function(watcher) {
-        // @TODO check that the recipient has permission to both the new and old values
-        var reply={
-            'dst'   : watcher.src,
-            'src'   : this.participant.name,
-            'replyTo' : watcher.msgId,
-            'response': 'changed',
-            'resource': node.resource,
-            'permissions': node.permissions.getAll(),
-            'entity': changes
-        };
-
-        this.participant.send(reply);
-    },this);
-};
-
-/**
- * For a given packet, return the value if it already exists, otherwise create the value
- * using makeValue()
- *
- * @method findOrMakeValue
- * @protected
- * @param {ozpIwc.TransportPacket} packet The data that will be used to either find or create the api node.
- */
-ozpIwc.CommonApiBase.prototype.findOrMakeValue=function(packet) {
-    if(packet.resource === null || packet.resource === undefined) {
-        // return a throw-away value
-        return new ozpIwc.CommonApiValue();
-    }
-    var node=this.data[packet.resource];
-
-    if(!node) {
-        node=this.data[packet.resource]=this.makeValue(packet);
-    }
-    return node;
-};
-
-/**
- *
- * Determines if the given resource exists.
- *
- * @method hasKey
- * @param {String} resource The path of the resource in question.
- * @returns {Boolean} Returns true if there is a node with a corresponding resource in the api.
- */
-ozpIwc.CommonApiBase.prototype.hasKey=function(resource) {
-    return resource in this.data;
-};
-
-/**
- * Generates a key name that does not already exist and starts with a given prefix.
- *
- * @method createKey
- * @param {String} prefix The prefix resource string.
- * @returns {String} The prefix resource string with an appended generated Id that is not already in use.
- */
-ozpIwc.CommonApiBase.prototype.createKey=function(prefix) {
-    prefix=prefix || "";
-    var key;
-    do {
-        key=prefix + ozpIwc.util.generateId();
-    } while(this.hasKey(key));
-    return key;
-};
-
-
-/**
- * Returns true if this API instance is a leader.
- * @method isLeader
- * @returns {Boolean}
- */
-ozpIwc.CommonApiBase.prototype.isLeader=function(){
-    return this.participant.activeStates.leader;
-};
-/**
- * Route a packet to the appropriate handler.  The routing path is based upon
- * the action and whether a resource is defined. If the handler does not exist, it is routed
- * to defaultHandler(node,packetContext)
- *
- * Has Resource: handleAction(node,packetContext)
- *
- * No resource: rootHandleAction(node,packetContext)
- *
- * Where "Action" is replaced with the packet's action, lowercase with first letter capitalized
- * (e.g. "doSomething" invokes "handleDosomething")
- * Note that node will usually be null for the rootHandlerAction calls.
- * <ul>
- * <li> Pre-routing checks	<ul>
- *		<li> Permission check</li>
- *		<li> ACL Checks (todo)</li>
- *		<li> Precondition checks</li>
- * </ul></li>
- * <li> Post-routing actions <ul>
- *		<li> Reply to requester </li>
- *		<li> If node version changed, notify all watchers </li>
- * </ul></li>
- *
- * @method routePacket
- * @param {ozpIwc.TransportPacketContext} packetContext The packet to route.
- *
- */
-ozpIwc.CommonApiBase.prototype.routePacket=function(packetContext) {
-    var packet=packetContext.packet;
-    this.events.trigger("receive",packetContext);
-    var self=this;
-    var errorWrap=function(f) {
-        try {
-            f.apply(self);
-        } catch(e) {
-            if(!e.errorAction) {
-                ozpIwc.log.error("Unexpected error:",e);
-            }
-
-            // If not the leader, don't reply.
-            if(self.isLeader()) {
-                packetContext.replyTo({
-                    'response': e.errorAction || "unknownError",
-                    'entity': e.message
-                });
-            }
-        }
-    };
-
-    if(packet.response && !packet.action) {
-        //TODO create a metric for this instead of logging to console
-        //ozpIwc.log.log(this.participant.name + " dropping response packet ",packet);
-        // if it's a response packet that didn't wire an explicit handler, drop the sucker
-        return;
-    }
-    var node;
-
-    errorWrap(function() {
-        var handler=this.findHandler(packetContext);
-        this.validateResource(node,packetContext);
-        node=this.findOrMakeValue(packetContext.packet);
-
-        this.isPermitted(packetContext,node)
-            .success(function() {
-                errorWrap(function() {
-                    this.validatePreconditions(node,packetContext);
-                    var snapshot=node.snapshot();
-                    handler.call(this,node,packetContext);
-                    this.notifyWatchers(node, node.changesSince(snapshot));
-
-                // update all the collection values
-                    this.dynamicNodes.forEach(function(resource) {
-                        this.updateDynamicNode(this.data[resource]);
-                    },this);
-                });
-            },this)
-            .failure(function(err) {
-                packetContext.replyTo({'response':'noPerm'});
-                console.log("failure");
-            });
-    });
-};
-
-/**
- * Routes event channel messages.
- *
- * @method routeEventChannel
- * @param {ozpIwc.TransportPacketContext} packetContext
- */
-ozpIwc.CommonApiBase.prototype.routeEventChannel = function(packetContext) {
-    var packet = packetContext.packet;
-    switch (packet.action) {
-        case "connect":
-            this.handleEventChannelConnect(packetContext);
-            break;
-        case "disconnect":
-            this.handleEventChannelDisconnect(packetContext);
-            break;
-        default:
-            ozpIwc.log.error(this.participant.name, "No handler found for corresponding event channel action: ", packet.action);
-            break;
-    }
-};
-
-/**
- * Handles disconnect messages received over the $bus.multicast group.
- *
- * @method handleEventChannelDisconnect
- * @param {ozpIwc.TransportPacketContext} packetContext
- */
-ozpIwc.CommonApiBase.prototype.handleEventChannelDisconnect = function(packetContext) {
-    for(var node in this.data){
-        for(var j in this.data[node].watchers) {
-            if (this.data[node].watchers[j].src === packetContext.packet.entity.address) {
-                this.data[node].watchers.splice(j,1);
-            }
-        }
-    }
-    this.handleEventChannelDisconnectImpl(packetContext);
-};
-
-/**
- * Handles connect messages received over the $bus.multicast group.
- *
- * @method handleEventChannelConnect
-* @param {ozpIwc.TransportPacketContext} packetContext
-*/
-ozpIwc.CommonApiBase.prototype.handleEventChannelConnect = function(packetContext) {
-    this.handleEventChannelConnectImpl(packetContext);
-};
-
-/**
- * Intended to be overridden by subclass.
- *
- * @abstract
- * @method handleEventChannelDisconnectImpl
- * @param {ozpIwc.TransportPacketContext} packetContext
- */
-ozpIwc.CommonApiBase.prototype.handleEventChannelDisconnectImpl = function(packetContext) {
-};
-/**
- * Intended to be overridden by subclass.
- *
- * @abstract
- * @method handleEventChannelDisconnectImpl
- * @param {ozpIwc.TransportPacketContext} packetContext
- */
-ozpIwc.CommonApiBase.prototype.handleEventChannelConnectImpl = function(packetContext) {
-};
-/**
- * Determines which handler in the api is needed to process the given packet.
- *
- * @method findHandler
- * @param {ozpIwc.TransportPacketContext} packetContext The packet context to find a proper handler for.
- *
- * @returns {Function} The handler for the given packet context.
- */
-ozpIwc.CommonApiBase.prototype.findHandler=function(packetContext) {
-    var action=packetContext.packet.action;
-    var resource=packetContext.packet.resource;
-
-    var handler;
-
-    if(resource===null || resource===undefined) {
-        handler="rootHandle";
-    } else {
-        handler="handle";
-    }
-
-    if(action) {
-        handler+=action.charAt(0).toUpperCase() + action.slice(1).toLowerCase();
-    } else {
-        handler="defaultHandler";
-    }
-
-    if(!handler || typeof(this[handler]) !== 'function') {
-        handler="defaultHandler";
-    }
-    return this[handler];
-};
-
-
-/**
- * Checks that the given packet context's resource meets the requirements of the api. Subclasses should override this
- * method as it performs no check by default.
- *
- * @method validateResource
- * @param {CommonApiValue} node @TODO is a node needed to validate?
- * @param {ozpIwc.TransportPacketContext} packetContext The packetContext with the resource to be validated.
- *
- * @returns {Boolean} always returns true.
- */
-ozpIwc.CommonApiBase.prototype.validateResource=function(/* node,packetContext */) {
-    return true;
-};
-
-/**
- * Checks the given packet context's `ifTag` against the desired api node's `version`. Throws ApiError if ifTag exists
- * and doesn't match.
- *
- * @method validatePreconditions
- * @param node The api node being checked against.
- * @param packetContext The packet context to validate.
- *
- */
-ozpIwc.CommonApiBase.prototype.validatePreconditions=function(node,packetContext) {
-    if(packetContext.packet.ifTag && packetContext.packet.ifTag!==node.version) {
-        throw new ozpIwc.ApiError('noMatch',"Latest version is " + node.version);
-    }
-};
-
-/**
- * Checks that the given packet context's contextType meets the requirements of the api. Subclasses should override this
- * method as it performs no check by default.
- *
- * @method validateContextType
- * @param {CommonApiValue} node @TODO is a node needed to validate?
- * @param {ozpIwc.TransportPacketContext} packetContext The packetContext with the contextType to be validated.
- *
- * @returns {Boolean} - always returns true.
- */
-ozpIwc.CommonApiBase.prototype.validateContentType=function(node,packetContext) {
-    return true;
-};
-
-/**
- * @TODO (DOC)
- * @method updateDynamicNode
- * @param {ozpIwc.CommonApiValue} node @TODO (DOC)
- */
-ozpIwc.CommonApiBase.prototype.updateDynamicNode=function(node) {
-    if(!node) {
-        return;
-    }
-    var ofInterest=[];
-
-    for(var k in this.data) {
-        if(node.isUpdateNeeded(this.data[k])){
-            ofInterest.push(this.data[k]);
-        }
-    }
-
-    if(ofInterest) {
-        var snapshot=node.snapshot();
-        node.updateContent(ofInterest);
-        this.notifyWatchers(node,node.changesSince(snapshot));
-    }
-};
-
-/**
- * @TODO (DOC)
- * @method addDynamicNode
- * @param {ozpIwc.CommonApiValue} node @TODO (DOC)
- */
-ozpIwc.CommonApiBase.prototype.addDynamicNode=function(node) {
-    this.data[node.resource]=node;
-    this.dynamicNodes.push(node.resource);
-    this.updateDynamicNode(node);
-};
-
-/**
- * The default handler for the api when receiving packets. This handler is called when no handler was found for the
- * given packet context's action.
- *
- *
- * @method defaultHandler
- * @param {ozpIwc.CommonApiValue} node @TODO is a node needed? or is this intended for subclass purposes
- * @param {ozpIwc.TransportPacketContext} packetContext The packet context being handled.
- */
-ozpIwc.CommonApiBase.prototype.defaultHandler=function(node,packetContext) {
-    packetContext.replyTo({
-        'response': 'badAction',
-        'entity': {
-            'action': packetContext.packet.action,
-            'originalRequest' : packetContext.packet
-        }
-    });
-};
-
-/**
- * Common handler for packet contexts with `get` actions.
- *
- * @method handleGet
- * @param {ozpIwc.CommonApiValue} node The api node to retrieve.
- * @param {ozpIwc.TransportPacketContext} packetContext The packet context containing the get action.
- */
-ozpIwc.CommonApiBase.prototype.handleGet=function(node,packetContext) {
-    if(this.isLeader()) {
-        packetContext.replyTo(node.toPacket({'response': 'ok'}));
-    }
-};
-
-/**
- * Common handler for packet contexts with `bulkGet` actions.
- *
- * @method handleBulkget
- * @param {ozpIwc.CommonApiValue} node The api node to retrieve.  (Not used, bulk get searches the api's data object instead)
- * @param {ozpIwc.TransportPacketContext} packetContext The packet context containing the bulk get action.
- */
-ozpIwc.CommonApiBase.prototype.handleBulkget=function(node,packetContext) {
-    if(this.isLeader()) {
-        // scan local data set for resource link(?) contains prefix
-        // return list of nodes of matches
-        var matchingNodes = [];
-
-        if (this.data !== {}) {
-            for (var i in this.data) {
-                if (this.data[i].resource.indexOf(packetContext.packet.resource) === 0) {
-                    matchingNodes.push(this.data[i].toPacket());
-                }
-            }
-        }
-
-        packetContext.replyTo({
-            'response': 'ok',
-            'entity': matchingNodes
-        });
-    }
-};
-
-/**
- * Common handler for packet contexts with `set` actions.
- *
- * @method handleSet
- * @param {ozpIwc.CommonApiValue} node The api node to store the packet contexts' data in.
- * @param {ozpIwc.TransportPacketContext} packetContext The packet context containing the set action.
- */
-ozpIwc.CommonApiBase.prototype.handleSet=function(node,packetContext) {
-    node.set(packetContext.packet);
-    if(this.isLeader()) {
-        packetContext.replyTo({'response': 'ok'});
-    }
-};
-
-/**
- * Common handler for packet contexts with `delete` actions.
- *
- * @TODO (DOC)
- * @method handleDelete
- * @param {ozpIwc.CommonApiValue} node @TODO (DOC)
- * @param {ozpIwc.TransportPacketContext} packetContext @TODO (DOC)
- */
-ozpIwc.CommonApiBase.prototype.handleDelete=function(node,packetContext) {
-    node.deleteData();
-    if(this.isLeader()) {
-        packetContext.replyTo({'response': 'ok'});
-    }
-};
-
-/**
- * Common handler for packet contexts with `watch` actions.
- *
- * @method handleWatch
- * @param {ozpIwc.CommonApiValue} node The api node to register a watch on.
- * @param {ozpIwc.TransportPacketContext} packetContext The packet context containing the watch action.
- */
-ozpIwc.CommonApiBase.prototype.handleWatch=function(node,packetContext) {
-    node.watch(packetContext.packet);
-    if(this.isLeader()) {
-        // @TODO: Reply with the entity? Immediately send a change notice to the new watcher?
-        packetContext.replyTo({'response': 'ok'});
-    }
-};
-
-/**
- * Common handler for packet contexts with `unwatch` actions.
- *
- * @method handleUnwatch
- * @param {ozpIwc.CommonApiValue} node The api node to remove a watch registration from.
- * @param {ozpIwc.TransportPacketContext} packetContext The packet context containing the unwatch action.
- */
-ozpIwc.CommonApiBase.prototype.handleUnwatch=function(node,packetContext) {
-    node.unwatch(packetContext.packet);
-    if(this.isLeader()) {
-        packetContext.replyTo({'response': 'ok'});
-    }
-};
-
-/**
- * Called when the leader participant fires its beforeUnload state. Releases the Api's data property
- * to be consumed by all, then used by the new leader.
- *
- * @method unloadState
- */
-ozpIwc.CommonApiBase.prototype.unloadState = function(){
-    if(this.isLeader()) {
-        var serializedData = {};
-        for(var  i in this.data){
-            serializedData[i] = this.data[i].serialize();
-        }
-        this.participant.sendElectionMessage("election",{state: {
-            data: serializedData,
-            dynamicNodes: this.dynamicNodes
-        }, previousLeader: this.participant.address});
-        this.data = {};
-    } else {
-        this.participant.sendElectionMessage("election");
-    }
-};
-
-
-/**
- * Sets the APIs data property. Removes current values, then constructs each API value anew.
- *
- * @method setState
- * @param {Object} state The object containing key value pairs to set as this api's state.
- */
-ozpIwc.CommonApiBase.prototype.setState = function(state) {
-    this.data = {};
-    this.dynamicNodes = state.dynamicNodes || [];
-    for (var key in state.data) {
-        var dynIndex = this.dynamicNodes.indexOf(key);
-        var node;
-        if(dynIndex > -1){
-             node = this.data[key] = new ozpIwc.CommonApiCollectionValue({
-                resource: key
-            });
-            node.deserialize(state.data[key]);
-            this.updateDynamicNode(node);
-        } else {
-            node = this.findOrMakeValue({
-                resource: key,
-                contentType: state.data[key].contentType
-            });
-            node.deserialize(state.data[key]);
-        }
-    }
-    // update all the collection values
-    this.dynamicNodes.forEach(function(resource) {
-        this.updateDynamicNode(this.data[resource]);
-    },this);
-};
-
-/**
- * Common handler for packet contexts with a `list` action but no resource.
- *
- * @method rootHandleList
- * @param {ozpIwc.CommonApiValue}node @TODO is a node needed? or is this intended for subclass purposes
- * @param {ozpIwc.TransportPacketContext} packetContext The packet context of the received request.
- */
-ozpIwc.CommonApiBase.prototype.rootHandleList=function(node,packetContext) {
-    if(this.isLeader()) {
-        packetContext.replyTo({
-            'response': 'ok',
-            'entity': Object.keys(this.data)
-        });
-    }
-};
-
-/**
- * Puts the API's participant into it's election state.
- *
- * @method startElection
- */
-ozpIwc.CommonApiBase.prototype.startElection = function(){
-    if (this.isLeader()) {
-        this.participant.changeState("actingLeader");
-    } else if(this.participant.leaderState === "leaderSync") {
-        // do nothing.
-    } else {
-        this.participant.changeState("election");
-    }
-};
-
-
-/**
- *  Handles taking over control of the API's participant group as the leader.
- *      <li>If this API instance's participant was the leader prior to election and won, normal functionality resumes.</li>
- *      <li>If this API instance's participant received state from a leaving leader participant, it will consume said participants state</li>
- *
- * @method becameLeader
- */
-ozpIwc.CommonApiBase.prototype.becameLeader= function(){
-    this.participant.sendElectionMessage("victory");
-
-    // Was I the leader at the start of the election?
-    if (this.participant.leaderState === "actingLeader" || this.participant.leaderState === "leader") {
-        // Continue leading
-        this.setToLeader();
-
-    } else if (this.participant.leaderState === "election") {
-        //If this is the initial state we need to wait till the endpoint data is ready
-        this.leaderSync();
-    }
-};
-
-
-/**
- * Handles a new leader being assigned to this API's participant group.
- *      <li>@TODO: If this API instance was leader prior to the election, its state will be sent off to the new leader.</li>
- *      <li>If this API instance wasn't the leader prior to the election it will resume normal functionality.</li>
- *
- * Fires:
- *   - {{#crossLink "ozpIwc.leaderGroupParticipant/#newLeader:event"}}{{/crossLink}}
- *
- * @method newLeader
- */
-ozpIwc.CommonApiBase.prototype.newLeader = function() {
-    // If this API was the leader, send its state to the new leader
-    if (this.participant.leaderState === "actingLeader") {
-        this.participant.sendElectionMessage("election", {previousLeader: this.participant.address, state: this.data});
-    }
-    this.participant.changeState("member");
-    this.participant.events.trigger("newLeader");
-};
-
-
-
-/**
- * Handles setting the API's participant to the leader state.
- *
- * Fires:
- *   - {{#crossLink "ozpIwc.leaderGroupParticipant/#becameLeader:event"}}{{/crossLink}}
- *
- * @method setToLeader
- */
-ozpIwc.CommonApiBase.prototype.setToLeader = function(){
-    var self = this;
-    ozpIwc.util.setImmediate(function() {
-        self.participant.changeState("leader");
-        self.participant.events.trigger("becameLeader");
-    });
-};
-
-
-/**
- * Handles the syncronizing of API data from previous leaders.
- * <li> If this API's participant has a state stored from the election it is set </li>
- * <li> If no state present but expected, a listener is set to retrieve the state if acquired within 250ms </li>
- *
- * @method leaderSync
- */
-ozpIwc.CommonApiBase.prototype.leaderSync = function () {
-    this.participant.changeState("leaderSync",{toggleDrop: true});
-
-    var self = this;
-    ozpIwc.util.setImmediate(function() {
-
-        // If the election synchronizing pushed this API out of leadership, don't try to become leader.
-        if(self.participant.leaderState !== "leaderSync") {
-            return;
-        }
-
-        // Previous leader sent out their state, it was stored in the participant
-        if (self.participant.stateStore && Object.keys(self.participant.stateStore).length > 0) {
-            self.setState(self.participant.stateStore);
-            self.participant.stateStore = {};
-            self.setToLeader();
-
-        } else if (self.participant.previousLeader) {
-            // There was a previous leader but we haven't seen their state. Wait for it.
-            self.receiveStateTimer = null;
-
-            self.receiveStateTimer = window.setTimeout(function () {
-                if (self.participant.stateStore && Object.keys(self.participant.stateStore).length > 0) {
-                    self.receiveState(self.participant.stateStore);
-                } else {
-                    self.loadFromServer();
-                    ozpIwc.log.debug(self.participant.name, "New leader(",self.participant.address, ") failed to retrieve state from previous leader(", self.participant.previousLeader, "), so is loading data from server.");
-                }
-
-                self.setToLeader();
-            }, 250);
-
-        } else {
-            // This is the first of the bus, winner doesn't obtain any previous state
-            ozpIwc.log.debug(self.participant.name, "New leader(",self.participant.address, ") is loading data from server.");
-            self.loadFromServer().then(function (data) {
-                self.setToLeader();
-            },function(err){
-                ozpIwc.log.debug(self.participant.name, "New leader(",self.participant.address, ") could not load data from server. Error:", err);
-                self.setToLeader();
-            });
-        }
-    });
-};
-
-/**
- * @TODO DOC
- * @method persistNodes
- */
-ozpIwc.CommonApiBase.prototype.persistNodes=function() {
-	// throw not implemented error
-	throw new ozpIwc.ApiError("noImplementation","Base class persistence call not implemented.  Use DataApi to persist nodes.");
-};
-
-/**
- * @class Endpoint
- * @namespace ozpIwc
- * @param {ozpIwc.EndpointRegistry} endpointRegistry Endpoint name
- * @constructor
- */
-ozpIwc.Endpoint=function(endpointRegistry) {
-
-    /**
-     * @property endpointRegistry
-     * @type ozpIwc.EndpointRegistry
-     */
-	this.endpointRegistry=endpointRegistry;
-};
-
-/**
- * Performs an AJAX request of GET for specified resource href.
- *
- * @method get
- * @param {String} resource
- * @param [Object] requestHeaders
- * @param {String} requestHeaders.name
- * @param {String} requestHeaders.value
- *
- * @returns {Promise}
- */
-ozpIwc.Endpoint.prototype.get=function(resource, requestHeaders) {
-    var self=this;
-    resource = resource || '';
-    return this.endpointRegistry.loadPromise.then(function() {
-        if(!self.endpointRegistry.loaded){
-            throw Error("Endpoint " + self.endpointRegistry.apiRoot + " could not be reached. Skipping GET of " + resource);
-        }
-
-        if (resource === '/' || resource === '' ) {
-            resource=self.baseUrl;
-        }
-
-        return ozpIwc.util.ajax({
-            href:  resource,
-            method: 'GET',
-            headers: requestHeaders
-        });
-    });
-};
-
-/**
- *
- * Performs an AJAX request of PUT for specified resource href.
- *
- * @method put
- * @param {String} resource
- * @param {Object} data\
- * @param [Object] requestHeaders
- * @param {String} requestHeaders.name
- * @param {String} requestHeaders.value
- *
- * @returns {Promise}
- */
-ozpIwc.Endpoint.prototype.put=function(resource, data, requestHeaders) {
-    var self=this;
-
-    return this.endpointRegistry.loadPromise.then(function() {
-        if(resource.indexOf(self.baseUrl)!==0) {
-            resource=self.baseUrl + resource;
-        }
-        return ozpIwc.util.ajax({
-            href:  resource,
-            method: 'PUT',
-			data: data,
-            headers: requestHeaders
-        });
-    });
-};
-
-/**
- *
- * Performs an AJAX request of DELETE for specified resource href.
- *
- * @method put
- * @param {String} resource
- * @param [Object] requestHeaders
- * @param {String} requestHeaders.name
- * @param {String} requestHeaders.value
- *
- * @returns {Promise}
- */
-ozpIwc.Endpoint.prototype.delete=function(resource, data, requestHeaders) {
-    var self=this;
-
-    return this.endpointRegistry.loadPromise.then(function() {
-        if(!self.baseUrl) {
-            throw Error("The server did not define a relation of type " + this.name + " for retrivieving " + resource);
-        }
-        if(resource.indexOf(self.baseUrl)!==0) {
-            resource=self.baseUrl + resource;
-        }
-        return ozpIwc.util.ajax({
-            href:  resource,
-            method: 'DELETE',
-            headers: requestHeaders
-        });
-    });
-};
-
-/**
- * Sends AJAX requests to PUT the specified nodes into the endpoint.
- * @todo PUTs each node individually. Currently sends to a fixed api point switch to using the node.self endpoint and remove fixed resource
- * @method saveNodes
- * @param {ozpIwc.CommonApiValue[]} nodes
- */
-ozpIwc.Endpoint.prototype.saveNodes=function(nodes) {
-    var resource = "/data";
-    for (var node in nodes) {
-        var nodejson = JSON.stringify(nodes[node]);
-        this.put((nodes[node].self || resource), nodejson);
-    }
-};
-
-/**
- * @class EndpointRegistry
- * @namespace ozpIwc
- * @constructor
- *
- * @param {Object} config
- * @param {String} config.apiRoot the root of the api path.
- */
-ozpIwc.EndpointRegistry=function(config) {
-    config=config || {};
-    var apiRoot=config.apiRoot || '/api';
-
-    /**
-     * The root path of the specified apis
-     * @property apiRoot
-     * @type String
-     * @default '/api'
-     */
-    this.apiRoot = apiRoot;
-
-    /**
-     * The collection of api endpoints
-     * @property endPoints
-     * @type Object
-     * @default {}
-     */
-    this.endPoints={};
-
-    /**
-     * The collection of uri templates for endpoints.
-     * @property template
-     * @type Object
-     * @default {}
-     */
-    this.template={};
-		
-    var self=this;
-
-    /**
-     * An AJAX GET request fired at the creation of the Endpoint Registry to gather endpoint data.
-     * @property loadPromise
-     * @type Promise
-     */
-    this.loadPromise=ozpIwc.util.ajax({
-        href: apiRoot,
-        method: 'GET'
-    }).then(function(data) {
-        self.loaded = true;
-        var payload = data.response || {};
-        payload._links = payload._links || {};
-        payload._embedded = payload._embedded || {};
-
-        for (var linkEp in payload._links) {
-            if (linkEp !== 'self') {
-                var link = payload._links[linkEp];
-                if(Array.isArray(payload._links[linkEp])) {
-                    link=payload._links[linkEp][0].href;
-                }
-                if(link.templated) {
-                    self.template[linkEp]=link.href;
-                } else {
-                    self.endpoint(linkEp).baseUrl = link.href;
-                }
-            }
-        }
-        for (var embEp in payload._embedded) {
-            var embLink = payload._embedded[embEp]._links.self.href;
-            self.endpoint(embEp).baseUrl = embLink;
-        }
-        // UGLY HAX
-        if(!self.template["ozp:data-item"]) {
-            self.template["ozp:data-item"]=self.endpoint("ozp:user-data").baseUrl+"/{+resource}";
-        }
-        //END HUGLY HAX
-    })['catch'](function(err){
-        ozpIwc.log.debug(Error("Endpoint " + self.apiRoot + " " + err.statusText + ". Status: " +  err.status));
-        self.loaded = false;
-    });
-};
-
-/**
- * Finds or creates an input with the given name.
- *
- * @method endpoint
- * @param {String} name
- * @returns {ozpIwc.Endpoint}
- */
-ozpIwc.EndpointRegistry.prototype.endpoint=function(name) {
-    var endpoint=this.endPoints[name];
-    if(!endpoint) {
-        endpoint=this.endPoints[name]=new ozpIwc.Endpoint(this);
-        endpoint.name=name;
-    }
-    return endpoint;
-};
-
-/**
- * Initializes the Endpoint Registry with the api root path.
- *
- * @method initEndpoints
- * @param {String} apiRoot
- */
-ozpIwc.initEndpoints=function(apiRoot) {
-    var registry=new ozpIwc.EndpointRegistry({'apiRoot':apiRoot});
-    ozpIwc.endpoint=function(name) {
-        return registry.endpoint(name);
-    };
-    ozpIwc.uriTemplate=function(name) {
-        return registry.template[name];
-    };
-};
-
-
-/**
- * @submodule bus.api.Type
- */
-
-/**
- * The Locks Api. Treats each node as an individual mutex, creating a queue to access/own the resource.
- * Subclasses the {{#crossLink "ozpIwc.CommonApiBase"}}{{/crossLink}}. Utilizes the
- * {{#crossLink "ozpIwc.LocksApiValue"}}{{/crossLink}} which subclasses the
- * {{#crossLink "ozpIwc.CommonApiValue"}}{{/crossLink}}.
- *
- * @class LocksApi
- * @namespace ozpIwc
- * @extends ozpIwc.CommonApiBase
- * @constructor
- *
- * @type {Function}
- */
-ozpIwc.LocksApi = ozpIwc.util.extend(ozpIwc.CommonApiBase, function(config) {
-    ozpIwc.CommonApiBase.apply(this, arguments);
-});
-
-/**
- * Checks that the given packet context's resource meets the requirements of the api. Throws exception if fails
- * validation
- *
- * @method validateResource
- * @param {CommonApiValue} node @TODO is a node needed to validate?
- * @param {ozpIwc.TransportPacketContext} packetContext The packetContext with the resource to be validated.
- */
-ozpIwc.LocksApi.prototype.validateResource=function(node,packetContext) {
-    if(packetContext.packet.resource && !packetContext.packet.resource.match(/^\/mutex/)){
-        throw new ozpIwc.ApiError('badResource',"Invalid resource for locks.api: " + packetContext.packet.resource);
-    }
-};
-
-/**
- * Makes a {{#crossLink "ozpIwc.LocksApiValue"}}{{/crossLink}} from the given packet.
- *
- * @method makeValue
- * @param {ozpIwc.TransportPacket} packet
- * @returns {ozpIwc.LocksApiValue}
- */
-ozpIwc.LocksApi.prototype.makeValue = function(packet) {
-    return new ozpIwc.LocksApiValue({
-        resource: packet.resource
-    });
-};
-
-/**
- * Notifies the owner of the node's lock/unlock.
- *
- * @method updateLock
- * @param {ozpIwc.LocksApiValue} node
- * @param {Object} newOwner
- */
-ozpIwc.LocksApi.prototype.updateLock=function(node,newOwner) {
-    if(newOwner && this.isLeader()) {
-        //console.log("[locks.api] New lock owner on " + node.resource + ": ",newOwner);
-        var pkt = {
-            'dst': newOwner.src,
-            'src': this.participant.name,
-            'replyTo': newOwner.msgId,
-            'response': 'ok',
-            'resource': node.resource
-        };
-
-        this.participant.send(pkt);
-    } else {
-        //console.log("[locks.api] Unchanged lock " + node.resource + " queue is ", JSON.stringify(node.entity));
-    }
-};
-
-/**
- * Adds the packet's sender to the given node's mutex queue. The sender will be notified when it takes ownership.
- *
- * @method handleLock
- * @param {ozpIwc.LocksApiValue} node
- * @param {ozpIwc.TransportPacket} packetContext
- */
-ozpIwc.LocksApi.prototype.handleLock=function(node,packetContext) {
-    this.updateLock(node,node.lock({
-        src: packetContext.packet.src,
-        msgId: packetContext.packet.msgId
-    }));
-};
-
-/**
- * Removes the packet's sender from the given node's mutex queue. The next leader (if exists) will be notified of its
- * ownership.
- *
- * @method handleUnlock
- * @param {ozpIwc.LocksApiValue} node
- * @param {ozpIwc.TransportPacket} packetContext
- */
-ozpIwc.LocksApi.prototype.handleUnlock=function(node,packetContext) {
-	//console.log("Unlocking " + node.resource + " due to request " + packetContext.packet);
-    this.updateLock(node,node.unlock({
-        src: packetContext.packet.src,
-        msgId: packetContext.packet.msgId
-    }));
-};
-
-/**
- * Handles removing participant addresses from the names api.
- *
- * @method handleEventChannelDisconnectImpl
- * @param {ozpIwc.TransportPacket} packetContext
- */
-ozpIwc.LocksApi.prototype.handleEventChannelDisconnectImpl = function (packetContext) {
-    for(var key in this.data) {
-        var node=this.data[key];
-        //console.log("Unlocking " + node.resource + " due to shutdown of " + packetContext.packet.entity.address,packetContext.packet);
-        this.updateLock(node,node.unlock({
-            src: packetContext.packet.entity.address
-        }));
-    }
-};
-
-/**
- * Handles the set action for the Locks Api. Locks Api does not allow set actions.
- *
- * @method handleSet
- * @param {ozpIwc.LocksApiValue} node
- * @param {ozpIwc.TransportPacket} packetContext
- */
-ozpIwc.LocksApi.prototype.handleSet = function(node,packetContext) {
-    if(this.isLeader()) {
-        packetContext.replyTo({
-            'response': 'badAction',
-            'entity': {
-                'action': packetContext.packet.action,
-                'originalRequest': packetContext.packet
-            }
-        });
-    }
-};
-
-/**
- * Handles the delete action for the Locks Api. Locks Api does not allow delete actions.
- *
- * @method handleDelete
- * @param {ozpIwc.LocksApiValue} node
- * @param {ozpIwc.TransportPacket} packetContext
- */
-ozpIwc.LocksApi.prototype.handleDelete = function(node,packetContext) {
-    if(this.isLeader()) {
-        packetContext.replyTo({
-            'response': 'badAction',
-            'entity': {
-                'action': packetContext.packet.action,
-                'originalRequest': packetContext.packet
-            }
-        });
-    }
-};
-/**
- * @submodule bus.api.Value
- */
-
-/**
- * @class LocksApiValue
- * @namespace ozpIwc
- * @extends ozpIwc.CommonApiValue
- *
- * @constructor
- * @param {Object} config
- * @param {String[]} config.allowedContentTypes a list of content types this Locs Api value will accept.
- */
-ozpIwc.LocksApiValue = ozpIwc.util.extend(ozpIwc.CommonApiValue,function(config) {
-	ozpIwc.CommonApiValue.apply(this,arguments);
-    this.entity={
-        owner: null,
-        queue: []
-    };
-});
-
-/**
- * Pushes the ozpIwc.TransportPacket onto the mutex queue. If it is the first element in the queue, the packet's sender
- * will take control of the node.
- *
- * @method lock
- * @param {ozpIwc.TransportPacket} packet
- * @returns {Object|null} should the lock action set a new owner it will be returned, else null will be returned.
- */
-ozpIwc.LocksApiValue.prototype.lock=function(packet) {
-    this.entity.queue.push(packet);
-    if(this.entity.owner !== this.entity.queue[0]) {
-        this.entity.owner=this.entity.queue[0];
-        return this.entity.owner;
-    }
-    return null;
-};
-
-/**
- * Removes all ozpIwc.TransportPackets in the queue that match the given packet. Should this remove the owner of the
- * mutex, the next remaining packet's sender will take control.
- *
- * @method lock
- * @param {ozpIwc.TransportPacket} packet
- * @returns {Object|null} should the unlock action set a new owner it will be returned, else null will be returned.
- */
-ozpIwc.LocksApiValue.prototype.unlock=function(packet) {
-    this.entity.queue=this.entity.queue.filter(function(q) {
-       return !ozpIwc.util.objectContainsAll(q,packet);
-    });
-    
-    if(!ozpIwc.util.objectContainsAll(this.entity.owner,this.entity.queue[0])) {
-        this.entity.owner=this.entity.queue[0];
-        return this.entity.owner;
-    }
-    return null;
-};
-
-
-/**
- * A collection of filter generation functions.
- *
- * @class apiFilter
- * @namespace ozpIwc
- * @static
- */
-
-/**
- * @class ozpIwc.apiFilter.Function
- * @type {Function}
- * @param {type} packet
- * @param {type} context
- * @param {type} pathParams
- * @param {type} next
- * @returns {Function} a call to the next filter
- */
-
-ozpIwc.apiFilter={
-    /**
-     * Returns a filter function with the following features:
-     * Stores the resource in context.node, creating it via the api's
-     * @method createResource
-     * @returns {ozpIwc.apiFilter.Function}
-     */
-    createResource: function(NodeType) {
-        if(NodeType) {
-            return function(packet,context,pathParams,next) {
-                if(!context.node) {
-                    context.node=this.data[packet.resource]=new NodeType({
-                        resource: packet.resource,
-                        pattern: packet.pattern,
-                        src: packet.src
-                    });
-                }
-                return next();
-            };
-        } else {
-            return function(packet,context,pathParams,next) {
-                if(!context.node) {
-                    context.node=this.createNode({
-                        resource: packet.resource,
-                        pattern: packet.pattern,
-                        src: packet.src
-                    });
-                }
-                return next();
-            };
-        }
-    },
-    /**
-     * Returns a filter function with the following features:
-     * Adds the resource as a collector to the API, it will now get updates based on its pattern property.
-     * @method markAsCollector
-     * @returns {Function}
-     */
-    markAsCollector: function(){
-
-        return function(packet,context,pathParams,next) {
-            this.addCollector(context.node);
-            return next();
-        };
-    },
-
-    /**
-     * Returns a filter function with the following features:
-     * Stores the resource in context.node or throws NoResourceError if it does not exist.
-     * @method requireResource
-     * @returns {ozpIwc.apiFilter.Function}
-     */
-    requireResource: function() {
-        return function(packet,context,pathParams,next) {
-            if(!context.node || context.node.deleted) {
-                throw new ozpIwc.NoResourceError(packet);
-            }
-            return next();
-        };
-    },
-
-    /**
-     * Returns a filter function with the following features:
-     * Checks that the subject within the context is authorized for the action on the resource node.
-     * @method checkAuthorization
-     * @returns {ozpIwc.apiFilter.Function}
-     */
-    checkAuthorization: function(action) {
-        return function(packet,context,pathParams,next) {
-            this.checkAuthorization(context.node,context,packet,action || packet.action);
-            return next();
-        };
-    },
-
-    /**
-     * An empty filter
-     *
-     * @method nullFilter
-     * @param packet
-     * @param context
-     * @param pathParams
-     * @param next
-     * @returns {Function} a call to the next filter
-     */
-    nullFilter: function(packet,context,pathParams,next) {
-        return next();
-    },
-
-    /**
-     * Returns a filter function with the following features:
-     * Checks that the content type is one that is authorized for the api resource.
-     * @method checkContentType
-     * @returns {ozpIwc.apiFilter.Function}
-     */
-    checkContentType: function(contentType) {
-        if(!contentType) {
-            return ozpIwc.apiFilter.nullFilter;
-        }
-        contentType=ozpIwc.util.ensureArray(contentType);
-        return function(packet,context,pathParams,next) {
-            if(!contentType.some(function(t) {
-                return t===packet.contentType ||
-                    (Object.prototype.toString.call(contentType) === '[object RegExp]' && 
-                    t.test(packet.contentType));
-                })
-            ) {
-                throw new ozpIwc.BadContentError({
-                    'provided': packet.contentType,
-                    'allowedTypes': contentType
-                });
-            }
-            return next();
-        };
-    },
-
-    /**
-     * Returns a filter function with the following features:
-     * Marks the resource as changed.
-     * @method markResourceAsChanged
-     * @returns {ozpIwc.apiFilter.Function}
-     */
-    markResourceAsChanged: function() { 
-        return function(packet,context,pathParams,next) {
-            this.markForChange(packet);
-            return next();
-        };
-    },
-
-    /**
-     * Returns a filter function with the following features:
-     * If the packet does not contain a pattern property create one from the packet resource + "/". This filter is to
-     * be used only in node creation as it can overwrite the nodes pattern property if different than resource + "/".
-     * @method fixPattern
-     * @returns {Function}
-     */
-    fixPattern: function(){
-        return function(packet,context,pathParams,next) {
-            var pattern;
-            if(context.node){
-                pattern = context.node.pattern;
-            }
-            if(packet.resource) {
-                packet.pattern = packet.pattern || pattern || packet.resource + "/";
-            }
-            return next();
-        };
-    },
-
-    /**
-     * Returns a filter function with the following features:
-     * Checks the version of the packet against the context.
-     * @method checkVersion
-     * @returns {ozpIwc.apiFilter.Function}
-     */
-    checkVersion: function() { 
-        return function(packet,context,pathParams,next) {
-        // if there is no resource node, then let the request through
-        if(packet.ifTag && packet.ifTag!==context.node.version) {
-            throw new ozpIwc.NoMatchError({
-                expectedVersion: packet.ifTag,
-                actualVersion: context.node.version
-            });
-        }
-        return next();
-    };}
-};
-
-/**
- * Wrappers that return the list of filters for a standard action
- *
- * @class standardApiFilters
- * @namespace ozpIwc
- * @static
- */
-ozpIwc.standardApiFilters={
-    /**
-     * Returns the filter collection generator for the given action.
-     * @method forAction
-     * @param {String} a
-     * @returns {Function}
-     */
-    forAction: function(a) {
-        return ozpIwc.standardApiFilters[a+"Filters"];
-    },
-
-    /**
-     * Filters for the set action.
-     * @method setFilters
-     * @param nodeType
-     * @param contentType
-     * @returns {Function[]} array of filters
-     */
-    setFilters: function(nodeType,contentType) {
-        return [
-            ozpIwc.apiFilter.createResource(nodeType),
-            ozpIwc.apiFilter.checkAuthorization(),
-            ozpIwc.apiFilter.checkContentType(contentType),
-            ozpIwc.apiFilter.checkVersion(),
-            ozpIwc.apiFilter.markResourceAsChanged()
-        ];
-    },
-
-    /**
-     * Filters for the delete action.
-     * @method deleteFilters
-     * @returns {Function[]} array of filters
-     */
-    deleteFilters: function() {
-        return [
-            ozpIwc.apiFilter.checkAuthorization(),
-            ozpIwc.apiFilter.checkVersion(),
-            ozpIwc.apiFilter.markResourceAsChanged()
-        ];
-    },
-
-    /**
-     * Filters for the get action.
-     * @method getFilters
-     * @returns {Function[]} array of filters
-     */
-    getFilters: function() {
-        return [
-            ozpIwc.apiFilter.requireResource(),
-            ozpIwc.apiFilter.checkAuthorization()
-        ];
-    },
-
-    /**
-     * Filters for set-like actions that need to mark the resource as a collector.
-     * @method getFilters
-     * @returns {Function[]} array of filters
-     */
-    createAndCollectFilters: function(nodeType,contentType) {
-        return [
-            ozpIwc.apiFilter.fixPattern(),
-            ozpIwc.apiFilter.createResource(nodeType),
-            ozpIwc.apiFilter.checkAuthorization(),
-            ozpIwc.apiFilter.checkContentType(contentType),
-            ozpIwc.apiFilter.checkVersion()
-        ];
-    }
-};
-/**
- * Service API Value classes of the bus.
- * @module bus.service
- * @submodule bus.service.Value
- */
-/**
- *
- * @class ApiNode
- * @namespace ozpIwc
- * @constructor
- * @param {Object} config
- * @param {String} config.resource
- * @param {String[]} config.allowedContentTypes
- * @param {Object} config.entity
- * @param {String} config.contentType
- * @param {Number} config.version
- * @param {String} config.self
- * @param {String} config.serializedEntity
- * @param {String} config.serializedContentType
- */
-ozpIwc.ApiNode= function(config) {
- 	config = config || {};
-
-    /**
-     * @property resource
-     * @type String
-     */
-	this.resource=config.resource;
-
-    /**
-     * @property allowedContentTypes
-     * @type Array
-     */
-    this.allowedContentTypes=config.allowedContentTypes;
-
-    /**
-     * @property entity
-     * @type Object
-     */
-    this.entity=config.entity;
-
-    /**
-     * @property contentType
-     * @type String
-     */
-	this.contentType=config.contentType;
-    /**
-     * @property uriTemplate
-     * @type String
-     */
-	// used if() to allow for subclasses to set the uriTemplate on the prototype
-	// setting the field, even to undefined, would mask the prototype's value
-	if(config.uriTemplate) {
-		this.uriTemplate=config.uriTemplate;
-	}
-    /**
-     * @property permissions
-     * @type Object
-     * @default {}
-     */
-	this.permissions={};
-
-    /**
-     * @property version
-     * @type Number
-     * @default 0
-     */
-	this.version=config.version || 1;
-
-    /**
-     * @property lifespan
-     * @type Boolean
-     * @default false
-     */
-    this.lifespan= new ozpIwc.Lifespan.Ephemeral();
-
-    /**
-     * @property deleted
-     * @type Boolean
-     * @default true
-     */
-    this.deleted=false;
-
-    /**
-     * String to match for collection.
-     * @property pattern
-     * @type String
-     */
-    this.pattern = config.pattern;
-
-    /**
-     * @property collection
-     * @type Array
-     * @default []
-     */
-    this.collection = [];
-
-    /**
-     * @property self - The url backing this node 
-     * @type String
-     */
-    this.self=config.self;
-    
-    if(config.serializedEntity) {
-        this.deserializedEntity(config.serializedEntity,config.serializedContentType);
-    }
-
-    if(!this.resource) {
-        throw new Error("ApiNode requires a resource");
-    }
-};
-
-/**
- * Gathers the self uri from the uriTemplate property if it does not already exist.
- * @method getSelfUri
- * @returns {Number|*}
- */
-ozpIwc.ApiNode.prototype.getSelfUri=function() {
-	if(this.self) {
-		return this.self;
-	}
-	if(this.uriTemplate && ozpIwc.uriTemplate) {
-		var template=ozpIwc.uriTemplate(this.uriTemplate);
-		if(template) {
-			this.self=ozpIwc.util.resolveUriTemplate(template,this);
-		}
-	}
-	return this.self;
-};
-
-/**
- * Serialize the node to a form that conveys both persistent and
- * ephemeral state of the object to be handed off to a new API
- * leader.
- * 
- * __Intended to be overridden by subclasses__
- * @method serializeLive
- * @returns {Object}
- */
-ozpIwc.ApiNode.prototype.serializeLive=function() {
-    return this.toPacket({
-        deleted: this.deleted,
-        pattern: this.pattern,
-        collection: this.collection,
-        lifespan: this.lifespan,
-        allowedContentTypes: this.allowedContentTypes,
-       _links: {
-           self: {href: this.self}
-       }
-    });
-};
-
-/**
- * Set the node using the state returned by serializeLive.
- *
- * __Intended to be overridden by subclasses__
- * 
- * @method deserializeLive
- * @param {Object} serializedForm The data returned from serializeLive
- * @return {Object} the content type of the serialized data
- */
-ozpIwc.ApiNode.prototype.deserializeLive=function(serializedForm, serializedContentType) {
-    serializedForm.contentType = serializedForm.contentType || serializedContentType;
-    this.set(serializedForm);
-    if(serializedForm._links && serializedForm._links.self) {
-        this.self=serializedForm._links.self.href;
-    }
-    if(!this.resource){
-        this.resource = serializedForm.resource || this.resourceFallback(serializedForm);
-    }
-    this.deleted = serializedForm.deleted;
-    this.lifespan= serializedForm.lifespan;
-    this.allowedContentTypes=serializedForm.allowedContentTypes;
-    this.pattern = serializedForm.pattern;
-    this.collection = serializedForm.collection;
-};
-
-
-/**
- * If a resource path isn't given, this takes the best guess at assigning it.
- * Overriden by subclasses.
- *
- * @method deserializeResourceFromContentType
- * @param serializedForm
- */
-ozpIwc.ApiNode.prototype.deserializeResourceFromContentType = function(serializedForm) {
-    if(serializedForm._links && serializedForm._links.self){
-        this.resource = serializedForm._links.self.href.replace(ozpIwc.apiRootUrl,"");
-    }
-};
-
-/**
- * Serializes the node for persistence to the server.
- *
- * __Intended to be overridden by subclasses__
- * 
- * @method serializedEntity
- * @return {String} a string serialization of the object
- */
-ozpIwc.ApiNode.prototype.serializedEntity=function() {
-    return JSON.stringify(this.entity);
-};
-
-/**
- * The content type of the data returned by serializedEntity()
- *
- * __Intended to be overridden by subclasses__
- * 
- * @method serializedContentType
- * @return {String} the content type of the serialized data
- */
-ozpIwc.ApiNode.prototype.serializedContentType=function() {
-    return this.contentType;
-};
-
-/**
- * Sets the api node from the serialized form.
- *
- * __Intended to be overridden by subclasses__
- * 
- * @method serializedEntity
- * @param {String} serializedForm A string serialization of the object
- * @param {String} contentType The contentType of the object
- * @return {Object}
- */
-ozpIwc.ApiNode.prototype.deserializedEntity=function(serializedForm,contentType) {
-    if(typeof(serializedForm) === "string") {
-        serializedForm=JSON.parse(serializedForm);
-    }
-    this.entity=serializedForm;
-    this.contentType = contentType;
-    if(this.entity && this.entity._links) {
-        var links = this.entity._links;
-        if (!this.self && links.self) {
-            this.self = links.self.href;
-        }
-        if (!this.resource) {
-            if (links["ozp:iwcSelf"]) {
-                this.resource = links["ozp:iwcSelf"].href.replace(/web\+ozp:\/\/[^/]+/, "");
-            } else {
-                this.resource = this.resourceFallback(serializedForm);
-            }
-        }
-    }
-};
-
-
-/**
- * If a resource path isn't given, this takes the best guess at assigning it.
- * @method resourceFallback
- * @param serializedForm
- */
-ozpIwc.ApiNode.prototype.resourceFallback = function(serializedForm) {
-    // do nothing, override if desired.
-};
-
-/**
- * Turns this value into a packet.
- *
- * @method toPacket
- * @param {ozpIwc.TransportPacket} base Fields to be merged into the packet.
- * @returns {ozpIwc.TransportPacket}
- */
-ozpIwc.ApiNode.prototype.toPacket=function(base) {
-	base = base || {};
-	base.entity=ozpIwc.util.clone(this.entity);
-	base.contentType=this.contentType;
-	base.permissions=this.permissions;
-	base.eTag=this.version;
-	base.resource=this.resource;
-    base.pattern = this.pattern;
-    base.collection = this.collection;
-	return base;
-};
-
-
-/**
- * Sets a data based upon the content of the packet.  Automatically updates the content type,
- * permissions, entity, and updates the version.
- *
- * @method set
- * @param {ozpIwc.TransportPacket} packet
- */
-ozpIwc.ApiNode.prototype.set=function(packet) {
-    if(!Array.isArray(packet.permissions)){
-        for(var i in packet.permissions) {
-            //If a permission was passed, wipe its value and set it to the new value;
-            this.permissions.clear(i);
-            this.permissions.pushIfNotExist(i,packet.permissions[i]);
-        }
-    }
-    this.contentType=packet.contentType;
-    this.entity=packet.entity;
-    this.pattern = packet.pattern || this.pattern;
-    this.deleted = false;
-    if(packet.eTag) {
-        this.version=packet.eTag;
-    } else {
-        this.version++;
-    }
-};
-
-/**
- * Clears the entity of the node and marks as deleted.
- * @method markAsDeleted
- * @param {ozpIwc.TransportPacket} packet
- */
-ozpIwc.ApiNode.prototype.markAsDeleted=function(packet) {
-    this.version++;
-    this.deleted=true;
-    this.entity=null;
-    this.pattern=null;
-    this.collection=null;
-};
-
-/**
- * Adds a new watcher based upon the contents of the packet.
- *
- * @method addWatch
- * @param {ozpIwc.TransportPacket} watch
- */
-ozpIwc.ApiNode.prototype.addWatch=function(watch) {
-    this.watchers.push(watch);
-};
-
-/**
- * Removes all watchers who's packet matches that which is passed in.
- * @method removeWatch
- * @param {ozpIwc.TransportPacket} filter
- */
-ozpIwc.ApiNode.prototype.removeWatch=function(filter) {
-    this.watchers=this.watchers.filter(filter);
-};
-
-
-/**
- * Generates a point-in-time snapshot of this value that can later be sent to
- * {@link ozpIwc.CommonApiValue#changesSince} to determine the changes made to the value.
- * This value should be considered opaque to consumers.
- * 
- * <p> For API subclasses, the default behavior is to simply call toPacket().  Subclasses
- * can override this, but should likely override {@link ozpIwc.CommonApiValue#changesSince}
- * as well.
- *
- * @method snapshot
- * @returns {object}
- */
-ozpIwc.ApiNode.prototype.snapshot=function() {
-	return this.toPacket();
-};
-
-/**
- * From a given snapshot, create a change notifications.  This is not a delta, rather it's
- * change structure.
- * <p> API subclasses can override if there are additional change notifications (e.g. children in DataApi).
- *
- * @method changesSince
- * @param {object} snapshot The state of the value at some time in the past.
- * @returns {Object} A record of the current value and the value of the snapshot.
- */
-ozpIwc.ApiNode.prototype.changesSince=function(snapshot) {
-	if(snapshot.eTag === this.version) {
-        return null;
-    }
-	return {
-        'newValue': this.toPacket(),
-        'oldValue': snapshot
-	};
-};
-/**
- * @submodule bus.service.Value
- */
-
-/**
- * @class DataNode
- * @namespace ozpIwc
- * @extends ozpIwc.ApiNode
- * @constructor
- */
-ozpIwc.DataNode=ozpIwc.util.extend(ozpIwc.ApiNode,function(config) {
-   ozpIwc.ApiNode.apply(this, arguments);
-    this.lifespan = new ozpIwc.Lifespan.Persistent();
-});
-
-/**
- * @property uriTemplate
- * @type {string}
- */
-ozpIwc.DataNode.prototype.uriTemplate="ozp:data-item";
-
-/**
- * Serializes the node for persistence to the server.
- *
- * @method serializedEntity
- * @returns {String}
- */
-ozpIwc.DataNode.prototype.serializedEntity=function() {
-    return JSON.stringify({
-        key: this.resource,
-        entity: this.entity,
-        collection: this.collection,
-        pattern: this.pattern,
-        contentType: this.contentType,
-        permissions: this.permissions,
-        version: this.version,
-        _links: {
-            self: {
-                href: this.self
-            }
-        }
-    });
-};
-
-/**
- * The content type of the data returned by serializedEntity()
- *
- * @method serializedContentType
- * @returns {string}
- */
-ozpIwc.DataNode.prototype.serializedContentType=function() {
-    return "application/vnd.ozp-iwc-data-object+json";
-};
-
-/**
- * Sets the api node from the serialized form.
- *
- * @method deserializedEntity
- * @param {String} serializedForm
- * @param {String} contentType
- */
-ozpIwc.DataNode.prototype.deserializedEntity=function(serializedForm,contentType) {
-    var data;
-    if(typeof(serializedForm.entity) === "string") {
-        data=JSON.parse(serializedForm.entity);
-    } else {
-        data = serializedForm.entity;
-    }
-
-    this.entity=data.entity;
-    this.collection=data.collection;
-    this.pattern = data.pattern;
-    this.contentType=data.contentType;
-    this.permissions=data.permissions;
-    this.version=data.version;
-    data._links = data._links || {};
-    if(data._links.self) {
-        this.self=data._links.self.href;
-    }
-
-    if (!this.resource) {
-        if (data._links["ozp:iwcSelf"]) {
-            this.resource = data._links["ozp:iwcSelf"].href.replace(/web\+ozp:\/\/[^/]+/, "");
-        } else {
-            this.resource = this.resourceFallback(data);
-        }
-    }
-};
-
-/**
- * If a resource path isn't given, this takes the best guess at assigning it.
- * @override
- * @method resourceFallback
- * @param {Object} serializedForm
- * @returns {String}
- */
-ozpIwc.DataNode.prototype.resourceFallback = function(serializedForm) {
-    if(serializedForm.key) {
-       return ((serializedForm.key.charAt(0) === "/") ? "" : "/") + serializedForm.key;
-    }
-};
-/**
- * @class IntentsInFlightNode
- * @namespace ozpIwc
- * @extends ozpIwc.ApiNode
- * @constructor
- */
-ozpIwc.IntentsInFlightNode = ozpIwc.util.extend(ozpIwc.ApiNode, function(config) {
-    config=config || {};
-
-    // Take the supplied data for anything that matches in the super class,
-    // such as resource.
-    ozpIwc.ApiNode.apply(this, arguments);
-    /**
-     * @property lifespan
-     * @type {ozpIwc.Lifespan.Bound}
-     */
-    this.lifespan = new ozpIwc.Lifespan.Bound({
-        'addresses': [config.src]
-    });
-
-    if(!config.invokePacket) {
-        throw new ozpIwc.BadContentError("In flight intent requires an invocation packet");
-    }
-    if(!Array.isArray(config.handlerChoices) || config.handlerChoices <1) {
-        throw new ozpIwc.BadContentError("No handlers available");
-    }
-    /**
-     * Extra information that isn't captured already by the base class, or that isn't captured adequately.
-     *
-     * @property entity
-     * @type {Object}
-     */
-    this.entity = {
-        'intent': {
-            'type': config.type,
-            'action': config.action
-        },
-        'invokePacket': config.invokePacket,
-        'contentType': config.invokePacket.contentType,
-        'entity': config.invokePacket.entity,
-        'state': "choosing",
-        'status': "ok",
-        'handlerChoices': config.handlerChoices,
-        'handlerChosen': {
-            'resource': null,
-            'reason': null
-        },
-        'handler': {
-            'resource': null,
-            'address': null
-        },
-        'reply': null
-    };
-    if(config.handlerChoices.length===1) {
-        this.entity.handlerChosen.resource=config.handlerChoices[0].resource;
-        this.entity.handlerChosen.reason="onlyOne";
-        this.entity.state="delivering";
-    }
-});
-
-/**
- * Sets the inFlight state to "error".
- *
- * @method setError
- * @param {Object} entity
- */
-ozpIwc.IntentsInFlightNode.prototype.setError=function(entity) {
-    this.entity.reply=entity.error;
-    this.entity.state = "error";
-    this.version++;
-};
-
-/**
- * Sets the handler chosen to the inFlight node.
- *
- * @method setHandlerResource
- * @param {Object} entity
- */
-ozpIwc.IntentsInFlightNode.prototype.setHandlerResource=function(entity) {
-    if(!entity.handlerChosen || !entity.handlerChosen.resource || !entity.handlerChosen.reason) {
-       throw new ozpIwc.BadStateError("Choosing state requires a resource and reason");
-    }
-    this.entity.handlerChosen = entity.handlerChosen;
-    this.entity.state = "delivering";
-    this.version++;
-};
-
-/**
- * Sets the handler participant that is running the inFlight node.
- *
- * @method setHandlerParticipant
- * @param {Object} entity
- */
-ozpIwc.IntentsInFlightNode.prototype.setHandlerParticipant=function(entity) {
-    if(!entity.handler || !entity.handler.address) {
-        throw new ozpIwc.BadContentError("Entity lacks a 'handler.address' field");
-    }
-    this.entity.handler=entity.handler;
-    this.entity.state = "running";
-    this.version++;
-};
-
-/**
- * Sets the inFlight state to "complete".
- *
- * @method setComplete
- * @param {Object} entity
- */
-ozpIwc.IntentsInFlightNode.prototype.setComplete=function(entity) {
-    this.entity.reply=entity.reply;
-    this.entity.state = "complete";
-    this.version++;
-};
-
-/**
- * The different states each state can transition to. Any given object level denotes a current state and its properties
- * are possible next states.
- *
- * @static
- * @property stateTransitions
- * @type {Object}
- */
-ozpIwc.IntentsInFlightNode.stateTransitions={
-    "choosing": {
-        "error": ozpIwc.IntentsInFlightNode.prototype.setError,
-        "delivering" : ozpIwc.IntentsInFlightNode.prototype.setHandlerResource,
-        "complete": ozpIwc.IntentsInFlightNode.prototype.setComplete
-    },
-    "delivering": {
-        "error": ozpIwc.IntentsInFlightNode.prototype.setError,
-        "running": ozpIwc.IntentsInFlightNode.prototype.setHandlerParticipant,
-        "complete": ozpIwc.IntentsInFlightNode.prototype.setComplete
-    },
-    "running": {
-        "error": ozpIwc.IntentsInFlightNode.prototype.setError,
-        "complete": ozpIwc.IntentsInFlightNode.prototype.setComplete
-    },
-    "complete": {},
-    "error": {}
-};
-
-/**
- * Set action for an IntentsInflightNode.
- *
- * @method set
- * @param {ozpIwc.TransportPacket} packet
- */
-ozpIwc.IntentsInFlightNode.prototype.set = function(packet) {
-    if(!packet.entity || !packet.entity.state) {
-        throw new ozpIwc.BadContentError("Entity lacks a 'state' field");
-    }
-    if(this.deleted){
-        throw new ozpIwc.BadContentError("Already handled.");
-    }
-    var transition=ozpIwc.IntentsInFlightNode.stateTransitions[this.entity.state];
-    if(!transition) {
-        // we're in a bad state.  pretty much unrecoverable
-        this.setError("Inflight intent is in an invalid state.  Cannot proceed.");
-        return;
-    }
-
-    transition=transition[packet.entity.state];
-    if(!transition) {
-        throw new ozpIwc.BadStateError("In-flight intent cannot transition from "+
-                this.entity.state+" to"+packet.entity.state);
-    }
-    
-    transition.call(this,packet.entity);
-};
-
-/**
- * @class IntentsInFlightNode
- * @namespace ozpIwc
- * @extends ozpIwc.ApiNode
- * @constructor
- */
-ozpIwc.IntentHandlerNode = ozpIwc.util.extend(ozpIwc.ApiNode, function(config) {
-    // Take the supplied data for anything that matches in the super class,
-    // such as resource.
-    ozpIwc.ApiNode.apply(this, arguments);
-    /**
-     * @property lifespan
-     * @type {ozpIwc.Lifespan.Bound}
-     */
-    this.lifespan = new ozpIwc.Lifespan.Bound({
-        'addresses': [config.src]
-    });
-    /**
-     * @property entity
-     * @type {Object}
-     */
-    this.entity = config.entity || {};
-
-});
-
-/**
- * Handles writing new data to the handler node.
- * @override
- * @method set
- * @param {Object} packet
- */
-ozpIwc.IntentHandlerNode.prototype.set=function(packet) {
-    var dst=packet.src;
-    if(packet.entity && packet.entity.invokeIntent && packet.entity.invokeIntent.dst) {
-        dst=packet.entity.invokeIntent.dst;
-    }
-    if(!dst) {
-        ozpIwc.log.error("Handler lacks a invokeIntent.dst",packet);
-        throw new ozpIwc.BadContentError("Intent handler must supply invokeIntent.dst");
-    }
-    
-    ozpIwc.ApiNode.prototype.set.apply(this, arguments);
-    this.entity.invokeIntent=this.entity.invokeIntent || {};
-    this.entity.invokeIntent.dst=dst;
-
-    //We need to know what callback to call on the client.
-    this.replyTo = packet.msgId;
-};
-
-/**
- * If a resource path isn't given, this takes the best guess at assigning it.
- * @override
- * @method resourceFallback
- * @param serializedForm
- * @returns String
- */
-ozpIwc.IntentHandlerNode.prototype.resourceFallback = function(serializedForm) {
-    switch(this.contentType){
-        case "application/vnd.ozp-intents-v1+json":
-            return "/" + serializedForm.intent.type + "/" + serializedForm.intent.action;
-    }
-};
-/**
- * Persistance types for the apiNode.
- * @module bus.service.Value
- * @submodule bus.service.Value.Persistance
- */
-/**
- *
- * @namespace ozpIwc.Lifespan
- */
-ozpIwc.Lifespan = ozpIwc.Lifespan || {};
-
-/**
- * Returns the lifespan functionality given the lifespan object given.
- * @method getLifespan
- * @static
- * @param {Object} lifespanObj
- * @param {String} lifespan.type
- * @returns {{shouldPersist: Function, shouldDelete: Function}|*}
- */
-ozpIwc.Lifespan.getLifespan = function(lifespanObj){
-
-    switch(lifespanObj.type){
-        case "Ephemeral":
-            return ozpIwc.Lifespan.ephemeralFunctionality;
-        case "Persistent":
-            return ozpIwc.Lifespan.persistentFunctionality;
-        case "Bound":
-            return ozpIwc.Lifespan.boundFunctionality;
-        default:
-            ozpIwc.Error("Received a malformed Lifespan, resource will be dropped: ", lifespanObj);
-            break;
-    }
-};
-
-/**
- * Functionality for ephemeral lifespans.
- * @method ephemeralFunctionality
- * @static
- * @type {{shouldPersist: Function, shouldDelete: Function}}
- */
-ozpIwc.Lifespan.ephemeralFunctionality = {
-    shouldPersist: function(){ return false; },
-    shouldDelete: function(){ return false; }
-};
-
-/**
- * Functionality for persistant lifespans.
- * @method ephemeralFunctionality
- * @static
- * @type {{shouldPersist: Function, shouldDelete: Function}}
- */
-ozpIwc.Lifespan.persistentFunctionality = {
-    shouldPersist: function(){ return true; },
-    shouldDelete: function(){ return false; }
-};
-
-
-/**
- * Functionality for bound lifespans.
- * @method ephemeralFunctionality
- * @static
- * @type {{shouldPersist: Function, shouldDelete: Function}}
- */
-ozpIwc.Lifespan.boundFunctionality = {
-    shouldPersist: function(){ return false; },
-    shouldDelete: function(lifespan,address){
-        var len=address.length;
-        for(var i in lifespan.addresses) {
-            if(lifespan.addresses[i].substr(-len) === address) {
-                return true;
-            }
-        }
-        return false;
-    }
-};
-
-/**
- * Creates a persistent lifespan object
- * @Class Persistent
- * @namespace ozpIwc.Lifespan
- * @constructor
- */
-ozpIwc.Lifespan.Persistent = function(){
-    this.type = "Persistent";
-};
-
-/**
- * Creates an ephemeral lifespan object
- * @Class Ephemeral
- * @namespace ozpIwc.Lifespan
- * @constructor
- */
-ozpIwc.Lifespan.Ephemeral = function(){
-    this.type = "Ephemeral";
-};
-
-/**
- * Creates a bound lifespan object
- * @Class Bound
- * @namespace ozpIwc.Lifespan
- * @property {Object} config
- * @property {String[]} config.addresses
- * @constructor
- *
- */
-ozpIwc.Lifespan.Bound = function(config){
-    config = config || {};
-    this.type = "Bound";
-    this.addresses = config.addresses || [];
-};
-
-/**
- * @submodule bus.service.Value
- */
-
-/**
- * @class NamesNode
- * @namespace ozpIwc
- * @extends ozpIwc.ApiNode
- * @constructor
- */
-ozpIwc.NamesNode = ozpIwc.util.extend(ozpIwc.ApiNode, function(config) {
-    // Take the supplied data for anything that matches in the super class,
-    // such as resource.
-    ozpIwc.ApiNode.apply(this, arguments);
-
-    /**
-     * @property lifespan
-     * @type {ozpIwc.Lifespan.Bound}
-     */
-    this.lifespan = new ozpIwc.Lifespan.Bound({
-        'addresses': [config.src]
-    });
-
-    /**
-     * @property entity
-     * @type {Object}
-     */
-    this.entity = config.entity || {};
-
-});
-
-/**
- * @submodule bus.service.Value
- */
-
-/**
- * @class SystemNode
- * @namespace ozpIwc
- * @extends ozpIwc.ApiNode
- * @constructor
- */
-ozpIwc.SystemNode = ozpIwc.util.extend(ozpIwc.ApiNode, function(config) {
-    ozpIwc.ApiNode.apply(this, arguments);
-});
-
-/**
- * If a resource path isn't given, this takes the best guess at assigning it.
- * @override
- * @method resourceFallback
- * @param serializedForm
- * @returns String
- */
-ozpIwc.SystemNode.prototype.resourceFallback = function(serializedForm) {
-    switch(this.contentType){
-        case "application/vnd.ozp-application-v1+json":
-            return "/application/" + serializedForm.id;
-    }
-};
-
-
-/**
- * Service API classes of the bus.
- * @module bus.service
- * @submodule bus.service.Type
- */
-
-/**
- * The base class for APIs. Use {{#crossLink "ozpIwc.createApi"}}{{/crossLink}} to subclass
- * this.
- * 
- * Leader State Management
- * =======================
- * The base API uses locks.api to always have a single leader at a time.  An api instance goes
- * through a linear series of states:  member -> loading -> leader
- * * __member__ does not service requests
- * * __loading__ is a transitory state between acquiring the leader lock and being ready to serve requests
- * * __leader__ actively serves requests and broadcasts a death scream upon shutdown
- *
- * The member state has two substates-- ready and dormant
- *  * __ready__ queues requests in case it has to become leader.  switches back to dormant on discovering a leader
- *  * __dormant__ silently drops requests.  Upon hearing a deathScream, it switches to ready.
-
- * @class ApiBase
- * @module ozpIwc
- * @namespace ozpIwc
- * @constructor
- * @param {Object} config
- * @param {String} config.name The api address (e.g. "names.api")
- * @param {ozpIwc.ClientMixin} [config.participant] The connection to use for communication
- * @param {ozpIwc.Router} [config.router=ozpIwc.defaultRouter] The router to connect to
- */
-ozpIwc.ApiBase=function(config) {
-	if(!config.name) {
-        throw Error("API must be configured with a name");
-    }
-    this.participant=config.participant || new ozpIwc.ClientParticipant({internal:true});
-
-    this.name=config.name;
-    this.coordinationAddress="coord." + this.name;
-    
-    
-    this.events = new ozpIwc.Event();
-    this.events.mixinOnOff(this);
-
-    this.endpoints=[];
-    this.data={};
-    this.watchers={};
-    this.collectors=[];
-    this.changeList={};
-    this.leaderState="member";
-
-    
-    var router=config.router || ozpIwc.defaultRouter;
-    router.registerParticipant(this.participant);
-    router.registerMulticast(this.participant,[this.name,this.coordinationAddress]);
-
-    var self=this;
-    this.participant.on("receive",function(packetContext) {
-        self.receivePacketContext(packetContext);
-    });
-
-    this.transitionToMemberReady();
-
-    this.logPrefix="[" + this.name + "/" + this.participant.address +"] ";
-    
-    this.leaderPromise=this.participant.send({
-        dst: "locks.api",
-        resource: "/mutex/"+this.name,
-        action: "lock"
-    }).then(function(pkt) {
-        var resolve;
-
-        // Delay loading for deathScreams to flow in.
-        var delayed = new Promise(function(res,rej){
-            resolve = res;
-        });
-
-        window.setTimeout(function(){
-            resolve();
-        },1000);
-
-        return delayed;
-    }).then(function(){
-        self.transitionToLoading();
-    });
-    
-    this.leaderPromise.catch(function(e) {
-        console.error("Error registering for leader mutex [address="+self.participant.address+",api="+self.name+"]",e);
-    });
-
-    ozpIwc.util.addEventListener("beforeunload",function(){
-        self.shutdown();
-    });
-};
-
-
-/**
- * Generates a unique key with the given prefix.
- * @param {String} prefix
- * @returns {String}
- */
-ozpIwc.ApiBase.prototype.createKey = function(prefix) {
-    prefix = prefix || "";
-    var key;
-    do {
-        key = prefix + ozpIwc.util.generateId();
-    } while (key in this.data);
-    return key;
-};
-
-/**
- * A handler function for when a node is created. Can be overridden by inherited APIs.
- * @method createdHandler
- * @param node
- */
-ozpIwc.ApiBase.prototype.createdHandler=function(node){
-    //Whenever a node is created update the collector's lists.
-    this.updateCollections();
-};
-
-/**
- * A handler function called after a node is changed but before it's watchers are notified.
- * @method changedHandler
- * @param {Object} node
- * @param {Object} entity
- * @param {Object} packetContext
- */
-ozpIwc.ApiBase.prototype.changedHandler =function(node,entity,packetContext) {
-    //var culprit = packetContext.src;
-    var lifespanFns = ozpIwc.Lifespan.getLifespan(node.lifespan);
-    if(lifespanFns.shouldPersist()) {
-        this.persistenceQueue.queueNode(this.name + "/" + node.resource, node);
-    }
-};
-
-/**
- * A handler function called when an instance of this API has disconnected from the bus.
- * @method disconnectHandler
- * @param {String} address
- */
-ozpIwc.ApiBase.prototype.disconnectHandler =function(address) {
-    var self = this;
-    ozpIwc.object.eachEntry(self.data,function(resource,node) {
-        var lifespanFns = ozpIwc.Lifespan.getLifespan(node.lifespan);
-        if(lifespanFns.shouldDelete(node.lifespan,address)){
-            self.markForChange(node);
-            node.markAsDeleted();
-        }
-    });
-    self.resolveChangedNodes();
-};
-//===============================================================
-// Default methods that can be overridden by subclasses
-//===============================================================
-/**
- * Create the data that needs to be handed off to the new leader.
- *
- * __Intended to be overridden by subclasses__
- * 
- * Subsclasses can override this if they need to add additional
- * handoff data.  This MUST be a synchronous call that returns immediately.
- *
- * @method createDeathScream
- * @return {Object} the data that will be passed to the new leader
- */
-ozpIwc.ApiBase.prototype.createDeathScream=function() {
-    return {
-        watchers: this.watchers,
-        collectors: this.collectors,
-        data: ozpIwc.object.eachEntry(this.data,function(k,v) {
-            return v.serializeLive();
-        })
-    };
-};
-
-/**
- * Gathers the desired preference from the data API.
- * @method getPreference
- * @param {String} prefName
- * @returns {Promise}
- */
-ozpIwc.ApiBase.prototype.getPreference=function(prefName) {
-    return this.participant.send({
-        dst: "data.api",
-        resource: "/ozp/iwc/"+this.name+"/"+prefName,
-        action: "get"
-    }).then(function(reply) {
-        return reply.entity;
-    });
-};
-
-/**
- * Called when the API has become the leader, but before it starts
- * serving data.  Receives the deathScream of the previous leader
- * if available, otherwise undefined.
- * 
- * __Intended to be overridden by subclasses__
- * 
- * Subsclasses can override this to load data from the server.
- *  
- * @method initializeData
- * @param {object} deathScream
- * @return {Promise} a promise that resolves when all data is loaded.
- */
-ozpIwc.ApiBase.prototype.initializeData=function(deathScream) {
-    deathScream=deathScream || { watchers: {}, collectors: [], data: []};
-    this.watchers=deathScream.watchers;
-    this.collectors = deathScream.collectors;
-    deathScream.data.forEach(function(packet) {
-        this.createNode({resource: packet.resource}).deserializeLive(packet);
-    },this);
-
-    this.updateCollections();
-    if(this.endpoints) {
-        var self=this;
-        return Promise.all(this.endpoints.map(function(u) {
-          var e=ozpIwc.endpoint(u.link) ;
-          return self.loadFromEndpoint(e,u.headers).catch(function(e) {
-              ozpIwc.log.error(self.logPrefix,"load from endpoint ",e," failed: ",e);
-          });
-        }));
-    } else {
-        return Promise.resolve();
-    }
-};
-
-/**
- * Creates a node appropriate for the given config, puts it into this.data,
- * and fires off the right events.
- *  
- * @method createNode
- * @param {Object} config The ApiNode configuration.
- * @return {ozpIwc.ApiNode}
- */
-ozpIwc.ApiBase.prototype.createNode=function(config,NodeType) {
-    var n=this.createNodeObject(config,NodeType);
-		this.data[n.resource]=n;
-		this.events.trigger("createdNode",n);
-		return n;
-};
-
-
-
-/**
- * Creates a node appropriate for the given config.  This does
- * NOT add the node to this.data.  Default implementation returns
- * a plain ozpIwc.ApiNode.
- * 
- * __Intended to be overridden by subclasses__
- * 
- * Subsclasses can override this for custom node types that may vary
- * from resource to resource.
- * 
- * @method createNodeObject
- * @param {Object} config The ApiNode configuration.
- * @param {Function} NodeType The contructor call for the given node type to be created.
- * @return {ozpIwc.ApiNode}
- */
-ozpIwc.ApiBase.prototype.createNodeObject=function(config,NodeType) {
-    if(NodeType) {
-        return new NodeType(config);
-    } else {
-        return new ozpIwc.ApiNode(config);
-    }
-};
-
-//===============================================================
-// Leader state management
-//===============================================================
-
-/**
- * @method transitionToLoading
- * @private
- * @return {Promise} a promise that resolves when all data is loaded.
- */
-ozpIwc.ApiBase.prototype.transitionToLoading=function() {
-    var self=this;
-    if(this.leaderState !== "member") {
-				ozpIwc.log.error(this.logPrefix+"transition to loading called in an invalide state:",this.leaderState);
-        return Promise.reject(this.logPrefix+"transition to loading called in an invalide state:",this.leaderState);
-    }
-		ozpIwc.log.debug(this.logPrefix+"transitioning to loading");
-    this.leaderState="loading";
-    return this.initializeData(this.deathScream)
-        .then(function() {
-             self.transitionToLeader();
-        },function(e) {
-            ozpIwc.log.error(self.logPrefix+"Failed to load data due to ",e);
-            self.shutdown();
-        });
-};
-
-/**
- * @method transitionToLeader
- * @private
- */
-ozpIwc.ApiBase.prototype.transitionToLeader=function() {
-    if(this.leaderState !== "loading") {
-            ozpIwc.log.error(this.logPrefix+"transition to leader called in an invalid state:",this.leaderState);
-            return;
-    }
-    ozpIwc.log.debug(this.logPrefix+"transitioning to leader");
-    this.leaderState = "leader";
-    this.broadcastLeaderReady();
-    this.deliverRequestQueue();
-
-    this.on("createdNode",this.createdHandler,this);
-    this.on("changed",this.changedHandler,this);
-    this.on("addressDisconnects",this.disconnectHandler,this);
-};
-
-/**
- * Shuts down the api, issuing a deathscream and releasing the lock, if possible.
- * @method shutdown
- * @return 
- */
-ozpIwc.ApiBase.prototype.shutdown=function() {
-    if(this.leaderState === "leader") {
-        this.broadcastDeathScream(this.createDeathScream());
-    }
-    
-    this.participant.send({
-        dst: "locks.api",
-        resource: "/mutex/"+this.name,
-        action: "unlock"
-    });
-};
-
-/**
- * @method transitionToMemberReady
- * @private
- * @param {Object} deathScream
- * @return {Promise}
- */
-ozpIwc.ApiBase.prototype.transitionToMemberReady=function(deathScream) {
-    if(this.leaderState !== "member") {
-        return;
-    }
-    this.deathScream=deathScream;
-    this.off("createdNode",this.createdHandler);
-    this.off("changed",this.changedHandler);
-    this.off("addressDisconnects",this.disconnectHandler);
-    this.enableRequestQueue();
-    return Promise.resolve();
-};
-
-/**
- * @method transitionToMemberDormant
- * @private
- * @return {Promise}
- */
-ozpIwc.ApiBase.prototype.transitionToMemberDormant=function() {
-    if(this.leaderState !== "member") {
-        return;
-    }
-    this.deathScream=null;
-    this.flushRequestQueue();
-    return Promise.resolve();
-};
-
-//===============================================================
-// Data Management
-//===============================================================
-
-/**
- * Authorize the request for the given node.
- *  
- * @method checkAuthorization
- * @param {ozpIwc.ApiNode} node
- * @param {Object} context
- * @param {ozpIwc.TransportPacket} packet
- * @param {String} action
- * @return {undefined}
- */
-ozpIwc.ApiBase.prototype.checkAuthorization=function(node,context,packet,action) {
-    //@TODO: actually implement checking the authorization...
-    return true;
-};
-
-/**
- * Returns a list of nodes that start with the given prefix.
- *  
- * @method matchingNodes
- * @param {String} prefix
- * @return {ozpIwc.ApiNode[]} a promise that resolves when all data is loaded.
- */
-ozpIwc.ApiBase.prototype.matchingNodes=function(prefix) {
-    return ozpIwc.object.values(this.data, function(k,node) { 
-        return node.resource.indexOf(prefix) ===0 && !node.deleted;
-    });
-};
-
-
-//===============================================================
-// Watches
-//===============================================================
-
-/**
- * Marks that a node has changed and that change notices may need to 
- * be sent out after the request completes.
- *  
- * @method markForChange
- * @param {ApiNode} nodes...
- */
-ozpIwc.ApiBase.prototype.markForChange=function(/*varargs*/) {
-    for(var i=0;i<arguments.length;++i) {
-        if(Array.isArray(arguments[i])) {
-            this.markForChange(arguments[i]);
-        } else {
-            var resource=arguments[i].resource || ""+arguments[i];
-            // if it's already marked, skip it
-            if(this.changeList.hasOwnProperty(resource)) {
-                continue;
-            }
-            
-            var n=this.data[resource];
-
-            this.changeList[resource]=n?n.snapshot():{};
-        }
-    }
-};
-
-/**
- * Marks that a node has changed and that change notices may need to
- * be sent out after the request completes.
- *
- * @method addWatcher
- * @param {String} resource name of the resource to watch
- * @param {Object} watcher
- * @param {String} watcher.resource name of the resource to watch
- * @param {String} watcher.src Address of the watcher
- * @param {String | Number} watcher.replyTo The conversation id that change notices will go to
- */
-ozpIwc.ApiBase.prototype.addWatcher=function(resource,watcher) {
-    var watchList=this.watchers[resource];
-    if(!Array.isArray(watchList)) {
-        watchList=this.watchers[resource]=[];
-    }
-
-    watchList.push(watcher);
-};
-
-/**
- * Removes mark that a node has changed and that change notices may need to
- * be sent out after the request completes.
- *
- * @method removeWatcher
- * @param {String} resource name of the resource to unwatch
- * @param {Object} watcher
- * @param {String} watcher.src Address of the watcher
- * @param {String | Number} watcher.replyTo The conversation id that change notices will go to
- */
-ozpIwc.ApiBase.prototype.removeWatcher=function(resource,watcher) {
-    var watchList=this.watchers[resource];
-    if(watchList) {
-        this.watchers[resource]=watchList.filter(function(watch) {
-            return watch.src === watcher.src && watch.replyTo === watcher.msgId;
-        });
-    }
-};
-
-
-/**
- * Adds the given node to the collector list. It's collection list will be updated on api data changes.
- * @method addCollector
- * @param {Object} node
- */
-ozpIwc.ApiBase.prototype.addCollector=function(node){
-    function isCollector(obj){
-        return (obj && obj.pattern && obj.collection);
-    }
-
-    if(isCollector(node)) {
-        var index = this.collectors.indexOf(node.resource);
-        if(index < 0){
-            this.collectors.push(node.resource);
-            this.updateCollectionNode(node);
-        }
-    }
-};
-
-
-/**
- * Removes the given node from the collector list. It's collection list will no longer be updated on api data changes.
- * @method removeCollector
- * @param {Object} node
- */
-ozpIwc.ApiBase.prototype.removeCollector=function(node){
-    var index = this.collectors.indexOf(node.resource);
-    if(index > -1) {
-        this.collectors.splice(index, 1);
-    }
-};
-
-/**
- * Notifies watchers of changes of the resource since the given snapshot.
- * @method resolveChangedNode
- * @param {String} resource
- * @param {Object} snapshot
- * @param {Object} packetContext
- */
-ozpIwc.ApiBase.prototype.resolveChangedNode=function(resource,snapshot,packetContext) {
-    var node=this.data[resource];
-    var watcherList=this.watchers[resource] || [];
-
-    if(!node) {
-        return;
-    }
-
-    var changes=node.changesSince(snapshot);
-    if(!changes) {
-        return;
-    }
-
-    var permissions=ozpIwc.authorization.pip.attributeUnion(
-        changes.oldValue.permissions,
-        changes.newValue.permissions
-    );
-
-    var entity={
-        oldValue: changes.oldValue.entity,
-        newValue: changes.newValue.entity,
-        oldCollection: changes.oldValue.collection,
-        newCollection: changes.newValue.collection,
-        deleted: node.deleted
-    };
-
-    this.events.trigger("changed",node,entity,packetContext);
-
-    watcherList.forEach(function(watcher) {
-        // @TODO allow watchers to changes notifications if they have permission to either the old or new, not just both
-        this.participant.send({
-            'src'   : this.participant.name,
-            'dst'   : watcher.src,
-            'replyTo' : watcher.replyTo,
-            'response': 'changed',
-            'resource': node.resource,
-            'permissions': permissions,
-            'contentType': node.contentType,
-            'entity': entity
-        });
-    },this);
-};
-
-/**
- * Called after the request is complete to send out change notices.
- *  
- * @method resolveChangedNodes
- * @param {Object} packetContext the packet that caused this change.
- * @private
- */
-ozpIwc.ApiBase.prototype.resolveChangedNodes=function(packetContext) {
-    this.updateCollections();
-    ozpIwc.object.eachEntry(this.changeList,function(resource,snapshot){
-        this.resolveChangedNode(resource,snapshot,packetContext);
-    },this);
-    this.changeList={};
-};
-
-/**
- * Itterates over all collectors of the API for updates
- * @method updateCollections
- */
-ozpIwc.ApiBase.prototype.updateCollections = function(){
-    for(var i in this.collectors){
-        var collectorNode = this.data[this.collectors[i]];
-        this.updateCollectionNode(collectorNode);
-    }
-};
-
-/**
- * Removes the collector node resource from the collectors list if deleted. Removes references to nodes in the given
- * collectors collection property if said referenced node is deleted. Adds newly created nodes to the collection
- * property if said node's resource matches the collection nodes pattern property.
- *
- * @method updateCollectionNode
- * @param {Object} cNode the collector node to update
- */
-ozpIwc.ApiBase.prototype.updateCollectionNode = function(cNode){
-
-    //If the collection node is deleted, stop collecting for it.
-    if(cNode.deleted){
-        this.removeCollector(cNode);
-        return;
-    }
-
-
-    var updatedCollection = this.matchingNodes(cNode.pattern).filter(function(node){
-        return !node.deleted;
-    }).map(function(node) {
-        return node.resource;
-    });
-
-    if(!ozpIwc.util.arrayContainsAll(cNode.collection,updatedCollection) || !ozpIwc.util.arrayContainsAll(updatedCollection,cNode.collection)) {
-        this.markForChange(cNode);
-        cNode.collection = updatedCollection;
-        cNode.version++;
-    }
-};
-
-//===============================================================
-// Packet Routing
-//===============================================================
-/**
- * Sends packets of data from this API to other parts of the IWC bus.
- *
- * @param {Object} fragment
- * @returns {Promise}
- */
-ozpIwc.ApiBase.prototype.send=function(fragment) {
-    fragment.src=this.name;
-    return this.participant.send(fragment);
-};
-
-/**
- * Routes a packet received from the participant.
- *  
- * @method receivePacketContext
- * @property {Object} packetContext
- * @private
- */
-ozpIwc.ApiBase.prototype.receivePacketContext=function(packetContext) {
-    if(packetContext.packet.src===this.participant.address) {
-        // drop our own packets
-        return Promise.resolve();
-    }
-
-    if(packetContext.packet.dst===this.coordinationAddress) {
-        return this.receiveCoordinationPacket(packetContext);
-    } else if (packetContext.packet.dst === "$bus.multicast"){
-        return this.receiveBusPacket(packetContext);
-    } else {
-        return this.receiveRequestPacket(packetContext);
-    }
-};
-
-/**
- * Handles packets received with a destination of "$bus.multicast".
- *
- * @method receiveBusPacket
- * @param {Object} packetContext
- * @returns {*}
- */
-ozpIwc.ApiBase.prototype.receiveBusPacket=function(packetContext) {
-    var packet=packetContext.packet;
-    switch(packet.action) {
-        case "connect":
-            this.events.trigger("addressConnects",packet.entity.address,packet);
-            break;
-        case "disconnect":
-            this.removeDeadWatchers(packet.entity.address);
-            this.events.trigger("addressDisconnects",packet.entity.address,packet);
-            break;
-    }
-    return Promise.resolve();
-};
-
-/**
- * If the the given address is watching a resource, it will be removed from the watch list. Router addresses will
- * remove all of its participants watch registrations.
- *
- * @method removeDeadWatchers
- * @param {String} address
- */
-ozpIwc.ApiBase.prototype.removeDeadWatchers = function(address){
-    var len=address.length;
-    ozpIwc.object.eachEntry(this.watchers,function(resource,array) {
-        for(var i in array) {
-            if (array[i].src.substr(-len) === address) {
-                array.splice(i, 1);
-            }
-        }
-    });
-};
-
-//===============================================================
-// API Request Handling
-//===============================================================
-
-/**
- * Routes a request to the proper handler and takes care of overhead
- * such as change requests.
- *  
- * @method receivePacketContext
- * @property {Object} packetContext
- * @private
- */
-ozpIwc.ApiBase.prototype.receiveRequestPacket=function(packetContext) {
-    var packet=packetContext.packet;
-
-    if(this.isRequestQueueing) {
-        this.requestQueue.push(packetContext);
-        return Promise.resolve();
-    }
-    if(this.leaderState !== "leader"){
-        return Promise.resolve();
-    }
-    
-    var self=this;
-    return new Promise(function(resolve,reject) {
-        try {
-            packetContext.node=self.data[packet.resource];
-            resolve(self.routePacket(packet,packetContext));
-        } catch(e) {
-            reject(e);
-        }
-    }).then(function(packetFragment) {
-        if(packetFragment) {
-            packetFragment.response = packetFragment.response || "ok";
-            packetContext.replyTo(packetFragment);
-        }
-        self.resolveChangedNodes(packetContext);
-    },function(e) {
-        if(!e || !e.errorAction) {
-            ozpIwc.log.error(self.logPrefix,"Unexpected error: ",e," packet= ",packet);
-        }
-        var packetFragment={
-            'src': self.name,
-            'response': e.errorAction || "errorUnknown",
-            'entity': e.message
-        };
-        packetContext.replyTo(packetFragment);
-    });
-
-};
-
-/**
- * Any request packet that does not match a route ends up here.  By default,
- * it replies with BadAction, BadResource, or BadRequest, as appropriate.
- *  
- * @method receivePacketContext
- * @param {ozpIwc.TransportPacket} packet
- * @param {ozpIwc.TransportPacketContext} context
- */
-ozpIwc.ApiBase.prototype.defaultRoute=function(packet,context) {
-    switch(context.defaultRouteCause) {
-        case "nonRoutablePacket": // packet doesn't have an action/resource, so ignore it
-            return;
-        case "noAction": 
-            throw new ozpIwc.BadActionError(packet);
-        case "noResource":
-            throw new ozpIwc.BadResourceError(packet);
-        default:
-            throw new ozpIwc.BadRequestError(packet);
-    }
-};
-
-/**
- * Enables the API's request queue, all requests will be held until deliverRequestQueue or flushRequestQueue is called.
- * @method enableRequestQueue
- * @private
- */
-ozpIwc.ApiBase.prototype.enableRequestQueue=function() {
-    this.isRequestQueueing=true;
-    this.requestQueue=[];
-};
-
-/**
- * Routes all queued packets and turns off request queueing.
- * @method deliverRequestQueue
- * @private
- */
-ozpIwc.ApiBase.prototype.deliverRequestQueue=function() {
-    this.isRequestQueueing=false;
-    this.requestQueue.forEach(this.receiveRequestPacket,this);
-    this.requestQueue=[];
-};
-
-/**
- * Empties the queue of requests without processing and turns off queuing.
- * @method flushRequestQueue
- * @private
- */
-ozpIwc.ApiBase.prototype.flushRequestQueue=function() {
-    this.isRequestQueueing=false;
-    this.requestQueue=[];
-};
-
-
-
-//===============================================================
-// API Coordination Handling
-//===============================================================
-/**
- * Broadcasts to other instances of this API on the bus that it is ready to lead.
- * @method broadcastLeaderReady
- */
-ozpIwc.ApiBase.prototype.broadcastLeaderReady=function() {
-    this.participant.send({
-        dst: this.coordinationAddress,
-        action: "announceLeader"
-    });
-};
-
-/**
- * Broadcasts to other instances of this API on the bus this APIs state.
- * @method broadcastDeathScream
- * @param {Object} deathScream the state data to pass on.
- */
-ozpIwc.ApiBase.prototype.broadcastDeathScream=function(deathScream) {
-    this.participant.send({
-        dst: this.coordinationAddress,
-        action: "deathScream",
-        entity: deathScream
-    });
-};
-
-/**
- * Handles packets received regarding leadership actions.
- * @method receiveCoordinationPacket
- * @param {Object} packetContext
- * @returns {Promise}
- */
-ozpIwc.ApiBase.prototype.receiveCoordinationPacket=function(packetContext) {
-    var packet=packetContext.packet;
-    switch(packet.action) {
-        case "announceLeader":
-            return this.transitionToMemberDormant();
-        case "deathScream":
-            return this.transitionToMemberReady(packet.entity);
-        default:
-            ozpIwc.log.error("Unknown coordination packet: ", packet);
-            return Promise.reject(new Error("Unknown action: " + packet.action + " in " + JSON.stringify(packetContext)));
-    }
-};
-
-//===============================================================
-// Load data from the server
-//===============================================================
-
-/**
- * Loads data from the provided endpoint.  The endpoint must point to a HAL JSON document
- * that embeds or links to all resources for this api.
- * 
- * @method loadFromEndpoint
- * @param {ozpIwc.Endpoint} endpoint
- * @param {Array} headers
- * @return {Promise} resolved when all data has been loaded.
- */
-ozpIwc.ApiBase.prototype.loadFromEndpoint=function(endpoint,headers) {
-    var self=this;
-		ozpIwc.log.debug(self.logPrefix+" loading from ",endpoint.name," -- ",endpoint.baseUrl);
-    return endpoint.get("/").then(function(data) {
-
-        var response=data.response;
-        var embeddedItems=ozpIwc.util.ensureArray((response._embedded && response._embedded.item) || []);
-        var linkedItems=ozpIwc.util.ensureArray((response._links && response._links.item) || []);
-
-        // load all the embedded items
-        embeddedItems.forEach(function(i) {
-            self.createNode({
-                serializedEntity: i
-            });
-        });
-				ozpIwc.log.debug(self.logPrefix+" processed " + embeddedItems.length + " items embedded in the endoint");
-        var unknownLinks=linkedItems.map(function(i) { return i.href;});
-        unknownLinks=unknownLinks.filter(function(href) {
-                return ozpIwc.object.values(self.data,function(k,node) {
-                    return node.self === href;
-                }).length === 0;
-            });
-				ozpIwc.log.debug(self.logPrefix+" loading " + unknownLinks.length + " linked items");
-
-				// empty array resolves immediately, so no check needed
-        return Promise.all(unknownLinks.map(function(l) {
-            return endpoint.get(l,headers).then(function(data) {
-                self.createNode({
-                    serializedEntity: data.response,
-                    serializedContentType: data.header['Content-Type']
-                });
-            }).catch(function(err) {
-							ozpIwc.log.info(self.logPrefix+"Could not load from "+l+" -- ",err);
-						});
-        }));
-
-    }).catch(function(err) {
-			ozpIwc.log.info(self.logPrefix+" couldn't load from endpoint "+endpoint.name +" -- ",err);
-		});
-};
-
-
-//===============================================================
-// Default Routes and Subclass Helpers
-//===============================================================
-/**
- * Gathers the collection data for a node given its pattern only if it has a pattern.
- * @method getCollection
- * @param {String} pattern
- * @returns {Array}
- */
-ozpIwc.ApiBase.prototype.getCollection = function(pattern){
-    if(pattern) {
-        return this.matchingNodes(pattern).filter(function (node) {
-            return !node.deleted;
-        }).map(function (node) {
-            return node.resource;
-        });
-    } else {
-        return [];
-    }
-};
-
-/**
- * A collection of default action handlers for an API.
- * @property defaultHandler
- * @static
- * @type {Object}
- */
-ozpIwc.ApiBase.defaultHandler={
-    "get":function(packet,context,pathParams) {
-        var p =  context.node.toPacket();
-        p.collection = this.getCollection(p.pattern);
-        return p;
-    },
-    "set":function(packet,context,pathParams) {
-        context.node.set(packet);
-        return { response: "ok" };
-    },
-    "delete": function(packet,context,pathParams) {
-        if(context.node) {
-            context.node.markAsDeleted(packet);
-        }
-
-        return { response: "ok" };
-    },
-    "list": function(packet,context,pathParams) {
-        var entity=this.matchingNodes(packet.resource).filter(function(node){
-            if(node.deleted) {
-                return false;
-            }
-            return true;
-        }).map(function(node) {
-            return node.resource;
-        });
-        return {
-            "contentType": "application/json",
-            "entity": entity
-        };
-    },
-    "bulkGet": function(packet,context,pathParams) {
-        var self = this;
-        var entity=this.matchingNodes(packet.resource).map(function(node) {
-            var p =  node.toPacket();
-            p.collection = self.getCollection(p.pattern);
-            return p;
-        });
-        // TODO: roll up the permissions of the nodes, as well
-        return {
-            "contentType": "application/json",
-            "entity": entity
-        };
-    },
-    "watch": function(packet,context,pathParams) {
-        this.addWatcher(packet.resource,{
-            src: packet.src,
-            replyTo: packet.msgId
-        });
-
-        //Only if the node has a pattern applied will it actually be added as a collector.
-        this.addCollector(context.node);
-
-        if(context.node) {
-            var p =  context.node.toPacket();
-            p.collection = this.getCollection(p.pattern);
-            return p;
-        } else {
-            return { response: "ok"};
-        }
-    },
-    "unwatch": function(packet,context,pathParams) {
-        this.removeWatcher(packet.resource, packet);
-
-        //If no one is watching the resource any more, remove its collector if it has one to speed things up.
-        if(this.watchers[packet.resource] && this.watchers[packet.resource].length === 0){
-            this.removeCollector(context.node);
-        }
-
-        return { response: "ok" };
-    }
-};
-
-/**
- * A list of all of the default actions.
- * @property allActions
- * @static
- * @type {String[]}
- */
-ozpIwc.ApiBase.allActions=Object.keys(ozpIwc.ApiBase.defaultHandler);
-
-/**
- * Install the default handler and filters for the provided actions and resources.
- * @method useDefaultRoute
- * @static
- * @param {String | String[]} actions
- * @param {String} resource="{resource:.*}" The resource template to install the default handler on.
- */
-
-
-/**
- * Creates a subclass of ApiBase and adds some static helper functions.
- *
- * @method createApi
- * @param {Function} init the constructor function for the class
- * @return {Object} A new API class that inherits from the ApiBase class.
- */
-ozpIwc.createApi=function(init) {
-    var api=ozpIwc.util.extend(ozpIwc.ApiBase,function() {
-        ozpIwc.ApiBase.apply(this, arguments);
-        return init.apply(this,arguments);
-    });
-    ozpIwc.PacketRouter.mixin(api);
-    api.useDefaultRoute=function(actions,resource) {
-        resource = resource || "{resource:.*}";
-        actions=ozpIwc.util.ensureArray(actions);
-        actions.forEach(function(a) {
-            var filterFunc=ozpIwc.standardApiFilters.forAction(a);
-            api.declareRoute({
-                action: a,
-                resource: resource,
-                filters: (filterFunc?filterFunc():[])
-            },ozpIwc.ApiBase.defaultHandler[a]
-            );
-        });
-    };
-    return api;
-};
-
-/* global ozpIwc */
-
-/**
- * @submodule bus.service.Type
- */
-
-/**
- * The Data Api. 
- * Subclasses the {{#crossLink "ozpIwc.ApiBase"}}{{/crossLink}}.
- *
- * @class DataApi
- * @namespace ozpIwc
- * @extends ozpIwc.ApiBase
- * @constructor
- */
-ozpIwc.DataApi = ozpIwc.createApi(function(config) {
-    this.persistenceQueue=config.persistenceQueue || new ozpIwc.AjaxPersistenceQueue();
-    this.endpoints=[
-        {
-            link: ozpIwc.linkRelPrefix+":user-data",
-            headers: []
-        }
-    ];
-
-});
-
-/**
- * Override the default node type to be a DataNode.
- * @override
- * @method createNodeObject
- * @param {type} config
- * @returns {ozpIwc.DataNode}
- */
-ozpIwc.DataApi.prototype.createNodeObject=function(config) {
-    return new ozpIwc.DataNode(config);
-};
-
-// Default handlers are fine anything
-ozpIwc.DataApi.useDefaultRoute(ozpIwc.ApiBase.allActions);
-
-//============================================
-// Add/Remove Child:
-//============================================
-/**
- * A filter for adding children nodes to the data api. assigns the parent node a pattern & sets it as a collector.
- * @method addChildFilters
- * @static
- * @returns {function[]}
- */
-ozpIwc.DataApi.addChildFilters = function(){
-    var childsPattern;
-    var filters = ozpIwc.standardApiFilters.createAndCollectFilters(ozpIwc.DataNode);
-
-    //Stash the child's pattern for now and create the parent.
-    filters.unshift(function(packet,context,pathParams,next) {
-        childsPattern = packet.pattern;
-        packet.pattern = null;
-        return next();
-    });
-    //Make sure the parent node has it's pattern set then replace the childs pattern at the end of the filter chain
-    filters.push(function(packet,context,pathParams,next) {
-        context.node.set({
-            pattern: packet.pattern
-        });
-        packet.pattern = childsPattern;
-        return next();
-    });
-    return filters;
-};
-
-ozpIwc.DataApi.declareRoute({
-    action: ["addChild"],
-    resource: "{resource:.*}",
-    filters: ozpIwc.DataApi.addChildFilters()
-}, function(packet, context, pathParams) {
-    var key = this.createKey(context.node.pattern);
-    packet.resource = key;
-    packet.pattern =  packet.pattern || key + "/";
-    var childNode = this.createNode({resource: key}, ozpIwc.DataNode);
-    this.markForChange(childNode);
-    childNode.set(packet);
-
-    return {
-        response: "ok",
-        entity: {
-            resource: childNode.resource
-        }
-    };
-});
-
-ozpIwc.DataApi.declareRoute({
-    action: ["removeChild"],
-    resource: "{resource:.*}",
-    filters: ozpIwc.standardApiFilters.deleteFilters()
-}, function(packet, context, pathParams) {
-    if (packet.entity && packet.entity.resource) {
-        packet.resource = packet.entity.resource;
-        context.node = this.data[packet.resource];
-        if (context.node) {
-            this.markForChange(context.node);
-            context.node.markAsDeleted(packet);
-        }
-    }
-    return {response: "ok"};
-});
-/**
- * @submodule bus.service.Type
- */
-
-/**
- * The Intents Api.
- * Subclasses the {{#crossLink "ozpIwc.ApiBase"}}{{/crossLink}}.
- *
- * @class IntentsApi
- * @namespace ozpIwc
- * @extends ozpIwc.ApiBase
- * @constructor
- */
-ozpIwc.IntentsApi = ozpIwc.createApi(function(config) {
-    /**
-     * @property persistenceQueue
-     * @type {ozpIwc.AjaxPersistenceQueue|*}
-     */
-    this.persistenceQueue = config.persistenceQueue || new ozpIwc.AjaxPersistenceQueue();
-
-    /**
-     * @property endpoints
-     * @type {Object[]}
-     */
-    this.endpoints=[
-        {
-            link: ozpIwc.linkRelPrefix+":intent",
-            headers: []
-        }
-    ];
-});
-
-// turn on bulkGet and list for everything
-ozpIwc.IntentsApi.useDefaultRoute(["bulkGet", "list"]);
-
-//====================================================================
-// Intent Invocation Endpoints
-//====================================================================
-
-ozpIwc.IntentsApi.useDefaultRoute([ "watch", "unwatch", "delete"], "/inFlightIntent/{id}");
-
-/**
- * A handler for invoke calls. Creates an inFlight-intent node and kicks off the inflight state machine.
- *
- * @method invokeIntentHandler
- * @param {Object} packet
- * @param {String} type
- * @param {String} action
- * @param {Object[]} handlers
- * @param {String} pattern
- * @returns {Promise}
- */
-ozpIwc.IntentsApi.prototype.invokeIntentHandler=function(packet,type,action,handlers,pattern) {
-    var inflightNode = new ozpIwc.IntentsInFlightNode({
-        resource: this.createKey("/inFlightIntent/"),
-        src:packet.src,
-        invokePacket: packet,
-        type: type,
-        action: action,
-        handlerChoices: handlers,
-        pattern: pattern
-    });
-    
-    this.data[inflightNode.resource] = inflightNode;
-    this.addCollector(inflightNode);
-    this.addWatcher(inflightNode.resource,{src:packet.src,replyTo:packet.msgId});
-    return this.handleInflightIntentState(inflightNode).then(function() {
-        return {
-            entity: {
-                inFlightIntent: inflightNode.resource
-            }
-        };
-    });
-};
-
-/**
- * Handles the current state of the state machine.
- * If "choosing", the intent chooser will open.
- * If "delivering", the api will send the intent to the chosen handler
- * If "complete", the api will send the intent handler's reply back to the invoker and mark the inflight intent as deleted.
- * @param {Object} inflightNode
- * @returns {*}
- */
-ozpIwc.IntentsApi.prototype.handleInflightIntentState=function(inflightNode) {
-    var self=this;
-    var packet;
-    switch(inflightNode.entity.state){
-        case "choosing":
-            var showChooser=function(err) {
-                console.log("Picking chooser because",err);
-                ozpIwc.util.openWindow(ozpIwc.intentsChooserUri, {
-                    "ozpIwc.peer": ozpIwc.BUS_ROOT,
-                    "ozpIwc.intentSelection": "intents.api" + inflightNode.resource
-                },ozpIwc.INTENT_CHOOSER_FEATURES);
-            };
-            return this.getPreference(inflightNode.entity.intent.type+"/"+inflightNode.entity.intent.action).then(function(handlerResource) {
-                if(handlerResource in self.data) {
-                    inflightNode.setHandlerResource({
-                        'state': "delivering",
-                        'handlerChosen' : {
-                            'resource': handlerResource,
-                            'reason': "remembered"
-                        }
-                    });
-                } else {
-                    showChooser();
-                }
-            }).catch(showChooser);
-        case "delivering":
-            var handlerNode=this.data[inflightNode.entity.handlerChosen.resource];
-
-            packet = ozpIwc.util.clone(handlerNode.entity.invokeIntent);
-            packet.entity = packet.entity || {};
-            packet.replyTo = handlerNode.replyTo;
-            packet.entity.inFlightIntent = inflightNode.resource;
-            packet.entity.inFlightIntentEntity= inflightNode.entity;
-            console.log(this.logPrefix+"delivering intent:",packet);
-            // TODO: packet permissions
-            this.send(packet);
-            break;
-        case "complete":
-            if(inflightNode.entity.invokePacket && inflightNode.entity.invokePacket.src && inflightNode.entity.reply) {
-                packet ={
-                    dst: inflightNode.entity.invokePacket.src,
-                    replyTo: inflightNode.entity.invokePacket.msgId,
-                    contentType: inflightNode.entity.reply.contentType,
-                    response: "complete",
-                    entity: inflightNode.entity.reply.entity
-                };
-                this.send(packet);
-            }
-            inflightNode.markAsDeleted();
-            break;
-        default:
-            break;
-    }
-    return Promise.resolve();
-};
-
-ozpIwc.IntentsApi.declareRoute({
-    action: "set",
-    resource: "/inFlightIntent/{id}",
-    filters: ozpIwc.standardApiFilters.setFilters(ozpIwc.IntentsInFlightNode)
-}, function(packet, context, pathParams) {
-    context.node.set(packet);
-    return this.handleInflightIntentState(context.node).then(function() {
-        return {response: "ok"};
-    });
-});
-
-//====================================================================
-// Handler endpoints
-//====================================================================
-ozpIwc.IntentsApi.useDefaultRoute(["get","delete", "watch", "unwatch"], "/{major}/{minor}/{action}/{handlerId}");
-
-/**
- * A route for intent handler invocations.
- * Invokes a specific handler directly
- */
-ozpIwc.IntentsApi.declareRoute({
-    action: "invoke",
-    resource: "/{major}/{minor}/{action}/{handlerId}",
-    filters: []
-}, function(packet, context, pathParams) {
-    return this.invokeIntentHandler(
-        packet, 
-        pathParams.major+"/"+pathParams.minor,
-        pathParams.action,
-        [context.node]
-    );
-});
-ozpIwc.IntentsApi.declareRoute({
-    action: "set",
-    resource: "/{major}/{minor}/{action}/{handlerId}",
-    filters: ozpIwc.standardApiFilters.setFilters(ozpIwc.IntentHandlerNode, "application/vnd.ozp-iwc-intent-handler-v1+json")
-}, function(packet, context, pathParams) {
-    context.node.set(packet);
-    return {"response": "ok"};
-});
-
-//====================================================================
-// Action endpoints
-//====================================================================
-/**
- * A route filter for creating an intent definition (/{major}/{minor}/{action}) if it does not exist.
- * @method registerDefinitionFilter
- * @param {String} nodeType
- * @param {String} contentType
- * @returns {*}
- */
-ozpIwc.IntentsApi.registerDefinitionFilter = function(nodeType,contentType){
-    var setDefinition = function(packet,context,pathParams,next){
-        // Only set to the definition if not already set.
-        if(!context.node.entity){
-            context.node.set({
-                entity: {
-                    "type": pathParams.major + "/" + pathParams.minor,
-                    "action": pathParams.action
-                }
-            });
-        }
-
-        return next();
-    };
-
-    var filters = ozpIwc.standardApiFilters.setFilters(nodeType,contentType);
-    filters.unshift(ozpIwc.apiFilter.fixPattern());
-    filters.push(setDefinition);
-
-    return filters;
-};
-
-/**
- * A route filter for creating an intent definition node (/{major}/{minor}/{action}) if it does not exist, then creates
- * an intent handler node with the specified handlerId ({major}/{minor}/{action}/{handlerId})
- * @method registerHandlerFilter
- * @param {String} nodeType
- * @param {String} contentType
- * @returns {*}
- */
-ozpIwc.IntentsApi.registerHandlerFilter = function(nodeType,contentType){
-    var generateDefinitionResource = function(packet,context,pathParams,next){
-        packet.resource = "/"+pathParams.major + "/" + pathParams.minor + "/" + pathParams.action;
-        context.node = this.data[packet.resource];
-        return next();
-    };
-
-    var generateHandlerResource = function(packet,context,pathParams,next){
-        packet.resource = "/"+pathParams.major + "/" + pathParams.minor + "/" + pathParams.action + "/" +
-            pathParams.handlerId;
-        context.node = this.data[packet.resource];
-        return next();
-    };
-
-    var definitionFilter = ozpIwc.IntentsApi.registerDefinitionFilter(null, "application/vnd.ozp-iwc-intent-handler-v1+json");
-    definitionFilter.unshift(generateDefinitionResource);
-
-    var handlerFilter = ozpIwc.standardApiFilters.setFilters(nodeType,contentType);
-    handlerFilter.unshift(generateHandlerResource);
-
-    // Concat the two filters together, run through the definition then the handler.
-    definitionFilter.push.apply(definitionFilter,handlerFilter);
-
-    return definitionFilter;
-};
-
-/**
- * Registration handler when a handlerId is not specified
- */
-ozpIwc.IntentsApi.declareRoute({
-    action: "register",
-    resource: "/{major}/{minor}/{action}",
-    filters: ozpIwc.IntentsApi.registerDefinitionFilter(null, "application/vnd.ozp-iwc-intent-handler-v1+json")
-}, function(packet, context, pathParams) {
-
-    var childNode = this.createNode({
-        'resource': this.createKey(context.node.resource + "/"),
-        'src': packet.src
-    }, ozpIwc.IntentHandlerNode);
-    childNode.set(packet);
-
-    ozpIwc.log.debug(this.logPrefix+" registered ",context.node);
-    return {
-        'response': 'ok',
-        'entity': {
-            'resource': childNode.resource
-        }
-    };
-});
-
-/**
- * Registration handler when a handlerId is specified
- */
-ozpIwc.IntentsApi.declareRoute({
-    action: "register",
-    resource: "/{major}/{minor}/{action}/{handlerId}",
-    filters: ozpIwc.IntentsApi.registerHandlerFilter(null, "application/vnd.ozp-iwc-intent-handler-v1+json")
-}, function(packet, context, pathParams) {
-    context.node.set(packet);
-
-    ozpIwc.log.debug(this.logPrefix+" registered ",context.node);
-    return {
-        'response': 'ok',
-        'entity': {
-            'resource': context.node.resource
-        }
-    };
-});
-
-/**
- * A route for intent action invocations.
- * Will launch direct for user input if multiple options.
- */
-ozpIwc.IntentsApi.declareRoute({
-    action: "invoke",
-    resource: "/{major}/{minor}/{action}",
-    filters: ozpIwc.standardApiFilters.getFilters()
-}, function(packet, context, pathParams) {
-    return this.invokeIntentHandler(
-        packet, 
-        pathParams.major+"/"+pathParams.minor,
-        pathParams.action,
-        this.matchingNodes(context.node.pattern),
-        context.node.pattern
-    );
-});
-
-/**
- * A route for the following actions not handled by other routes: bulkGet, list, delete, watch, and unwatch.
- * Default route used.
- */
-ozpIwc.IntentsApi.useDefaultRoute(["delete", "watch", "unwatch", "get"],"/{major}/{minor}/{action}");
-
-//====================================================================
-// Content Type endpoints
-//====================================================================
-ozpIwc.IntentsApi.declareRoute({
-    action: ["set", "delete"],
-    resource: "/{major}/{minor}",
-    filters: []
-}, function(packet, context, pathParams) {
-    throw new ozpIwc.NoPermissionError(packet);
-});
-
-ozpIwc.IntentsApi.declareRoute({
-    action: "get",
-    resource: "/{major}/{minor}",
-    filters: []
-}, function(packet, context, pathParams) {
-    if (context.node) {
-        // the following needs to be included, possibly via override of toPacket();
-        //'invokeIntent': childNode
-        return context.node.toPacket();
-    } else {
-        return {
-            response: "ok",
-            entity: {
-                "type": pathParams.major + "/" + pathParams.minor,
-                "actions": this.matchingNodes(packet.resource).map(function(n) {
-                    return n.entity.action;
-                })
-            }
-        };
-    }
-});
-
-
-ozpIwc.IntentsApi.declareRoute({
-    action: "broadcast",
-    resource: "/{major}/{minor}/{action}",
-    filters: ozpIwc.standardApiFilters.getFilters()
-}, function(packet, context, pathParams) {
-    for(var i  in context.node.collection) {
-        this.invokeIntentHandler(
-            packet,
-            pathParams.major + "/" + pathParams.minor,
-            pathParams.action,
-            this.matchingNodes(context.node.collection[i]),
-            context.node.collection[i]
-        );
-    }
-
-    return {
-        response: "ok",
-        entity: {
-            handlers: context.node.collection
-        }
-    };
-});
-
-
-/**
- * @submodule bus.service.Type
- */
-
-/**
- * The Names Api. Collects information about current IWC state, Manages names, aliases, and permissions through the IWC.
- * Subclasses the {{#crossLink "ozpIwc.ApiBase"}}{{/crossLink}}.
- *
- * @class NamesApi
- * @namespace ozpIwc
- * @extends ozpIwc.ApiBase
- * @constructor
- */
-ozpIwc.NamesApi = ozpIwc.createApi(function(config) {
-    for(var key in ozpIwc.apiMap){
-        var api = ozpIwc.apiMap[key];
-        var resourceName='/api/' + api.address;
-        this.data[resourceName]=new ozpIwc.ApiNode({
-            resource: resourceName,
-            entity: {'actions': api.actions},
-            contentType: 'application/vnd.ozp-iwc-api-v1+json'
-        });
-    }
-    var self=this;
-    this.on("addressDisconnects",function(address) {
-        var len=address.length;
-        ozpIwc.object.eachEntry(self.data,function(k,v) {
-            if(k.substr(-len) === address) {
-                self.markForChange(v);
-                v.markAsDeleted();
-            }
-        });
-    });
-});
-
-// Default handlers are fine for list, bulkGet, watch, and unwatch with any properly formed resource
-ozpIwc.NamesApi.useDefaultRoute(["list","bulkGet"],"{c:/}");
-ozpIwc.NamesApi.useDefaultRoute(["list","bulkGet"],"{c:/(?:api|address|multicast|router).*}");
-
-//====================================================================
-// Address, Multicast, and Router endpoints
-//====================================================================
-ozpIwc.NamesApi.declareRoute({
-    action: ["set","delete"],
-    resource: "/{collection:api|address|multicast|router}",
-    filters: []
-}, function(packet,context,pathParams) {
-    throw new ozpIwc.NoPermissionError(packet);    
-});
-ozpIwc.NamesApi.declareRoute({
-    action: "get",
-    resource: "/{collection:api|address|multicast|router}",
-    filters: []
-}, function(packet,context,pathParams) {
-    return {
-        "contentType": "application/json",
-        "entity": this.matchingNodes(packet.resource).map(function(node) {
-            return node.resource;
-         })
-    };
-});
-//====================================================================
-// API endpoints
-//====================================================================
-ozpIwc.NamesApi.useDefaultRoute(["get","delete","watch","unwatch"],"/api/{addr}");
-
-ozpIwc.NamesApi.declareRoute({
-    action: "set",
-    resource: "/api/{addr}",
-    filters: ozpIwc.standardApiFilters.setFilters(ozpIwc.ApiNode,"application/vnd.ozp-iwc-api-v1+json")
-}, function(packet,context,pathParams) {
-    // validate that the entity is an address
-    context.node.set(packet);
-    return {response:"ok"};
-});
-
-//====================================================================
-// Address endpoints
-//====================================================================
-ozpIwc.NamesApi.useDefaultRoute(["get","delete","watch","unwatch"],"/address/{addr}");
-
-ozpIwc.NamesApi.declareRoute({
-    action: "set",
-    resource: "/address/{addr}",
-    filters: ozpIwc.standardApiFilters.setFilters(ozpIwc.NamesNode,"application/vnd.ozp-iwc-address-v1+json")
-}, function(packet,context,pathParams) {
-    // validate that the entity is an address
-
-    context.node.set(packet);
-    return {response:"ok"};
-});
-
-//====================================================================
-// Multicast endpoints
-//====================================================================
-ozpIwc.NamesApi.useDefaultRoute(["get","delete","watch","unwatch"],"/multicast/{group}");
-ozpIwc.NamesApi.useDefaultRoute(["get","delete","watch","unwatch"],"/multicast/{group}/{memberAddr}");
-
-ozpIwc.NamesApi.declareRoute({
-    action: "set",
-    resource: "/multicast/{addr}",
-    filters: ozpIwc.standardApiFilters.setFilters(ozpIwc.ApiNode,"application/vnd.ozp-iwc-multicast-address-v1+json")
-}, function(packet,context,pathParams) {
-    // validate that the entity is an address
-    
-    //
-    context.node.set(packet);
-    return {response:"ok"};
-});
-ozpIwc.NamesApi.declareRoute({
-    action: "set",
-    resource: "/multicast/{group}/{member}",
-    filters: ozpIwc.standardApiFilters.setFilters(ozpIwc.NamesNode,"application/vnd.ozp-iwc-multicast-address-v1+json")
-}, function(packet,context,pathParams) {
-    // validate that the entity is an address
-    
-    //
-    context.node.set(packet);
-    return {response:"ok"};
-});
-
-//====================================================================
-// Router endpoints
-//====================================================================
-ozpIwc.NamesApi.useDefaultRoute(["get","delete","watch","unwatch"],"/router/{addr}");
-
-ozpIwc.NamesApi.declareRoute({
-    action: "set",
-    resource: "/router/{addr}",
-    filters: ozpIwc.standardApiFilters.setFilters(ozpIwc.NamesNode,"application/vnd.ozp-iwc-router-v1+json")
-}, function(packet,context,pathParams) {
-    // validate that the entity is an address
-    
-    //
-    context.node.set(packet);
-    return {response:"ok"};
-});
-/**
- * @submodule bus.service.Type
- */
-
-/**
- * The System Api. Provides reference data of registered applications, versions, and information about the current user
- * through the IWC. Subclasses the {{#crossLink "ozpIwc.ApiBase"}}{{/crossLink}}.
- *
- * @class NamesApi
- * @namespace ozpIwc
- * @extends ozpIwc.ApiBase
- * @constructor
- */
-ozpIwc.SystemApi = ozpIwc.createApi(function(config) {
-    // The stock initializeData should do fine for us here as we're not using
-    // any special subclasses for these items.  Might have to revisit this at
-    // some point.
-    /**
-     * @property endpoints
-     * @type {Object[]}
-     */
-    this.endpoints = [
-        {
-            link: ozpIwc.linkRelPrefix + ":application",
-            headers: [{name: "Accept", value: "application/vnd.ozp-application-v1+json"}]
-        },
-        {
-            link: ozpIwc.linkRelPrefix + ":user",
-            headers: []
-        },
-        {
-            link: ozpIwc.linkRelPrefix + ":system",
-            headers: []
-        }
-    ];
-    var self=this;
-    this.on("createdNode",this.updateIntents,this);
-
-    this.leaderPromise.then(function() {
-        ozpIwc.log.debug("System.api registering for the launch intent");
-        var registerData = {
-            'contentType': "application/vnd.ozp-iwc-intent-handler-v1+json",
-            'entity': {
-                'type': "application/vnd.ozp-iwc-launch-data-v1+json",
-                'action': "run",
-                'label': "Open in new tab",
-                'invokeIntent': {
-                    'dst': "system.api",
-                    'action' : 'invoke',
-                    'resource' : "/launchNewWindow"
-                }
-            }
-        };
-        self.participant.intents().register("/application/vnd.ozp-iwc-launch-data-v1+json/run/system.api",
-            registerData).catch(function(error) {
-                ozpIwc.log.error("System.api failed to register for launch intent: ",error);
-            });
-    });
-});
-
-/**
- * Updates intents API registrations for the given system api application.
- * @method updateIntents
- * @param {Object} node
- */
-ozpIwc.SystemApi.prototype.updateIntents=function(node) {
-    if(!node.entity || !node.entity.intents) {
-        return;
-    }
-    node.entity.intents.forEach(function(i) {
-        var icon = i.icon || (node.entity && node.entity.icons && node.entity.icons.small) ? node.entity.icons.small : '';
-        var label = i.label || node.entity.name;
-        this.participant.send({
-            'dst' : "intents.api",
-            'src' : "system.api",
-            'action': "set",
-            'resource': "/"+i.type+"/"+i.action+"/system.api"+node.resource.replace(/\//g,'.'),
-            'contentType': "application/vnd.ozp-iwc-intent-handler-v1+json",
-            'entity': {
-                'type': i.type,
-                'action': i.action,
-                'icon': icon,
-                'label': label,
-                '_links': node.entity._links,
-                'invokeIntent': {
-                    'action' : 'launch',
-                    'resource' : node.resource
-                }
-            }
-        });
-    },this);
-
-};
-
-//====================================================================
-// Collection endpoints
-//====================================================================
-ozpIwc.SystemApi.useDefaultRoute(["bulkGet","list"]);
-ozpIwc.SystemApi.declareRoute({
-    action: "get",
-    resource: "/{collection:user|application|system}",
-    filters: []
-}, function(packet,context,pathParams) {
-    return {
-        "contentType": "application/json",
-        "entity": this.matchingNodes(packet.resource).map(function(node) {
-            return node.resource;
-         })
-    };
-});
-
-//====================================================================
-// User endpoints
-//====================================================================
-ozpIwc.SystemApi.useDefaultRoute(["get","watch","unwatch"],"/user");
-ozpIwc.SystemApi.declareRoute({
-    action: ["set", "delete"],
-    resource: "/user",
-    filters: []
-}, function(packet, context, pathParams) {
-    throw new ozpIwc.BadActionError(packet);
-});
-
-//====================================================================
-// System endpoints
-//====================================================================
-ozpIwc.SystemApi.useDefaultRoute(["get","watch","unwatch"],"/system");
-
-ozpIwc.SystemApi.declareRoute({
-    action: ["set", "delete"],
-    resource: "/system",
-    filters: []
-}, function(packet, context, pathParams) {
-    throw new ozpIwc.BadActionError(packet);
-});
-
-//====================================================================
-// Application Endpoints
-//====================================================================
-ozpIwc.SystemApi.useDefaultRoute(["get","watch","unwatch"],"/application/{id}");
-ozpIwc.SystemApi.declareRoute({
-    action: ["set", "delete"],
-    resource: "/application/{id}",
-    filters: []
-}, function(packet, context, pathParams) {
-    throw new ozpIwc.BadActionError(packet);
-});
-ozpIwc.SystemApi.declareRoute({
-    action: ["launch"],
-    resource: "/application/{id}",
-    filters: ozpIwc.standardApiFilters.getFilters()
-}, function(packet, context, pathParams) {
-    ozpIwc.log.info(this.logPrefix+" launching ",packet.entity);
-    this.participant.send({
-        dst: "intents.api",
-        contentType: "application/vnd.ozp-iwc-intent-handler-v1+json",
-        action: "invoke",
-        resource: "/application/vnd.ozp-iwc-launch-data-v1+json/run",
-        entity: {
-            "url": context.node.entity.launchUrls.default,
-            "applicationId": context.node.resource,
-            "launchData": packet.entity,
-            "id": context.node.entity.id
-        }
-    });
-    return {response: "ok"};
-});
-
-ozpIwc.SystemApi.declareRoute({
-    action: ["invoke"],
-    resource: "/launchNewWindow",
-    filters: []
-}, function(packet,context,pathParams) {
-    ozpIwc.log.info(this.logPrefix+" handling launchdata ",packet.entity);
-    if(packet.entity && packet.entity.inFlightIntent){
-        ozpIwc.util.openWindow(packet.entity.inFlightIntentEntity.entity.url,{
-            "ozpIwc.peer":ozpIwc.BUS_ROOT,
-            "ozpIwc.inFlightIntent":packet.entity.inFlightIntent
-        });
-        return {'response': "ok"};
-    } else{
-        return {'response': "badResource"};
-    }
-
-});
-
-/**
- * Override the default node type to be a SystemNode.
- * @override
- * @method createNodeObject
- * @param {type} config
- * @returns {ozpIwc.SystemNode}
- */
-ozpIwc.SystemApi.prototype.createNodeObject=function(config) {
-    return new ozpIwc.SystemNode(config);
-};
-
-var ozpIwc=ozpIwc || {};
-ozpIwc.version = "0.3";
-ozpIwc.log.threshold = 6;
-ozpIwc.ELECTION_TIMEOUT = 1000;
-ozpIwc.apiRootUrl = ozpIwc.apiRootUrl || "/api";
-ozpIwc.policyRootUrl = ozpIwc.policyRootUrl || "/policy";
-ozpIwc.basicAuthUsername= ozpIwc.basicAuthUsername || '';
-ozpIwc.basicAuthPassword= ozpIwc.basicAuthPassword || '';
-ozpIwc.linkRelPrefix = ozpIwc.linkRelPrefix || "ozp";
-
-ozpIwc.intentsChooserUri = "intentsChooser.html";
-
-(function() {
-	var params=ozpIwc.util.parseQueryParams();
-	if(params.log) {
-		try{
-			console.log("Setting log level to ",params.log);
-			ozpIwc.log.setThreshold(ozpIwc.log[params.log.toUpperCase()]);
-		}catch(e) {
-			// just ignore it and leave the default level
-		}
-	}
-})();
-
-ozpIwc.authorization = new ozpIwc.policyAuth.PDP({
-    'pip': new ozpIwc.policyAuth.PIP(),
-    'prp': new ozpIwc.policyAuth.PRP(),
-    'setsEndpoint': ozpIwc.policyRootUrl
-});
-
-if(typeof ozpIwc.enableDefault === "undefined" || ozpIwc.enableDefault) {
-    ozpIwc.initEndpoints(ozpIwc.apiRootUrl || "api");
-
-    ozpIwc.defaultPeer = new ozpIwc.Peer();
-    ozpIwc.defaultLocalStorageLink = new ozpIwc.KeyBroadcastLocalStorageLink({
-        peer: ozpIwc.defaultPeer
-    });
-
-    ozpIwc.heartBeatFrequency = 10000; // 10 seconds
-    ozpIwc.defaultRouter = new ozpIwc.Router({
-        peer: ozpIwc.defaultPeer,
-        heartbeatFrequency: ozpIwc.heartBeatFrequency
-    });
-
-
-    if (typeof ozpIwc.runApis === "undefined" || ozpIwc.runApis) {
-        ozpIwc.defaultLeadershipStates = function () {
-            return {
-                'leader': ['actingLeader'],
-                'election': ['leaderSync', 'actingLeader'],
-                'queueing': ['leaderSync'],
-                'member': []
-            };
-        };
-
-        ozpIwc.locksApi = new ozpIwc.LocksApi({
-            'participant': new ozpIwc.LeaderGroupParticipant({
-                'name': "locks.api",
-                'states': ozpIwc.defaultLeadershipStates(),
-                electionTimeout: ozpIwc.ELECTION_TIMEOUT,
-                getStateData: function(){
-                    var foo = {};
-                    foo.data=ozpIwc.locksApi.data;
-                    return foo;
-                }
-            })
-        });
-        ozpIwc.defaultRouter.registerParticipant(ozpIwc.locksApi.participant);
-
-        ozpIwc.namesApi = new ozpIwc.NamesApi({'name': "names.api"});
-        ozpIwc.dataApi = new ozpIwc.DataApi({'name': "data.api"});
-        ozpIwc.intentsApi = new ozpIwc.IntentsApi({'name': "intents.api"});
-        ozpIwc.systemApi = new ozpIwc.SystemApi({'name': "system.api"});
-    }
-    if (typeof ozpIwc.acceptPostMessageParticipants === "undefined" ||
-        ozpIwc.acceptPostMessageParticipants
-        ) {
-        ozpIwc.defaultPostMessageParticipantListener = new ozpIwc.PostMessageParticipantListener({
-            router: ozpIwc.defaultRouter
-        });
-    }
-}
-/*!
- * jQuery JavaScript Library v2.1.3
+ * jQuery JavaScript Library v2.1.4
  * http://jquery.com/
  *
  * Includes Sizzle.js
@@ -15411,7 +9,7 @@ if(typeof ozpIwc.enableDefault === "undefined" || ozpIwc.enableDefault) {
  * Released under the MIT license
  * http://jquery.org/license
  *
- * Date: 2014-12-18T15:11Z
+ * Date: 2015-04-28T16:01Z
  */
 
 (function( global, factory ) {
@@ -15469,7 +67,7 @@ var
 	// Use the correct document accordingly with window argument (sandbox)
 	document = window.document,
 
-	version = "2.1.3",
+	version = "2.1.4",
 
 	// Define a local copy of jQuery
 	jQuery = function( selector, context ) {
@@ -15933,7 +531,12 @@ jQuery.each("Boolean Number String Function Array Date RegExp Object Error".spli
 });
 
 function isArraylike( obj ) {
-	var length = obj.length,
+
+	// Support: iOS 8.2 (not reproducible in simulator)
+	// `in` check used to prevent JIT error (gh-2145)
+	// hasOwn isn't used here due to false negatives
+	// regarding Nodelist length in IE
+	var length = "length" in obj && obj.length,
 		type = jQuery.type( obj );
 
 	if ( type === "function" || jQuery.isWindow( obj ) ) {
@@ -24607,7 +9210,7 @@ return jQuery;
 }));
 
 /**
- * @license AngularJS v1.3.15
+ * @license AngularJS v1.3.20
  * (c) 2010-2014 Google, Inc. http://angularjs.org
  * License: MIT
  */
@@ -24662,7 +9265,7 @@ function minErr(module, ErrorConstructor) {
       return match;
     });
 
-    message = message + '\nhttp://errors.angularjs.org/1.3.15/' +
+    message = message + '\nhttp://errors.angularjs.org/1.3.20/' +
       (module ? module + '/' : '') + code;
     for (i = 2; i < arguments.length; i++) {
       message = message + (i == 2 ? '?' : '&') + 'p' + (i - 2) + '=' +
@@ -24757,6 +9360,7 @@ function minErr(module, ErrorConstructor) {
   createMap: true,
 
   NODE_TYPE_ELEMENT: true,
+  NODE_TYPE_ATTRIBUTE: true,
   NODE_TYPE_TEXT: true,
   NODE_TYPE_COMMENT: true,
   NODE_TYPE_DOCUMENT: true,
@@ -24868,7 +9472,9 @@ function isArrayLike(obj) {
     return false;
   }
 
-  var length = obj.length;
+  // Support: iOS 8.2 (not reproducible in simulator)
+  // "length" in obj used to prevent JIT error (gh-11508)
+  var length = "length" in Object(obj) && obj.length;
 
   if (obj.nodeType === NODE_TYPE_ELEMENT && length) {
     return true;
@@ -25650,8 +10256,8 @@ function toJsonReplacer(key, value) {
  * stripped since angular uses this notation internally.
  *
  * @param {Object|Array|Date|string|number} obj Input to be serialized into JSON.
- * @param {boolean|number=} pretty If set to true, the JSON output will contain newlines and whitespace.
- *    If set to an integer, the JSON output will contain that many spaces per indentation (the default is 2).
+ * @param {boolean|number} [pretty=2] If set to true, the JSON output will contain newlines and whitespace.
+ *    If set to an integer, the JSON output will contain that many spaces per indentation.
  * @returns {string|undefined} JSON-ified string representing `obj`.
  */
 function toJson(obj, pretty) {
@@ -26283,6 +10889,7 @@ function createMap() {
 }
 
 var NODE_TYPE_ELEMENT = 1;
+var NODE_TYPE_ATTRIBUTE = 2;
 var NODE_TYPE_TEXT = 3;
 var NODE_TYPE_COMMENT = 8;
 var NODE_TYPE_DOCUMENT = 9;
@@ -26519,10 +11126,17 @@ function setupModuleLoader(window) {
            * @ngdoc method
            * @name angular.Module#filter
            * @module ng
-           * @param {string} name Filter name.
+           * @param {string} name Filter name - this must be a valid angular expression identifier
            * @param {Function} filterFactory Factory function for creating new instance of filter.
            * @description
            * See {@link ng.$filterProvider#register $filterProvider.register()}.
+           *
+           * <div class="alert alert-warning">
+           * **Note:** Filter names must be valid angular {@link expression} identifiers, such as `uppercase` or `orderBy`.
+           * Names with special characters, such as hyphens and dots, are not allowed. If you wish to namespace
+           * your filters, then you can use capitalization (`myappSubsectionFilterx`) or underscores
+           * (`myapp_subsection_filterx`).
+           * </div>
            */
           filter: invokeLater('$filterProvider', 'register'),
 
@@ -26736,11 +11350,11 @@ function toDebugString(obj) {
  * - `codeName` – `{string}` – Code name of the release, such as "jiggling-armfat".
  */
 var version = {
-  full: '1.3.15',    // all of these placeholder strings will be replaced by grunt's
+  full: '1.3.20',    // all of these placeholder strings will be replaced by grunt's
   major: 1,    // package task
   minor: 3,
-  dot: 15,
-  codeName: 'locality-filtration'
+  dot: 20,
+  codeName: 'shallow-translucence'
 };
 
 
@@ -26916,7 +11530,7 @@ function publishExternalAPI(angular) {
  * Angular to manipulate the DOM in a cross-browser compatible way. **jqLite** implements only the most
  * commonly needed functionality with the goal of having a very small footprint.</div>
  *
- * To use jQuery, simply load it before `DOMContentLoaded` event fired.
+ * To use `jQuery`, simply ensure it is loaded before the `angular.js` file.
  *
  * <div class="alert">**Note:** all element references in Angular are always wrapped with jQuery or
  * jqLite; they are never raw DOM references.</div>
@@ -26932,7 +11546,7 @@ function publishExternalAPI(angular) {
  * - [`children()`](http://api.jquery.com/children/) - Does not support selectors
  * - [`clone()`](http://api.jquery.com/clone/)
  * - [`contents()`](http://api.jquery.com/contents/)
- * - [`css()`](http://api.jquery.com/css/) - Only retrieves inline-styles, does not call `getComputedStyle()`
+ * - [`css()`](http://api.jquery.com/css/) - Only retrieves inline-styles, does not call `getComputedStyle()`. As a setter, does not convert numbers to strings or append 'px'.
  * - [`data()`](http://api.jquery.com/data/)
  * - [`detach()`](http://api.jquery.com/detach/)
  * - [`empty()`](http://api.jquery.com/empty/)
@@ -27475,6 +12089,10 @@ forEach({
   },
 
   attr: function(element, name, value) {
+    var nodeType = element.nodeType;
+    if (nodeType === NODE_TYPE_TEXT || nodeType === NODE_TYPE_ATTRIBUTE || nodeType === NODE_TYPE_COMMENT) {
+      return;
+    }
     var lowercasedName = lowercase(name);
     if (BOOLEAN_ATTR[lowercasedName]) {
       if (isDefined(value)) {
@@ -28165,7 +12783,7 @@ function annotate(fn, strictDi, name) {
  * Return an instance of the service.
  *
  * @param {string} name The name of the instance to retrieve.
- * @param {string} caller An optional string to provide the origin of the function call for error messages.
+ * @param {string=} caller An optional string to provide the origin of the function call for error messages.
  * @return {*} The instance.
  */
 
@@ -28176,8 +12794,8 @@ function annotate(fn, strictDi, name) {
  * @description
  * Invoke the method and supply the method arguments from the `$injector`.
  *
- * @param {!Function} fn The function to invoke. Function parameters are injected according to the
- *   {@link guide/di $inject Annotation} rules.
+ * @param {Function|Array.<string|Function>} fn The injectable function to invoke. Function parameters are
+ *   injected according to the {@link guide/di $inject Annotation} rules.
  * @param {Object=} self The `this` for the invoked method.
  * @param {Object=} locals Optional object. If preset then any argument names are read from this
  *                         object first, before the `$injector` is consulted.
@@ -28444,8 +13062,8 @@ function annotate(fn, strictDi, name) {
  * configure your service in a provider.
  *
  * @param {string} name The name of the instance.
- * @param {function()} $getFn The $getFn for the instance creation. Internally this is a short hand
- *                            for `$provide.provider(name, {$get: $getFn})`.
+ * @param {Function|Array.<string|Function>} $getFn The injectable $getFn for the instance creation.
+ *                      Internally this is a short hand for `$provide.provider(name, {$get: $getFn})`.
  * @returns {Object} registered provider instance
  *
  * @example
@@ -28480,7 +13098,8 @@ function annotate(fn, strictDi, name) {
  * as a type/class.
  *
  * @param {string} name The name of the instance.
- * @param {Function} constructor A class (constructor function) that will be instantiated.
+ * @param {Function|Array.<string|Function>} constructor An injectable class (constructor function)
+ *     that will be instantiated.
  * @returns {Object} registered provider instance
  *
  * @example
@@ -28579,7 +13198,7 @@ function annotate(fn, strictDi, name) {
  * object which replaces or wraps and delegates to the original service.
  *
  * @param {string} name The name of the service to decorate.
- * @param {function()} decorator This function will be invoked when the service needs to be
+ * @param {Function|Array.<string|Function>} decorator This function will be invoked when the service needs to be
  *    instantiated and should return the decorated service instance. The function is called using
  *    the {@link auto.$injector#invoke injector.invoke} method and is therefore fully injectable.
  *    Local injection arguments:
@@ -29546,7 +14165,7 @@ function Browser(window, document, $log, $sniffer) {
 
   function getHash(url) {
     var index = url.indexOf('#');
-    return index === -1 ? '' : url.substr(index + 1);
+    return index === -1 ? '' : url.substr(index);
   }
 
   /**
@@ -29673,7 +14292,7 @@ function Browser(window, document, $log, $sniffer) {
         // Do the assignment again so that those two variables are referentially identical.
         lastHistoryState = cachedState;
       } else {
-        if (!sameBase) {
+        if (!sameBase || reloadLocation) {
           reloadLocation = url;
         }
         if (replace) {
@@ -30428,7 +15047,8 @@ function $TemplateCacheProvider() {
  *       templateNamespace: 'html',
  *       scope: false,
  *       controller: function($scope, $element, $attrs, $transclude, otherInjectables) { ... },
- *       controllerAs: 'stringAlias',
+ *       controllerAs: 'stringIdentifier',
+ *       bindToController: false,
  *       require: 'siblingDirectiveName', // or // ['^parentDirectiveName', '?optionalDirectiveName', '?^optionalParent'],
  *       compile: function compile(tElement, tAttrs, transclude) {
  *         return {
@@ -30747,9 +15367,15 @@ function $TemplateCacheProvider() {
  *   * `iAttrs` - instance attributes - Normalized list of attributes declared on this element shared
  *     between all directive linking functions.
  *
- *   * `controller` - a controller instance - A controller instance if at least one directive on the
- *     element defines a controller. The controller is shared among all the directives, which allows
- *     the directives to use the controllers as a communication channel.
+ *   * `controller` - the directive's required controller instance(s) - Instances are shared
+ *     among all directives, which allows the directives to use the controllers as a communication
+ *     channel. The exact value depends on the directive's `require` property:
+ *       * `string`: the controller instance
+ *       * `array`: array of controller instances
+ *       * no controller(s) required: `undefined`
+ *
+ *     If a required controller cannot be found, and it is optional, the instance is `null`,
+ *     otherwise the {@link error:$compile:ctreq Missing Required Controller} error is thrown.
  *
  *   * `transcludeFn` - A transclude linking function pre-bound to the correct transclusion scope.
  *     This is the same as the `$transclude`
@@ -30775,7 +15401,7 @@ function $TemplateCacheProvider() {
  *
  * ### Transclusion
  *
- * Transclusion is the process of extracting a collection of DOM element from one part of the DOM and
+ * Transclusion is the process of extracting a collection of DOM elements from one part of the DOM and
  * copying them to another part of the DOM, while maintaining their connection to the original AngularJS
  * scope from where they were taken.
  *
@@ -32530,7 +17156,7 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
 
       $compileNode.empty();
 
-      $templateRequest($sce.getTrustedResourceUrl(templateUrl))
+      $templateRequest(templateUrl)
         .then(function(content) {
           var compileNode, tempTemplateAttrs, $template, childBoundTranscludeFn;
 
@@ -33577,7 +18203,7 @@ function $HttpProvider() {
      *  headers: {
      *    'Content-Type': undefined
      *  },
-     *  data: { test: 'test' },
+     *  data: { test: 'test' }
      * }
      *
      * $http(req).success(function(){...}).error(function(){...});
@@ -34012,6 +18638,8 @@ function $HttpProvider() {
       }
 
       promise.success = function(fn) {
+        assertArgFn(fn, 'fn');
+
         promise.then(function(response) {
           fn(response.data, response.status, response.headers, config);
         });
@@ -34019,6 +18647,8 @@ function $HttpProvider() {
       };
 
       promise.error = function(fn) {
+        assertArgFn(fn, 'fn');
+
         promise.then(null, function(response) {
           fn(response.data, response.status, response.headers, config);
         });
@@ -34312,8 +18942,8 @@ function $HttpProvider() {
        * Resolves the raw $http promise.
        */
       function resolvePromise(response, status, headers, statusText) {
-        // normalize internal statuses to 0
-        status = Math.max(status, 0);
+        //status: HTTP response status code, 0, -1 (aborted by timeout / promise)
+        status = status >= -1 ? status : 0;
 
         (isSuccess(status) ? deferred.resolve : deferred.reject)({
           data: response,
@@ -34420,7 +19050,7 @@ function createHttpBackend($browser, createXhr, $browserDefer, callbacks, rawDoc
       xhr.onload = function requestLoaded() {
         var statusText = xhr.statusText || '';
 
-        // responseText is the old-school way of retrieving response (supported by IE8 & 9)
+        // responseText is the old-school way of retrieving response (supported by IE9)
         // response/responseType properties were introduced in XHR Level2 spec (supported by IE10)
         var response = ('response' in xhr) ? xhr.response : xhr.responseText;
 
@@ -34499,7 +19129,7 @@ function createHttpBackend($browser, createXhr, $browserDefer, callbacks, rawDoc
   };
 
   function jsonpReq(url, callbackId, done) {
-    // we can't use jQuery/jqLite here because jQuery does crazy shit with script elements, e.g.:
+    // we can't use jQuery/jqLite here because jQuery does crazy stuff with script elements, e.g.:
     // - fetches local scripts via XHR and evals them
     // - adds and immediately removes script elements from the document
     var script = rawDocument.createElement('script'), callback = null;
@@ -35236,12 +19866,12 @@ function serverBase(url) {
  *
  * @constructor
  * @param {string} appBase application base URL
+ * @param {string} appBaseNoFile application base URL stripped of any filename
  * @param {string} basePrefix url path prefix
  */
-function LocationHtml5Url(appBase, basePrefix) {
+function LocationHtml5Url(appBase, appBaseNoFile, basePrefix) {
   this.$$html5 = true;
   basePrefix = basePrefix || '';
-  var appBaseNoFile = stripFile(appBase);
   parseAbsoluteUrl(appBase, this);
 
 
@@ -35315,10 +19945,10 @@ function LocationHtml5Url(appBase, basePrefix) {
  *
  * @constructor
  * @param {string} appBase application base URL
+ * @param {string} appBaseNoFile application base URL stripped of any filename
  * @param {string} hashPrefix hashbang prefix
  */
-function LocationHashbangUrl(appBase, hashPrefix) {
-  var appBaseNoFile = stripFile(appBase);
+function LocationHashbangUrl(appBase, appBaseNoFile, hashPrefix) {
 
   parseAbsoluteUrl(appBase, this);
 
@@ -35332,7 +19962,7 @@ function LocationHashbangUrl(appBase, hashPrefix) {
     var withoutBaseUrl = beginsWith(appBase, url) || beginsWith(appBaseNoFile, url);
     var withoutHashUrl;
 
-    if (withoutBaseUrl.charAt(0) === '#') {
+    if (!isUndefined(withoutBaseUrl) && withoutBaseUrl.charAt(0) === '#') {
 
       // The rest of the url starts with a hash so we have
       // got either a hashbang path or a plain hash fragment
@@ -35346,7 +19976,15 @@ function LocationHashbangUrl(appBase, hashPrefix) {
       // There was no hashbang path nor hash fragment:
       // If we are in HTML5 mode we use what is left as the path;
       // Otherwise we ignore what is left
-      withoutHashUrl = this.$$html5 ? withoutBaseUrl : '';
+      if (this.$$html5) {
+        withoutHashUrl = withoutBaseUrl;
+      } else {
+        withoutHashUrl = '';
+        if (isUndefined(withoutBaseUrl)) {
+          appBase = url;
+          this.replace();
+        }
+      }
     }
 
     parseAppUrl(withoutHashUrl, this);
@@ -35419,13 +20057,12 @@ function LocationHashbangUrl(appBase, hashPrefix) {
  *
  * @constructor
  * @param {string} appBase application base URL
+ * @param {string} appBaseNoFile application base URL stripped of any filename
  * @param {string} hashPrefix hashbang prefix
  */
-function LocationHashbangInHtml5Url(appBase, hashPrefix) {
+function LocationHashbangInHtml5Url(appBase, appBaseNoFile, hashPrefix) {
   this.$$html5 = true;
   LocationHashbangUrl.apply(this, arguments);
-
-  var appBaseNoFile = stripFile(appBase);
 
   this.$$parseLinkUrl = function(url, relHref) {
     if (relHref && relHref[0] === '#') {
@@ -35456,7 +20093,7 @@ function LocationHashbangInHtml5Url(appBase, hashPrefix) {
         hash = this.$$hash ? '#' + encodeUriSegment(this.$$hash) : '';
 
     this.$$url = encodePath(this.$$path) + (search ? '?' + search : '') + hash;
-    // include hashPrefix in $$absUrl when $$url is empty so IE8 & 9 do not reload page because of removal of '#'
+    // include hashPrefix in $$absUrl when $$url is empty so IE9 does not reload page because of removal of '#'
     this.$$absUrl = appBase + hashPrefix + this.$$url;
   };
 
@@ -35560,11 +20197,19 @@ var locationPrototype = {
    *
    * Return host of current url.
    *
+   * Note: compared to the non-angular version `location.host` which returns `hostname:port`, this returns the `hostname` portion only.
+   *
    *
    * ```js
    * // given url http://example.com/#/some/path?foo=bar&baz=xoxo
    * var host = $location.host();
    * // => "example.com"
+   *
+   * // given url http://user:password@example.com:8080/#/some/path?foo=bar&baz=xoxo
+   * host = $location.host();
+   * // => "example.com"
+   * host = location.host;
+   * // => "example.com:8080"
    * ```
    *
    * @return {string} host of current url.
@@ -35954,7 +20599,9 @@ function $LocationProvider() {
       appBase = stripHash(initialUrl);
       LocationMode = LocationHashbangUrl;
     }
-    $location = new LocationMode(appBase, '#' + hashPrefix);
+    var appBaseNoFile = stripFile(appBase);
+
+    $location = new LocationMode(appBase, appBaseNoFile, '#' + hashPrefix);
     $location.$$parseLinkUrl(initialUrl, initialUrl);
 
     $location.$$state = $browser.state();
@@ -36034,6 +20681,13 @@ function $LocationProvider() {
 
     // update $location when $browser url changes
     $browser.onUrlChange(function(newUrl, newState) {
+
+      if (isUndefined(beginsWith(appBaseNoFile, newUrl))) {
+        // If we are navigating outside of the app then force a reload
+        $window.location.href = newUrl;
+        return;
+      }
+
       $rootScope.$evalAsync(function() {
         var oldUrl = $location.absUrl();
         var oldState = $location.$$state;
@@ -36316,6 +20970,25 @@ function ensureSafeMemberName(name, fullExpression) {
       || name === "__proto__") {
     throw $parseMinErr('isecfld',
         'Attempting to access a disallowed field in Angular expressions! '
+        + 'Expression: {0}', fullExpression);
+  }
+  return name;
+}
+
+function getStringValue(name, fullExpression) {
+  // From the JavaScript docs:
+  // Property names must be strings. This means that non-string objects cannot be used
+  // as keys in an object. Any non-string object, including a number, is typecasted
+  // into a string via the toString method.
+  //
+  // So, to ensure that we are checking the same `name` that JavaScript would use,
+  // we cast it to a string, if possible.
+  // Doing `name + ''` can cause a repl error if the result to `toString` is not a string,
+  // this is, this will handle objects that misbehave.
+  name = name + '';
+  if (!isString(name)) {
+    throw $parseMinErr('iseccst',
+        'Cannot convert object to primitive value! '
         + 'Expression: {0}', fullExpression);
   }
   return name;
@@ -36962,7 +21635,7 @@ Parser.prototype = {
 
     return extend(function $parseObjectIndex(self, locals) {
       var o = obj(self, locals),
-          i = indexFn(self, locals),
+          i = getStringValue(indexFn(self, locals), expression),
           v;
 
       ensureSafeMemberName(i, expression);
@@ -36971,7 +21644,7 @@ Parser.prototype = {
       return v;
     }, {
       assign: function(self, value, locals) {
-        var key = ensureSafeMemberName(indexFn(self, locals), expression);
+        var key = ensureSafeMemberName(getStringValue(indexFn(self, locals), expression), expression);
         // prevent overwriting of Function.constructor which would break ensureSafeObject check
         var o = ensureSafeObject(obj(self, locals), expression);
         if (!o) obj.assign(self, o = {}, locals);
@@ -38119,7 +22792,7 @@ function $$RAFProvider() { //rAF
                                $window.webkitCancelRequestAnimationFrame;
 
     var rafSupported = !!requestAnimationFrame;
-    var raf = rafSupported
+    var rafFn = rafSupported
       ? function(fn) {
           var id = requestAnimationFrame(fn);
           return function() {
@@ -38133,9 +22806,47 @@ function $$RAFProvider() { //rAF
           };
         };
 
-    raf.supported = rafSupported;
+    queueFn.supported = rafSupported;
 
-    return raf;
+    var cancelLastRAF;
+    var taskCount = 0;
+    var taskQueue = [];
+    return queueFn;
+
+    function flush() {
+      for (var i = 0; i < taskQueue.length; i++) {
+        var task = taskQueue[i];
+        if (task) {
+          taskQueue[i] = null;
+          task();
+        }
+      }
+      taskCount = taskQueue.length = 0;
+    }
+
+    function queueFn(asyncFn) {
+      var index = taskQueue.length;
+
+      taskCount++;
+      taskQueue.push(asyncFn);
+
+      if (index === 0) {
+        cancelLastRAF = rafFn(flush);
+      }
+
+      return function cancelQueueFn() {
+        if (index >= 0) {
+          taskQueue[index] = null;
+          index = null;
+
+          if (--taskCount === 0 && cancelLastRAF) {
+            cancelLastRAF();
+            cancelLastRAF = null;
+            taskQueue.length = 0;
+          }
+        }
+      };
+    }
   }];
 }
 
@@ -38225,7 +22936,6 @@ function $RootScopeProvider() {
           this.$$childHead = this.$$childTail = null;
       this.$$listeners = {};
       this.$$listenerCount = {};
-      this.$$watchersCount = 0;
       this.$id = nextUid();
       this.$$ChildScope = null;
     }
@@ -38248,12 +22958,9 @@ function $RootScopeProvider() {
      * A root scope can be retrieved using the {@link ng.$rootScope $rootScope} key from the
      * {@link auto.$injector $injector}. Child scopes are created using the
      * {@link ng.$rootScope.Scope#$new $new()} method. (Most scopes are created automatically when
-     * compiled HTML template is executed.)
+     * compiled HTML template is executed.) See also the {@link guide/scope Scopes guide} for
+     * an in-depth introduction and usage examples.
      *
-     * Here is a simple scope snippet to show how you can interact with the scope.
-     * ```html
-     * <file src="./test/ng/rootScopeSpec.js" tag="docs1" />
-     * ```
      *
      * # Inheritance
      * A scope can inherit from a parent scope, as in this example:
@@ -38414,9 +23121,9 @@ function $RootScopeProvider() {
        *
        *
        * If you want to be notified whenever {@link ng.$rootScope.Scope#$digest $digest} is called,
-       * you can register a `watchExpression` function with no `listener`. (Since `watchExpression`
-       * can execute multiple times per {@link ng.$rootScope.Scope#$digest $digest} cycle when a
-       * change is detected, be prepared for multiple calls to your listener.)
+       * you can register a `watchExpression` function with no `listener`. (Be prepared for
+       * multiple calls to your `watchExpression` because it will execute multiple times in a
+       * single {@link ng.$rootScope.Scope#$digest $digest} cycle if a change is detected.)
        *
        * After a watcher is registered with the scope, the `listener` fn is called asynchronously
        * (via {@link ng.$rootScope.Scope#$evalAsync $evalAsync}) to initialize the
@@ -40088,7 +24795,7 @@ function $SceDelegateProvider() {
  *      characters: '`:`', '`/`', '`.`', '`?`', '`&`' and ';'.  It's a useful wildcard for use
  *      in a whitelist.
  *    - `**`: matches zero or more occurrences of *any* character.  As such, it's not
- *      not appropriate to use in for a scheme, domain, etc. as it would match too much.  (e.g.
+ *      appropriate for use in a scheme, domain, etc. as it would match too much.  (e.g.
  *      http://**.example.com/ would match http://evil.com/?ignore=.example.com/ and that might
  *      not have been the intention.)  Its usage at the very end of the path is ok.  (e.g.
  *      http://foo.example.com/templates/**).
@@ -40096,11 +24803,11 @@ function $SceDelegateProvider() {
  *    - *Caveat*:  While regular expressions are powerful and offer great flexibility,  their syntax
  *      (and all the inevitable escaping) makes them *harder to maintain*.  It's easy to
  *      accidentally introduce a bug when one updates a complex expression (imho, all regexes should
- *      have good test coverage.).  For instance, the use of `.` in the regex is correct only in a
+ *      have good test coverage).  For instance, the use of `.` in the regex is correct only in a
  *      small number of cases.  A `.` character in the regex used when matching the scheme or a
  *      subdomain could be matched against a `:` or literal `.` that was likely not intended.   It
  *      is highly recommended to use the string patterns and only fall back to regular expressions
- *      if they as a last resort.
+ *      as a last resort.
  *    - The regular expression must be an instance of RegExp (i.e. not a string.)  It is
  *      matched against the **entire** *normalized / absolute URL* of the resource being tested
  *      (even when the RegExp did not have the `^` and `$` codes.)  In addition, any flags
@@ -40110,7 +24817,7 @@ function $SceDelegateProvider() {
  *      remember to escape your regular expression (and be aware that you might need more than
  *      one level of escaping depending on your templating engine and the way you interpolated
  *      the value.)  Do make use of your platform's escaping mechanism as it might be good
- *      enough before coding your own.  e.g. Ruby has
+ *      enough before coding your own.  E.g. Ruby has
  *      [Regexp.escape(str)](http://www.ruby-doc.org/core-2.0.0/Regexp.html#method-c-escape)
  *      and Python has [re.escape](http://docs.python.org/library/re.html#re.escape).
  *      Javascript lacks a similar built in function for escaping.  Take a look at Google
@@ -40696,12 +25403,14 @@ var $compileMinErr = minErr('$compile');
  * @name $templateRequest
  *
  * @description
- * The `$templateRequest` service downloads the provided template using `$http` and, upon success,
- * stores the contents inside of `$templateCache`. If the HTTP request fails or the response data
- * of the HTTP request is empty, a `$compile` error will be thrown (the exception can be thwarted
- * by setting the 2nd parameter of the function to true).
+ * The `$templateRequest` service runs security checks then downloads the provided template using
+ * `$http` and, upon success, stores the contents inside of `$templateCache`. If the HTTP request
+ * fails or the response data of the HTTP request is empty, a `$compile` error will be thrown (the
+ * exception can be thwarted by setting the 2nd parameter of the function to true). Note that the
+ * contents of `$templateCache` are trusted, so the call to `$sce.getTrustedUrl(tpl)` is omitted
+ * when `tpl` is of type string and `$templateCache` has the matching entry.
  *
- * @param {string} tpl The HTTP request template URL
+ * @param {string|TrustedResourceUrl} tpl The HTTP request template URL
  * @param {boolean=} ignoreRequestError Whether or not to ignore the exception when the request fails or the template is empty
  *
  * @return {Promise} the HTTP Promise for the given.
@@ -40709,9 +25418,18 @@ var $compileMinErr = minErr('$compile');
  * @property {number} totalPendingRequests total amount of pending template requests being downloaded.
  */
 function $TemplateRequestProvider() {
-  this.$get = ['$templateCache', '$http', '$q', function($templateCache, $http, $q) {
+  this.$get = ['$templateCache', '$http', '$q', '$sce', function($templateCache, $http, $q, $sce) {
     function handleRequestFn(tpl, ignoreRequestError) {
       handleRequestFn.totalPendingRequests++;
+
+      // We consider the template cache holds only trusted templates, so
+      // there's no need to go through whitelisting again for keys that already
+      // are included in there. This also makes Angular accept any script
+      // directive, no matter its name. However, we still need to unwrap trusted
+      // types.
+      if (!isString(tpl) || !$templateCache.get(tpl)) {
+        tpl = $sce.getTrustedResourceUrl(tpl);
+      }
 
       var transformResponse = $http.defaults && $http.defaults.transformResponse;
 
@@ -40973,19 +25691,12 @@ var originUrl = urlResolve(window.location.href);
  *
  * Implementation Notes for IE
  * ---------------------------
- * IE >= 8 and <= 10 normalizes the URL when assigned to the anchor node similar to the other
+ * IE <= 10 normalizes the URL when assigned to the anchor node similar to the other
  * browsers.  However, the parsed components will not be set if the URL assigned did not specify
  * them.  (e.g. if you assign a.href = "foo", then a.protocol, a.host, etc. will be empty.)  We
  * work around that by performing the parsing in a 2nd step by taking a previously normalized
  * URL (e.g. by assigning to a.href) and assigning it a.href again.  This correctly populates the
  * properties such as protocol, hostname, port, etc.
- *
- * IE7 does not normalize the URL when assigned to an anchor node.  (Apparently, it does, if one
- * uses the inner HTML approach to assign the URL as part of an HTML snippet -
- * http://stackoverflow.com/a/472729)  However, setting img[src] does normalize the URL.
- * Unfortunately, setting img[src] to something like "javascript:foo" on IE throws an exception.
- * Since the primary usage for normalizing URLs is to sanitize such URLs, we can't use that
- * method and IE < 8 is unsupported.
  *
  * References:
  *   http://developer.mozilla.org/en-US/docs/Web/API/HTMLAnchorElement
@@ -41116,6 +25827,13 @@ function $WindowProvider() {
  * Dependency Injected. To achieve this a filter definition consists of a factory function which is
  * annotated with dependencies and is responsible for creating a filter function.
  *
+ * <div class="alert alert-warning">
+ * **Note:** Filter names must be valid angular {@link expression} identifiers, such as `uppercase` or `orderBy`.
+ * Names with special characters, such as hyphens and dots, are not allowed. If you wish to namespace
+ * your filters, then you can use capitalization (`myappSubsectionFilterx`) or underscores
+ * (`myapp_subsection_filterx`).
+ * </div>
+ *
  * ```js
  *   // Filter registration
  *   function MyModule($provide, $filterProvider) {
@@ -41197,6 +25915,13 @@ function $FilterProvider($provide) {
    * @name $filterProvider#register
    * @param {string|Object} name Name of the filter function, or an object map of filters where
    *    the keys are the filter names and the values are the filter factories.
+   *
+   *    <div class="alert alert-warning">
+   *    **Note:** Filter names must be valid angular {@link expression} identifiers, such as `uppercase` or `orderBy`.
+   *    Names with special characters, such as hyphens and dots, are not allowed. If you wish to namespace
+   *    your filters, then you can use capitalization (`myappSubsectionFilterx`) or underscores
+   *    (`myapp_subsection_filterx`).
+   *    </div>
    * @returns {Object} Registered filter instance, or if a map of filters was provided then a map
    *    of the registered filter instances.
    */
@@ -41370,14 +26095,16 @@ function filterFilter() {
   return function(array, expression, comparator) {
     if (!isArray(array)) return array;
 
+    var expressionType = (expression !== null) ? typeof expression : 'null';
     var predicateFn;
     var matchAgainstAnyProp;
 
-    switch (typeof expression) {
+    switch (expressionType) {
       case 'function':
         predicateFn = expression;
         break;
       case 'boolean':
+      case 'null':
       case 'number':
       case 'string':
         matchAgainstAnyProp = true;
@@ -41403,6 +26130,14 @@ function createPredicateFn(expression, comparator, matchAgainstAnyProp) {
     comparator = equals;
   } else if (!isFunction(comparator)) {
     comparator = function(actual, expected) {
+      if (isUndefined(actual)) {
+        // No substring matching against `undefined`
+        return false;
+      }
+      if ((actual === null) || (expected === null)) {
+        // No substring matching against `null`; only match against `null`
+        return actual === expected;
+      }
       if (isObject(actual) || isObject(expected)) {
         // Prevent an object to be considered equal to a string like `'[object'`
         return false;
@@ -41553,6 +26288,8 @@ function currencyFilter($locale) {
  * @description
  * Formats a number as text.
  *
+ * If the input is null or undefined, it will just be returned.
+ * If the input is infinite (Infinity/-Infinity) the Infinity symbol '∞' is returned.
  * If the input is not a number an empty string is returned.
  *
  * @param {number|string} number Number to format.
@@ -42161,7 +26898,7 @@ function limitToFilter() {
  *    Can be one of:
  *
  *    - `function`: Getter function. The result of this function will be sorted using the
- *      `<`, `=`, `>` operator.
+ *      `<`, `===`, `>` operator.
  *    - `string`: An Angular expression. The result of this expression is used to compare elements
  *      (for example `name` to sort by a property called `name` or `name.substr(0, 3)` to sort by
  *      3 first characters of a property called `name`). The result of a constant expression
@@ -43272,11 +28009,11 @@ function FormController(element, attrs, $scope, $animate, $interpolate) {
        <form name="myForm" ng-controller="FormController" class="my-form">
          userType: <input name="input" ng-model="userType" required>
          <span class="error" ng-show="myForm.input.$error.required">Required!</span><br>
-         <tt>userType = {{userType}}</tt><br>
-         <tt>myForm.input.$valid = {{myForm.input.$valid}}</tt><br>
-         <tt>myForm.input.$error = {{myForm.input.$error}}</tt><br>
-         <tt>myForm.$valid = {{myForm.$valid}}</tt><br>
-         <tt>myForm.$error.required = {{!!myForm.$error.required}}</tt><br>
+         <code>userType = {{userType}}</code><br>
+         <code>myForm.input.$valid = {{myForm.input.$valid}}</code><br>
+         <code>myForm.input.$error = {{myForm.input.$error}}</code><br>
+         <code>myForm.$valid = {{myForm.$valid}}</code><br>
+         <code>myForm.$error.required = {{!!myForm.$error.required}}</code><br>
         </form>
       </file>
       <file name="protractor.js" type="protractor">
@@ -43383,7 +28120,7 @@ var ngFormDirective = formDirectiveFactory(true);
   DIRTY_CLASS: false,
   UNTOUCHED_CLASS: false,
   TOUCHED_CLASS: false,
-  $ngModelMinErr: false,
+  ngModelMinErr: false,
 */
 
 // Regex code is obtained from SO: https://stackoverflow.com/questions/3143070/javascript-regex-iso-datetime#answer-3143231
@@ -43964,7 +28701,11 @@ var inputType = {
    * Text input with number validation and transformation. Sets the `number` validation
    * error if not a valid number.
    *
-   * The model must always be a number, otherwise Angular will throw an error.
+   * <div class="alert alert-warning">
+   * The model must always be of type `number` otherwise Angular will throw an error.
+   * Be aware that a string containing a number is not enough. See the {@link ngModel:numfmt}
+   * error docs for more information and an example of how to convert your model if necessary.
+   * </div>
    *
    * @param {string} ngModel Assignable angular expression to data-bind to.
    * @param {string=} name Property name of the form under which the control is published.
@@ -44543,7 +29284,7 @@ function createDateInputType(type, regexp, parseDate, format) {
 
     ctrl.$formatters.push(function(value) {
       if (value && !isDate(value)) {
-        throw $ngModelMinErr('datefmt', 'Expected `{0}` to be a date', value);
+        throw ngModelMinErr('datefmt', 'Expected `{0}` to be a date', value);
       }
       if (isValidDate(value)) {
         previousDate = value;
@@ -44620,7 +29361,7 @@ function numberInputType(scope, element, attr, ctrl, $sniffer, $browser) {
   ctrl.$formatters.push(function(value) {
     if (!ctrl.$isEmpty(value)) {
       if (!isNumber(value)) {
-        throw $ngModelMinErr('numfmt', 'Expected `{0}` to be a number', value);
+        throw ngModelMinErr('numfmt', 'Expected `{0}` to be a number', value);
       }
       value = value.toString();
     }
@@ -44713,7 +29454,7 @@ function parseConstantExpr($parse, context, name, expression, fallback) {
   if (isDefined(expression)) {
     parseFn = $parse(expression);
     if (!parseFn.constant) {
-      throw minErr('ngModel')('constexpr', 'Expected constant expression for `{0}`, but saw ' +
+      throw ngModelMinErr('constexpr', 'Expected constant expression for `{0}`, but saw ' +
                                    '`{1}`.', name, expression);
     }
     return parseFn(context);
@@ -45672,17 +30413,13 @@ var ngClassEvenDirective = classDirective('Even', 1);
  * document; alternatively, the css rule above must be included in the external stylesheet of the
  * application.
  *
- * Legacy browsers, like IE7, do not provide attribute selector support (added in CSS 2.1) so they
- * cannot match the `[ng\:cloak]` selector. To work around this limitation, you must add the css
- * class `ng-cloak` in addition to the `ngCloak` directive as shown in the example below.
- *
  * @element ANY
  *
  * @example
    <example>
      <file name="index.html">
         <div id="template1" ng-cloak>{{ 'hello' }}</div>
-        <div id="template2" ng-cloak class="ng-cloak">{{ 'hello IE7' }}</div>
+        <div id="template2" class="ng-cloak">{{ 'world' }}</div>
      </file>
      <file name="protractor.js" type="protractor">
        it('should remove the template directive and css class', function() {
@@ -46896,8 +31633,8 @@ var ngIfDirective = ['$animate', function($animate) {
  * @param {Object} angularEvent Synthetic event object.
  * @param {String} src URL of content to load.
  */
-var ngIncludeDirective = ['$templateRequest', '$anchorScroll', '$animate', '$sce',
-                  function($templateRequest,   $anchorScroll,   $animate,   $sce) {
+var ngIncludeDirective = ['$templateRequest', '$anchorScroll', '$animate',
+                  function($templateRequest,   $anchorScroll,   $animate) {
   return {
     restrict: 'ECA',
     priority: 400,
@@ -46933,7 +31670,7 @@ var ngIncludeDirective = ['$templateRequest', '$anchorScroll', '$animate', '$sce
           }
         };
 
-        scope.$watch($sce.parseAsResourceUrl(srcExp), function ngIncludeWatchAction(src) {
+        scope.$watch(srcExp, function ngIncludeWatchAction(src) {
           var afterAnimation = function() {
             if (isDefined(autoScrollExp) && (!autoScrollExp || scope.$eval(autoScrollExp))) {
               $anchorScroll();
@@ -47221,8 +31958,7 @@ var VALID_CLASS = 'ng-valid',
     TOUCHED_CLASS = 'ng-touched',
     PENDING_CLASS = 'ng-pending';
 
-
-var $ngModelMinErr = new minErr('ngModel');
+var ngModelMinErr = minErr('ngModel');
 
 /**
  * @ngdoc type
@@ -47473,7 +32209,7 @@ var NgModelController = ['$scope', '$exceptionHandler', '$attrs', '$element', '$
         }
       };
     } else if (!parsedNgModel.assign) {
-      throw $ngModelMinErr('nonassign', "Expression '{0}' is non-assignable. Element: {1}",
+      throw ngModelMinErr('nonassign', "Expression '{0}' is non-assignable. Element: {1}",
           $attr.ngModel, startingTag($element));
     }
   };
@@ -47707,7 +32443,7 @@ var NgModelController = ['$scope', '$exceptionHandler', '$attrs', '$element', '$
    * If the validity changes to invalid, the model will be set to `undefined`,
    * unless {@link ngModelOptions `ngModelOptions.allowInvalid`} is `true`.
    * If the validity changes to valid, it will set the model to the last available valid
-   * modelValue, i.e. either the last parsed value or the last value set from the scope.
+   * `$modelValue`, i.e. either the last parsed value or the last value set from the scope.
    */
   this.$validate = function() {
     // ignore $validate before model is initialized
@@ -47802,7 +32538,7 @@ var NgModelController = ['$scope', '$exceptionHandler', '$attrs', '$element', '$
       forEach(ctrl.$asyncValidators, function(validator, name) {
         var promise = validator(modelValue, viewValue);
         if (!isPromiseLike(promise)) {
-          throw $ngModelMinErr("$asyncValidators",
+          throw ngModelMinErr("$asyncValidators",
             "Expected asynchronous validator to return a promise but got '{0}' instead.", promise);
         }
         setValidity(name, undefined);
@@ -48015,7 +32751,10 @@ var NgModelController = ['$scope', '$exceptionHandler', '$attrs', '$element', '$
 
     // if scope model value and ngModel value are out of sync
     // TODO(perf): why not move this to the action fn?
-    if (modelValue !== ctrl.$modelValue) {
+    if (modelValue !== ctrl.$modelValue &&
+       // checks for NaN is needed to allow setting the model to NaN when there's an asyncValidator
+       (ctrl.$modelValue === ctrl.$modelValue || modelValue === modelValue)
+    ) {
       ctrl.$modelValue = ctrl.$$rawModelValue = modelValue;
       parserValid = undefined;
 
@@ -48192,10 +32931,11 @@ var NgModelController = ['$scope', '$exceptionHandler', '$attrs', '$element', '$
            var _name = 'Brian';
            $scope.user = {
              name: function(newName) {
-               if (angular.isDefined(newName)) {
-                 _name = newName;
-               }
-               return _name;
+              // Note that newName can be undefined for two reasons:
+              // 1. Because it is called as a getter and thus called with no arguments
+              // 2. Because the property should actually be set to undefined. This happens e.g. if the
+              //    input is invalid
+              return arguments.length ? (_name = newName) : _name;
              }
            };
          }]);
@@ -48403,7 +33143,11 @@ var DEFAULT_REGEXP = /(\s+|^)default(\s+|$)/;
           var _name = 'Brian';
           $scope.user = {
             name: function(newName) {
-              return angular.isDefined(newName) ? (_name = newName) : _name;
+              // Note that newName can be undefined for two reasons:
+              // 1. Because it is called as a getter and thus called with no arguments
+              // 2. Because the property should actually be set to undefined. This happens e.g. if the
+              //    input is invalid
+              return arguments.length ? (_name = newName) : _name;
             }
           };
         }]);
@@ -49693,12 +34437,12 @@ var ngHideDirective = ['$animate', function($animate) {
    </example>
  */
 var ngStyleDirective = ngDirective(function(scope, element, attr) {
-  scope.$watchCollection(attr.ngStyle, function ngStyleWatchAction(newStyles, oldStyles) {
+  scope.$watch(attr.ngStyle, function ngStyleWatchAction(newStyles, oldStyles) {
     if (oldStyles && (newStyles !== oldStyles)) {
       forEach(oldStyles, function(val, style) { element.css(style, '');});
     }
     if (newStyles) element.css(newStyles);
-  });
+  }, true);
 });
 
 /**
@@ -49744,7 +34488,7 @@ var ngStyleDirective = ngDirective(function(scope, element, attr) {
  *
  * @scope
  * @priority 1200
- * @param {*} ngSwitch|on expression to match against <tt>ng-switch-when</tt>.
+ * @param {*} ngSwitch|on expression to match against <code>ng-switch-when</code>.
  * On child elements add:
  *
  * * `ngSwitchWhen`: the case statement to match against. If match then this
@@ -49761,7 +34505,7 @@ var ngStyleDirective = ngDirective(function(scope, element, attr) {
       <div ng-controller="ExampleController">
         <select ng-model="selection" ng-options="item for item in items">
         </select>
-        <tt>selection={{selection}}</tt>
+        <code>selection={{selection}}</code>
         <hr/>
         <div class="animate-switch-container"
           ng-switch on="selection">
@@ -50342,7 +35086,7 @@ var selectDirective = ['$compile', '$parse', function($compile,   $parse) {
             selectElement.val(viewValue);
             if (viewValue === '') emptyOption.prop('selected', true); // to make IE9 happy
           } else {
-            if (isUndefined(viewValue) && emptyOption) {
+            if (viewValue == null && emptyOption) {
               selectElement.val('');
             } else {
               selectCtrl.renderUnknownOption(viewValue);
@@ -50849,8 +35593,9 @@ var patternDirective = function() {
         ctrl.$validate();
       });
 
-      ctrl.$validators.pattern = function(value) {
-        return ctrl.$isEmpty(value) || isUndefined(regexp) || regexp.test(value);
+      ctrl.$validators.pattern = function(modelValue, viewValue) {
+        // HTML5 pattern constraint validates the input value, so we validate the viewValue
+        return ctrl.$isEmpty(viewValue) || isUndefined(regexp) || regexp.test(viewValue);
       };
     }
   };
@@ -50914,7 +35659,7 @@ var minlengthDirective = function() {
 
 })(window, document);
 
-!window.angular.$$csp() && window.angular.element(document).find('head').prepend('<style type="text/css">@charset "UTF-8";[ng\\:cloak],[ng-cloak],[data-ng-cloak],[x-ng-cloak],.ng-cloak,.x-ng-cloak,.ng-hide:not(.ng-hide-animate){display:none !important;}ng\\:form{display:block;}</style>');
+!window.angular.$$csp() && window.angular.element(document.head).prepend('<style type="text/css">@charset "UTF-8";[ng\\:cloak],[ng-cloak],[data-ng-cloak],[x-ng-cloak],.ng-cloak,.x-ng-cloak,.ng-hide:not(.ng-hide-animate){display:none !important;}ng\\:form{display:block;}</style>');
 /**
  * vis.js
  * https://github.com/almende/vis
@@ -85572,160 +70317,61 @@ return /******/ (function(modules) { // webpackBootstrap
  * angular-ui-bootstrap
  * http://angular-ui.github.io/bootstrap/
 
- * Version: 0.12.1 - 2015-02-20
+ * Version: 0.13.4 - 2015-09-03
  * License: MIT
  */
-angular.module("ui.bootstrap", ["ui.bootstrap.tpls", "ui.bootstrap.transition","ui.bootstrap.collapse","ui.bootstrap.accordion","ui.bootstrap.alert","ui.bootstrap.bindHtml","ui.bootstrap.buttons","ui.bootstrap.carousel","ui.bootstrap.dateparser","ui.bootstrap.position","ui.bootstrap.datepicker","ui.bootstrap.dropdown","ui.bootstrap.modal","ui.bootstrap.pagination","ui.bootstrap.tooltip","ui.bootstrap.popover","ui.bootstrap.progressbar","ui.bootstrap.rating","ui.bootstrap.tabs","ui.bootstrap.timepicker","ui.bootstrap.typeahead"]);
-angular.module("ui.bootstrap.tpls", ["template/accordion/accordion-group.html","template/accordion/accordion.html","template/alert/alert.html","template/carousel/carousel.html","template/carousel/slide.html","template/datepicker/datepicker.html","template/datepicker/day.html","template/datepicker/month.html","template/datepicker/popup.html","template/datepicker/year.html","template/modal/backdrop.html","template/modal/window.html","template/pagination/pager.html","template/pagination/pagination.html","template/tooltip/tooltip-html-unsafe-popup.html","template/tooltip/tooltip-popup.html","template/popover/popover.html","template/progressbar/bar.html","template/progressbar/progress.html","template/progressbar/progressbar.html","template/rating/rating.html","template/tabs/tab.html","template/tabs/tabset.html","template/timepicker/timepicker.html","template/typeahead/typeahead-match.html","template/typeahead/typeahead-popup.html"]);
-angular.module('ui.bootstrap.transition', [])
+angular.module("ui.bootstrap", ["ui.bootstrap.tpls", "ui.bootstrap.collapse","ui.bootstrap.accordion","ui.bootstrap.alert","ui.bootstrap.bindHtml","ui.bootstrap.buttons","ui.bootstrap.carousel","ui.bootstrap.dateparser","ui.bootstrap.position","ui.bootstrap.datepicker","ui.bootstrap.dropdown","ui.bootstrap.modal","ui.bootstrap.pagination","ui.bootstrap.tooltip","ui.bootstrap.popover","ui.bootstrap.progressbar","ui.bootstrap.rating","ui.bootstrap.tabs","ui.bootstrap.timepicker","ui.bootstrap.transition","ui.bootstrap.typeahead"]);
+angular.module("ui.bootstrap.tpls", ["template/accordion/accordion-group.html","template/accordion/accordion.html","template/alert/alert.html","template/carousel/carousel.html","template/carousel/slide.html","template/datepicker/datepicker.html","template/datepicker/day.html","template/datepicker/month.html","template/datepicker/popup.html","template/datepicker/year.html","template/modal/backdrop.html","template/modal/window.html","template/pagination/pager.html","template/pagination/pagination.html","template/tooltip/tooltip-html-popup.html","template/tooltip/tooltip-html-unsafe-popup.html","template/tooltip/tooltip-popup.html","template/tooltip/tooltip-template-popup.html","template/popover/popover-html.html","template/popover/popover-template.html","template/popover/popover.html","template/progressbar/bar.html","template/progressbar/progress.html","template/progressbar/progressbar.html","template/rating/rating.html","template/tabs/tab.html","template/tabs/tabset.html","template/timepicker/timepicker.html","template/typeahead/typeahead-match.html","template/typeahead/typeahead-popup.html"]);
+angular.module('ui.bootstrap.collapse', [])
 
-/**
- * $transition service provides a consistent interface to trigger CSS 3 transitions and to be informed when they complete.
- * @param  {DOMElement} element  The DOMElement that will be animated.
- * @param  {string|object|function} trigger  The thing that will cause the transition to start:
- *   - As a string, it represents the css class to be added to the element.
- *   - As an object, it represents a hash of style attributes to be applied to the element.
- *   - As a function, it represents a function to be called that will cause the transition to occur.
- * @return {Promise}  A promise that is resolved when the transition finishes.
- */
-.factory('$transition', ['$q', '$timeout', '$rootScope', function($q, $timeout, $rootScope) {
-
-  var $transition = function(element, trigger, options) {
-    options = options || {};
-    var deferred = $q.defer();
-    var endEventName = $transition[options.animation ? 'animationEndEventName' : 'transitionEndEventName'];
-
-    var transitionEndHandler = function(event) {
-      $rootScope.$apply(function() {
-        element.unbind(endEventName, transitionEndHandler);
-        deferred.resolve(element);
-      });
-    };
-
-    if (endEventName) {
-      element.bind(endEventName, transitionEndHandler);
-    }
-
-    // Wrap in a timeout to allow the browser time to update the DOM before the transition is to occur
-    $timeout(function() {
-      if ( angular.isString(trigger) ) {
-        element.addClass(trigger);
-      } else if ( angular.isFunction(trigger) ) {
-        trigger(element);
-      } else if ( angular.isObject(trigger) ) {
-        element.css(trigger);
-      }
-      //If browser does not support transitions, instantly resolve
-      if ( !endEventName ) {
-        deferred.resolve(element);
-      }
-    });
-
-    // Add our custom cancel function to the promise that is returned
-    // We can call this if we are about to run a new transition, which we know will prevent this transition from ending,
-    // i.e. it will therefore never raise a transitionEnd event for that transition
-    deferred.promise.cancel = function() {
-      if ( endEventName ) {
-        element.unbind(endEventName, transitionEndHandler);
-      }
-      deferred.reject('Transition cancelled');
-    };
-
-    return deferred.promise;
-  };
-
-  // Work out the name of the transitionEnd event
-  var transElement = document.createElement('trans');
-  var transitionEndEventNames = {
-    'WebkitTransition': 'webkitTransitionEnd',
-    'MozTransition': 'transitionend',
-    'OTransition': 'oTransitionEnd',
-    'transition': 'transitionend'
-  };
-  var animationEndEventNames = {
-    'WebkitTransition': 'webkitAnimationEnd',
-    'MozTransition': 'animationend',
-    'OTransition': 'oAnimationEnd',
-    'transition': 'animationend'
-  };
-  function findEndEventName(endEventNames) {
-    for (var name in endEventNames){
-      if (transElement.style[name] !== undefined) {
-        return endEventNames[name];
-      }
-    }
-  }
-  $transition.transitionEndEventName = findEndEventName(transitionEndEventNames);
-  $transition.animationEndEventName = findEndEventName(animationEndEventNames);
-  return $transition;
-}]);
-
-angular.module('ui.bootstrap.collapse', ['ui.bootstrap.transition'])
-
-  .directive('collapse', ['$transition', function ($transition) {
-
+  .directive('collapse', ['$animate', function($animate) {
     return {
-      link: function (scope, element, attrs) {
-
-        var initialAnimSkip = true;
-        var currentTransition;
-
-        function doTransition(change) {
-          var newTransition = $transition(element, change);
-          if (currentTransition) {
-            currentTransition.cancel();
-          }
-          currentTransition = newTransition;
-          newTransition.then(newTransitionDone, newTransitionDone);
-          return newTransition;
-
-          function newTransitionDone() {
-            // Make sure it's this transition, otherwise, leave it alone.
-            if (currentTransition === newTransition) {
-              currentTransition = undefined;
-            }
-          }
-        }
-
+      link: function(scope, element, attrs) {
         function expand() {
-          if (initialAnimSkip) {
-            initialAnimSkip = false;
-            expandDone();
-          } else {
-            element.removeClass('collapse').addClass('collapsing');
-            doTransition({ height: element[0].scrollHeight + 'px' }).then(expandDone);
-          }
+          element.removeClass('collapse')
+            .addClass('collapsing')
+            .attr('aria-expanded', true)
+            .attr('aria-hidden', false);
+
+          $animate.addClass(element, 'in', {
+            to: { height: element[0].scrollHeight + 'px' }
+          }).then(expandDone);
         }
 
         function expandDone() {
           element.removeClass('collapsing');
-          element.addClass('collapse in');
           element.css({height: 'auto'});
         }
 
         function collapse() {
-          if (initialAnimSkip) {
-            initialAnimSkip = false;
-            collapseDone();
-            element.css({height: 0});
-          } else {
-            // CSS transitions don't work with height: auto, so we have to manually change the height to a specific value
-            element.css({ height: element[0].scrollHeight + 'px' });
-            //trigger reflow so a browser realizes that height was updated from auto to a specific value
-            var x = element[0].offsetWidth;
-
-            element.removeClass('collapse in').addClass('collapsing');
-
-            doTransition({ height: 0 }).then(collapseDone);
+          if (!element.hasClass('collapse') && !element.hasClass('in')) {
+            return collapseDone();
           }
+
+          element
+            // IMPORTANT: The height must be set before adding "collapsing" class.
+            // Otherwise, the browser attempts to animate from height 0 (in
+            // collapsing class) to the given height here.
+            .css({height: element[0].scrollHeight + 'px'})
+            // initially all panel collapse have the collapse class, this removal
+            // prevents the animation from jumping to collapsed state
+            .removeClass('collapse')
+            .addClass('collapsing')
+            .attr('aria-expanded', false)
+            .attr('aria-hidden', true);
+
+          $animate.removeClass(element, 'in', {
+            to: {height: '0'}
+          }).then(collapseDone);
         }
 
         function collapseDone() {
+          element.css({height: '0'}); // Required so that collapse works when animation is disabled
           element.removeClass('collapsing');
           element.addClass('collapse');
         }
 
-        scope.$watch(attrs.collapse, function (shouldCollapse) {
+        scope.$watch(attrs.collapse, function(shouldCollapse) {
           if (shouldCollapse) {
             collapse();
           } else {
@@ -85742,17 +70388,17 @@ angular.module('ui.bootstrap.accordion', ['ui.bootstrap.collapse'])
   closeOthers: true
 })
 
-.controller('AccordionController', ['$scope', '$attrs', 'accordionConfig', function ($scope, $attrs, accordionConfig) {
-
+.controller('AccordionController', ['$scope', '$attrs', 'accordionConfig', function($scope, $attrs, accordionConfig) {
   // This array keeps track of the accordion groups
   this.groups = [];
 
   // Ensure that all the groups in this accordion are closed, unless close-others explicitly says not to
   this.closeOthers = function(openGroup) {
-    var closeOthers = angular.isDefined($attrs.closeOthers) ? $scope.$eval($attrs.closeOthers) : accordionConfig.closeOthers;
-    if ( closeOthers ) {
-      angular.forEach(this.groups, function (group) {
-        if ( group !== openGroup ) {
+    var closeOthers = angular.isDefined($attrs.closeOthers) ?
+      $scope.$eval($attrs.closeOthers) : accordionConfig.closeOthers;
+    if (closeOthers) {
+      angular.forEach(this.groups, function(group) {
+        if (group !== openGroup) {
           group.isOpen = false;
         }
       });
@@ -85764,7 +70410,7 @@ angular.module('ui.bootstrap.accordion', ['ui.bootstrap.collapse'])
     var that = this;
     this.groups.push(groupScope);
 
-    groupScope.$on('$destroy', function (event) {
+    groupScope.$on('$destroy', function(event) {
       that.removeGroup(groupScope);
     });
   };
@@ -85772,7 +70418,7 @@ angular.module('ui.bootstrap.accordion', ['ui.bootstrap.collapse'])
   // This is called from the accordion-group directive when to remove itself
   this.removeGroup = function(group) {
     var index = this.groups.indexOf(group);
-    if ( index !== -1 ) {
+    if (index !== -1) {
       this.groups.splice(index, 1);
     }
   };
@@ -85781,24 +70427,29 @@ angular.module('ui.bootstrap.accordion', ['ui.bootstrap.collapse'])
 
 // The accordion directive simply sets up the directive controller
 // and adds an accordion CSS class to itself element.
-.directive('accordion', function () {
+.directive('accordion', function() {
   return {
-    restrict:'EA',
-    controller:'AccordionController',
+    restrict: 'EA',
+    controller: 'AccordionController',
+    controllerAs: 'accordion',
     transclude: true,
     replace: false,
-    templateUrl: 'template/accordion/accordion.html'
+    templateUrl: function(element, attrs) {
+      return attrs.templateUrl || 'template/accordion/accordion.html';
+    }
   };
 })
 
 // The accordion-group directive indicates a block of html that will expand and collapse in an accordion
 .directive('accordionGroup', function() {
   return {
-    require:'^accordion',         // We need this directive to be inside an accordion
-    restrict:'EA',
-    transclude:true,              // It transcludes the contents of the directive into the template
+    require: '^accordion',         // We need this directive to be inside an accordion
+    restrict: 'EA',
+    transclude: true,              // It transcludes the contents of the directive into the template
     replace: true,                // The element containing the directive will be replaced with the template
-    templateUrl:'template/accordion/accordion-group.html',
+    templateUrl: function(element, attrs) {
+      return attrs.templateUrl || 'template/accordion/accordion-group.html';
+    },
     scope: {
       heading: '@',               // Interpolate the heading attribute onto this scope
       isOpen: '=?',
@@ -85812,15 +70463,20 @@ angular.module('ui.bootstrap.accordion', ['ui.bootstrap.collapse'])
     link: function(scope, element, attrs, accordionCtrl) {
       accordionCtrl.addGroup(scope);
 
+      scope.openClass = attrs.openClass || 'panel-open';
+      scope.panelClass = attrs.panelClass;
       scope.$watch('isOpen', function(value) {
-        if ( value ) {
+        element.toggleClass(scope.openClass, value);
+        if (value) {
           accordionCtrl.closeOthers(scope);
         }
       });
 
-      scope.toggleOpen = function() {
-        if ( !scope.isDisabled ) {
-          scope.isOpen = !scope.isOpen;
+      scope.toggleOpen = function($event) {
+        if (!scope.isDisabled) {
+          if (!$event || $event.which === 32) {
+            scope.isOpen = !scope.isOpen;
+          }
         }
       };
     }
@@ -85842,7 +70498,7 @@ angular.module('ui.bootstrap.accordion', ['ui.bootstrap.collapse'])
       // Pass the heading to the accordion-group controller
       // so that it can be transcluded into the right place in the template
       // [The second parameter to transclude causes the elements to be cloned so that they work in ng-repeat]
-      accordionGroupCtrl.setHeading(transclude(scope, function() {}));
+      accordionGroupCtrl.setHeading(transclude(scope, angular.noop));
     }
   };
 })
@@ -85858,29 +70514,33 @@ angular.module('ui.bootstrap.accordion', ['ui.bootstrap.collapse'])
     require: '^accordionGroup',
     link: function(scope, element, attr, controller) {
       scope.$watch(function() { return controller[attr.accordionTransclude]; }, function(heading) {
-        if ( heading ) {
-          element.html('');
-          element.append(heading);
+        if (heading) {
+          element.find('span').html('');
+          element.find('span').append(heading);
         }
       });
     }
   };
-});
+})
+
+;
 
 angular.module('ui.bootstrap.alert', [])
 
-.controller('AlertController', ['$scope', '$attrs', function ($scope, $attrs) {
-  $scope.closeable = 'close' in $attrs;
+.controller('AlertController', ['$scope', '$attrs', function($scope, $attrs) {
+  $scope.closeable = !!$attrs.close;
   this.close = $scope.close;
 }])
 
-.directive('alert', function () {
+.directive('alert', function() {
   return {
-    restrict:'EA',
-    controller:'AlertController',
-    templateUrl:'template/alert/alert.html',
-    transclude:true,
-    replace:true,
+    controller: 'AlertController',
+    controllerAs: 'alert',
+    templateUrl: function(element, attrs) {
+      return attrs.templateUrl || 'template/alert/alert.html';
+    },
+    transclude: true,
+    replace: true,
     scope: {
       type: '@',
       close: '&'
@@ -85892,7 +70552,7 @@ angular.module('ui.bootstrap.alert', [])
   return {
     require: 'alert',
     link: function(scope, element, attrs, alertCtrl) {
-      $timeout(function(){
+      $timeout(function() {
         alertCtrl.close();
       }, parseInt(attrs.dismissOnTimeout, 10));
     }
@@ -85901,14 +70561,19 @@ angular.module('ui.bootstrap.alert', [])
 
 angular.module('ui.bootstrap.bindHtml', [])
 
-  .directive('bindHtmlUnsafe', function () {
+  .value('$bindHtmlUnsafeSuppressDeprecated', false)
+
+  .directive('bindHtmlUnsafe', ['$log', '$bindHtmlUnsafeSuppressDeprecated', function ($log, $bindHtmlUnsafeSuppressDeprecated) {
     return function (scope, element, attr) {
+      if (!$bindHtmlUnsafeSuppressDeprecated) {
+        $log.warn('bindHtmlUnsafe is now deprecated. Use ngBindHtml instead');
+      }
       element.addClass('ng-binding').data('$binding', attr.bindHtmlUnsafe);
       scope.$watch(attr.bindHtmlUnsafe, function bindHtmlUnsafeWatchAction(value) {
         element.html(value || '');
       });
     };
-  });
+  }]);
 angular.module('ui.bootstrap.buttons', [])
 
 .constant('buttonConfig', {
@@ -85921,24 +70586,31 @@ angular.module('ui.bootstrap.buttons', [])
   this.toggleEvent = buttonConfig.toggleEvent || 'click';
 }])
 
-.directive('btnRadio', function () {
+.directive('btnRadio', function() {
   return {
     require: ['btnRadio', 'ngModel'],
     controller: 'ButtonsController',
-    link: function (scope, element, attrs, ctrls) {
+    controllerAs: 'buttons',
+    link: function(scope, element, attrs, ctrls) {
       var buttonsCtrl = ctrls[0], ngModelCtrl = ctrls[1];
 
+      element.find('input').css({display: 'none'});
+
       //model -> UI
-      ngModelCtrl.$render = function () {
+      ngModelCtrl.$render = function() {
         element.toggleClass(buttonsCtrl.activeClass, angular.equals(ngModelCtrl.$modelValue, scope.$eval(attrs.btnRadio)));
       };
 
       //ui->model
-      element.bind(buttonsCtrl.toggleEvent, function () {
+      element.bind(buttonsCtrl.toggleEvent, function() {
+        if (attrs.disabled) {
+          return;
+        }
+
         var isActive = element.hasClass(buttonsCtrl.activeClass);
 
         if (!isActive || angular.isDefined(attrs.uncheckable)) {
-          scope.$apply(function () {
+          scope.$apply(function() {
             ngModelCtrl.$setViewValue(isActive ? null : scope.$eval(attrs.btnRadio));
             ngModelCtrl.$render();
           });
@@ -85948,12 +70620,15 @@ angular.module('ui.bootstrap.buttons', [])
   };
 })
 
-.directive('btnCheckbox', function () {
+.directive('btnCheckbox', ['$document', function($document) {
   return {
     require: ['btnCheckbox', 'ngModel'],
     controller: 'ButtonsController',
-    link: function (scope, element, attrs, ctrls) {
+    controllerAs: 'button',
+    link: function(scope, element, attrs, ctrls) {
       var buttonsCtrl = ctrls[0], ngModelCtrl = ctrls[1];
+
+      element.find('input').css({display: 'none'});
 
       function getTrueValue() {
         return getCheckboxValue(attrs.btnCheckboxTrue, true);
@@ -85969,20 +70644,36 @@ angular.module('ui.bootstrap.buttons', [])
       }
 
       //model -> UI
-      ngModelCtrl.$render = function () {
+      ngModelCtrl.$render = function() {
         element.toggleClass(buttonsCtrl.activeClass, angular.equals(ngModelCtrl.$modelValue, getTrueValue()));
       };
 
       //ui->model
-      element.bind(buttonsCtrl.toggleEvent, function () {
-        scope.$apply(function () {
+      element.bind(buttonsCtrl.toggleEvent, function() {
+        if (attrs.disabled) {
+          return;
+        }
+
+        scope.$apply(function() {
+          ngModelCtrl.$setViewValue(element.hasClass(buttonsCtrl.activeClass) ? getFalseValue() : getTrueValue());
+          ngModelCtrl.$render();
+        });
+      });
+
+      //accessibility
+      element.on('keypress', function(e) {
+        if (attrs.disabled || e.which !== 32 || $document[0].activeElement !== element[0]) {
+          return;
+        }
+
+        scope.$apply(function() {
           ngModelCtrl.$setViewValue(element.hasClass(buttonsCtrl.activeClass) ? getFalseValue() : getTrueValue());
           ngModelCtrl.$render();
         });
       });
     }
   };
-});
+}]);
 
 /**
 * @ngdoc overview
@@ -85992,10 +70683,13 @@ angular.module('ui.bootstrap.buttons', [])
 * AngularJS version of an image carousel.
 *
 */
-angular.module('ui.bootstrap.carousel', ['ui.bootstrap.transition'])
-.controller('CarouselController', ['$scope', '$timeout', '$interval', '$transition', function ($scope, $timeout, $interval, $transition) {
+angular.module('ui.bootstrap.carousel', [])
+.controller('CarouselController', ['$scope', '$element', '$interval', '$animate', function ($scope, $element, $interval, $animate) {
   var self = this,
     slides = self.slides = $scope.slides = [],
+    NEW_ANIMATE = angular.version.minor >= 4,
+    NO_TRANSITION = 'uib-noTransition',
+    SLIDE_DIRECTION = 'uib-slideDirection',
     currentIndex = -1,
     currentInterval, isPlaying;
   self.currentSlide = null;
@@ -86003,83 +70697,100 @@ angular.module('ui.bootstrap.carousel', ['ui.bootstrap.transition'])
   var destroyed = false;
   /* direction: "prev" or "next" */
   self.select = $scope.select = function(nextSlide, direction) {
-    var nextIndex = slides.indexOf(nextSlide);
+    var nextIndex = $scope.indexOfSlide(nextSlide);
     //Decide direction if it's not given
     if (direction === undefined) {
-      direction = nextIndex > currentIndex ? 'next' : 'prev';
+      direction = nextIndex > self.getCurrentIndex() ? 'next' : 'prev';
     }
-    if (nextSlide && nextSlide !== self.currentSlide) {
-      if ($scope.$currentTransition) {
-        $scope.$currentTransition.cancel();
-        //Timeout so ng-class in template has time to fix classes for finished slide
-        $timeout(goNext);
-      } else {
-        goNext();
-      }
-    }
-    function goNext() {
-      // Scope has been destroyed, stop here.
-      if (destroyed) { return; }
-      //If we have a slide to transition from and we have a transition type and we're allowed, go
-      if (self.currentSlide && angular.isString(direction) && !$scope.noTransition && nextSlide.$element) {
-        //We shouldn't do class manip in here, but it's the same weird thing bootstrap does. need to fix sometime
-        nextSlide.$element.addClass(direction);
-        var reflow = nextSlide.$element[0].offsetWidth; //force reflow
-
-        //Set all other slides to stop doing their stuff for the new transition
-        angular.forEach(slides, function(slide) {
-          angular.extend(slide, {direction: '', entering: false, leaving: false, active: false});
-        });
-        angular.extend(nextSlide, {direction: direction, active: true, entering: true});
-        angular.extend(self.currentSlide||{}, {direction: direction, leaving: true});
-
-        $scope.$currentTransition = $transition(nextSlide.$element, {});
-        //We have to create new pointers inside a closure since next & current will change
-        (function(next,current) {
-          $scope.$currentTransition.then(
-            function(){ transitionDone(next, current); },
-            function(){ transitionDone(next, current); }
-          );
-        }(nextSlide, self.currentSlide));
-      } else {
-        transitionDone(nextSlide, self.currentSlide);
-      }
-      self.currentSlide = nextSlide;
-      currentIndex = nextIndex;
-      //every time you change slides, reset the timer
-      restartTimer();
-    }
-    function transitionDone(next, current) {
-      angular.extend(next, {direction: '', active: true, leaving: false, entering: false});
-      angular.extend(current||{}, {direction: '', active: false, leaving: false, entering: false});
-      $scope.$currentTransition = null;
+    //Prevent this user-triggered transition from occurring if there is already one in progress
+    if (nextSlide && nextSlide !== self.currentSlide && !$scope.$currentTransition) {
+      goNext(nextSlide, nextIndex, direction);
     }
   };
+
+  function goNext(slide, index, direction) {
+    // Scope has been destroyed, stop here.
+    if (destroyed) { return; }
+
+    angular.extend(slide, {direction: direction, active: true});
+    angular.extend(self.currentSlide || {}, {direction: direction, active: false});
+    if ($animate.enabled() && !$scope.noTransition && !$scope.$currentTransition &&
+      slide.$element && self.slides.length > 1) {
+      slide.$element.data(SLIDE_DIRECTION, slide.direction);
+      if (self.currentSlide && self.currentSlide.$element) {
+        self.currentSlide.$element.data(SLIDE_DIRECTION, slide.direction);
+      }
+
+      $scope.$currentTransition = true;
+      if (NEW_ANIMATE) {
+        $animate.on('addClass', slide.$element, function (element, phase) {
+          if (phase === 'close') {
+            $scope.$currentTransition = null;
+            $animate.off('addClass', element);
+          }
+        });
+      } else {
+        slide.$element.one('$animate:close', function closeFn() {
+          $scope.$currentTransition = null;
+        });
+      }
+    }
+
+    self.currentSlide = slide;
+    currentIndex = index;
+
+    //every time you change slides, reset the timer
+    restartTimer();
+  }
+
   $scope.$on('$destroy', function () {
     destroyed = true;
   });
 
+  function getSlideByIndex(index) {
+    if (angular.isUndefined(slides[index].index)) {
+      return slides[index];
+    }
+    var i, len = slides.length;
+    for (i = 0; i < slides.length; ++i) {
+      if (slides[i].index == index) {
+        return slides[i];
+      }
+    }
+  }
+
+  self.getCurrentIndex = function() {
+    if (self.currentSlide && angular.isDefined(self.currentSlide.index)) {
+      return +self.currentSlide.index;
+    }
+    return currentIndex;
+  };
+
   /* Allow outside people to call indexOf on slides array */
-  self.indexOfSlide = function(slide) {
-    return slides.indexOf(slide);
+  $scope.indexOfSlide = function(slide) {
+    return angular.isDefined(slide.index) ? +slide.index : slides.indexOf(slide);
   };
 
   $scope.next = function() {
-    var newIndex = (currentIndex + 1) % slides.length;
+    var newIndex = (self.getCurrentIndex() + 1) % slides.length;
 
-    //Prevent this user-triggered transition from occurring if there is already one in progress
-    if (!$scope.$currentTransition) {
-      return self.select(slides[newIndex], 'next');
+    if (newIndex === 0 && $scope.noWrap()) {
+      $scope.pause();
+      return;
     }
+
+    return self.select(getSlideByIndex(newIndex), 'next');
   };
 
   $scope.prev = function() {
-    var newIndex = currentIndex - 1 < 0 ? slides.length - 1 : currentIndex - 1;
+    var newIndex = self.getCurrentIndex() - 1 < 0 ? slides.length - 1 : self.getCurrentIndex() - 1;
 
-    //Prevent this user-triggered transition from occurring if there is already one in progress
-    if (!$scope.$currentTransition) {
-      return self.select(slides[newIndex], 'prev');
+    if ($scope.noWrap() && newIndex === slides.length - 1){
+      $scope.pause();
+      return;
     }
+
+    return self.select(getSlideByIndex(newIndex), 'prev');
   };
 
   $scope.isActive = function(slide) {
@@ -86106,7 +70817,7 @@ angular.module('ui.bootstrap.carousel', ['ui.bootstrap.transition'])
 
   function timerFn() {
     var interval = +$scope.interval;
-    if (isPlaying && !isNaN(interval) && interval > 0) {
+    if (isPlaying && !isNaN(interval) && interval > 0 && slides.length) {
       $scope.next();
     } else {
       $scope.pause();
@@ -86141,6 +70852,11 @@ angular.module('ui.bootstrap.carousel', ['ui.bootstrap.transition'])
   };
 
   self.removeSlide = function(slide) {
+    if (angular.isDefined(slide.index)) {
+      slides.sort(function(a, b) {
+        return +a.index > +b.index;
+      });
+    }
     //get the index of the slide inside the carousel
     var index = slides.indexOf(slide);
     slides.splice(index, 1);
@@ -86153,7 +70869,16 @@ angular.module('ui.bootstrap.carousel', ['ui.bootstrap.transition'])
     } else if (currentIndex > index) {
       currentIndex--;
     }
+    
+    //clean the currentSlide when no more slide
+    if (slides.length === 0) {
+      self.currentSlide = null;
+    }
   };
+
+  $scope.$watch('noTransition', function(noTransition) {
+    $element.data(NO_TRANSITION, noTransition);
+  });
 
 }])
 
@@ -86201,12 +70926,16 @@ angular.module('ui.bootstrap.carousel', ['ui.bootstrap.transition'])
     transclude: true,
     replace: true,
     controller: 'CarouselController',
+    controllerAs: 'carousel',
     require: 'carousel',
-    templateUrl: 'template/carousel/carousel.html',
+    templateUrl: function(element, attrs) {
+      return attrs.templateUrl || 'template/carousel/carousel.html';
+    },
     scope: {
       interval: '=',
       noTransition: '=',
-      noPause: '='
+      noPause: '=',
+      noWrap: '&'
     }
   };
 }])
@@ -86220,13 +70949,14 @@ angular.module('ui.bootstrap.carousel', ['ui.bootstrap.transition'])
  * Creates a slide inside a {@link ui.bootstrap.carousel.directive:carousel carousel}.  Must be placed as a child of a carousel element.
  *
  * @param {boolean=} active Model binding, whether or not this slide is currently active.
+ * @param {number=} index The index of the slide. The slides will be sorted by this parameter.
  *
  * @example
 <example module="ui.bootstrap">
   <file name="index.html">
 <div ng-controller="CarouselDemoCtrl">
   <carousel>
-    <slide ng-repeat="slide in slides" active="slide.active">
+    <slide ng-repeat="slide in slides" active="slide.active" index="$index">
       <img ng-src="{{slide.image}}" style="margin:auto;">
       <div class="carousel-caption">
         <h4>Slide {{$index}}</h4>
@@ -86258,9 +70988,13 @@ function CarouselDemoCtrl($scope) {
     restrict: 'EA',
     transclude: true,
     replace: true,
-    templateUrl: 'template/carousel/slide.html',
+    templateUrl: function(element, attrs) {
+      return attrs.templateUrl || 'template/carousel/slide.html';
+    },
     scope: {
-      active: '=?'
+      active: '=?',
+      actual: '=?',
+      index: '=?'
     },
     link: function (scope, element, attrs, carouselCtrl) {
       carouselCtrl.addSlide(scope, element);
@@ -86276,11 +71010,96 @@ function CarouselDemoCtrl($scope) {
       });
     }
   };
-});
+})
+
+.animation('.item', [
+         '$injector', '$animate',
+function ($injector, $animate) {
+  var NO_TRANSITION = 'uib-noTransition',
+    SLIDE_DIRECTION = 'uib-slideDirection',
+    $animateCss = null;
+
+  if ($injector.has('$animateCss')) {
+    $animateCss = $injector.get('$animateCss');
+  }
+
+  function removeClass(element, className, callback) {
+    element.removeClass(className);
+    if (callback) {
+      callback();
+    }
+  }
+
+  return {
+    beforeAddClass: function (element, className, done) {
+      // Due to transclusion, noTransition property is on parent's scope
+      if (className == 'active' && element.parent() &&
+          !element.parent().data(NO_TRANSITION)) {
+        var stopped = false;
+        var direction = element.data(SLIDE_DIRECTION);
+        var directionClass = direction == 'next' ? 'left' : 'right';
+        var removeClassFn = removeClass.bind(this, element,
+          directionClass + ' ' + direction, done);
+        element.addClass(direction);
+
+        if ($animateCss) {
+          $animateCss(element, {addClass: directionClass})
+            .start()
+            .done(removeClassFn);
+        } else {
+          $animate.addClass(element, directionClass).then(function () {
+            if (!stopped) {
+              removeClassFn();
+            }
+            done();
+          });
+        }
+
+        return function () {
+          stopped = true;
+        };
+      }
+      done();
+    },
+    beforeRemoveClass: function (element, className, done) {
+      // Due to transclusion, noTransition property is on parent's scope
+      if (className === 'active' && element.parent() &&
+          !element.parent().data(NO_TRANSITION)) {
+        var stopped = false;
+        var direction = element.data(SLIDE_DIRECTION);
+        var directionClass = direction == 'next' ? 'left' : 'right';
+        var removeClassFn = removeClass.bind(this, element, directionClass, done);
+
+        if ($animateCss) {
+          $animateCss(element, {addClass: directionClass})
+            .start()
+            .done(removeClassFn);
+        } else {
+          $animate.addClass(element, directionClass).then(function () {
+            if (!stopped) {
+              removeClassFn();
+            }
+            done();
+          });
+        }
+        return function () {
+          stopped = true;
+        };
+      }
+      done();
+    }
+  };
+
+}])
+
+
+;
 
 angular.module('ui.bootstrap.dateparser', [])
 
-.service('dateParser', ['$locale', 'orderByFilter', function($locale, orderByFilter) {
+.service('dateParser', ['$log', '$locale', 'orderByFilter', function($log, $locale, orderByFilter) {
+  // Pulled from https://github.com/mbostock/d3/blob/master/src/format/requote.js
+  var SPECIAL_CHARACTERS_REGEXP = /[\\\^\$\*\+\?\|\[\]\(\)\.\{\}]/g;
 
   this.parsers = {};
 
@@ -86326,6 +71145,54 @@ angular.module('ui.bootstrap.dateparser', [])
     },
     'EEE': {
       regex: $locale.DATETIME_FORMATS.SHORTDAY.join('|')
+    },
+    'HH': {
+      regex: '(?:0|1)[0-9]|2[0-3]',
+      apply: function(value) { this.hours = +value; }
+    },
+    'hh': {
+      regex: '0[0-9]|1[0-2]',
+      apply: function(value) { this.hours = +value; }
+    },
+    'H': {
+      regex: '1?[0-9]|2[0-3]',
+      apply: function(value) { this.hours = +value; }
+    },
+    'h': {
+      regex: '[0-9]|1[0-2]',
+      apply: function(value) { this.hours = +value; }
+    },
+    'mm': {
+      regex: '[0-5][0-9]',
+      apply: function(value) { this.minutes = +value; }
+    },
+    'm': {
+      regex: '[0-9]|[1-5][0-9]',
+      apply: function(value) { this.minutes = +value; }
+    },
+    'sss': {
+      regex: '[0-9][0-9][0-9]',
+      apply: function(value) { this.milliseconds = +value; }
+    },
+    'ss': {
+      regex: '[0-5][0-9]',
+      apply: function(value) { this.seconds = +value; }
+    },
+    's': {
+      regex: '[0-9]|[1-5][0-9]',
+      apply: function(value) { this.seconds = +value; }
+    },
+    'a': {
+      regex: $locale.DATETIME_FORMATS.AMPMS.join('|'),
+      apply: function(value) {
+        if (this.hours === 12) {
+          this.hours = 0;
+        }
+
+        if (value === 'PM') {
+          this.hours += 12;
+        }
+      }
     }
   };
 
@@ -86356,14 +71223,15 @@ angular.module('ui.bootstrap.dateparser', [])
     };
   }
 
-  this.parse = function(input, format) {
-    if ( !angular.isString(input) || !format ) {
+  this.parse = function(input, format, baseDate) {
+    if (!angular.isString(input) || !format) {
       return input;
     }
 
     format = $locale.DATETIME_FORMATS[format] || format;
+    format = format.replace(SPECIAL_CHARACTERS_REGEXP, '\\$&');
 
-    if ( !this.parsers[format] ) {
+    if (!this.parsers[format]) {
       this.parsers[format] = createParser(format);
     }
 
@@ -86372,18 +71240,36 @@ angular.module('ui.bootstrap.dateparser', [])
         map = parser.map,
         results = input.match(regex);
 
-    if ( results && results.length ) {
-      var fields = { year: 1900, month: 0, date: 1, hours: 0 }, dt;
+    if (results && results.length) {
+      var fields, dt;
+      if (angular.isDate(baseDate) && !isNaN(baseDate.getTime())) {
+        fields = {
+          year: baseDate.getFullYear(),
+          month: baseDate.getMonth(),
+          date: baseDate.getDate(),
+          hours: baseDate.getHours(),
+          minutes: baseDate.getMinutes(),
+          seconds: baseDate.getSeconds(),
+          milliseconds: baseDate.getMilliseconds()
+        };
+      } else {
+        if (baseDate) {
+          $log.warn('dateparser:', 'baseDate is not a valid date');
+        }
+        fields = { year: 1900, month: 0, date: 1, hours: 0, minutes: 0, seconds: 0, milliseconds: 0 };
+      }
 
-      for( var i = 1, n = results.length; i < n; i++ ) {
+      for (var i = 1, n = results.length; i < n; i++) {
         var mapper = map[i-1];
-        if ( mapper.apply ) {
+        if (mapper.apply) {
           mapper.apply.call(fields, results[i]);
         }
       }
 
-      if ( isValid(fields.year, fields.month, fields.date) ) {
-        dt = new Date( fields.year, fields.month, fields.date, fields.hours);
+      if (isValid(fields.year, fields.month, fields.date)) {
+        dt = new Date(fields.year, fields.month, fields.date,
+          fields.hours, fields.minutes, fields.seconds,
+          fields.milliseconds || 0);
       }
 
       return dt;
@@ -86393,12 +71279,16 @@ angular.module('ui.bootstrap.dateparser', [])
   // Check if date is valid for specific month (and year for February).
   // Month: 0 = Jan, 1 = Feb, etc
   function isValid(year, month, date) {
-    if ( month === 1 && date > 28) {
-        return date === 29 && ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0);
+    if (date < 1) {
+      return false;
     }
 
-    if ( month === 3 || month === 5 || month === 8 || month === 10) {
-        return date < 31;
+    if (month === 1 && date > 28) {
+      return date === 29 && ((year % 4 === 0 && year % 100 !== 0) || year % 400 === 0);
+    }
+
+    if (month === 3 || month === 5 || month === 8 || month === 10) {
+      return date < 31;
     }
 
     return true;
@@ -86413,8 +71303,7 @@ angular.module('ui.bootstrap.position', [])
  * relation to other, existing elements (this is the case for tooltips, popovers,
  * typeahead suggestions etc.).
  */
-  .factory('$position', ['$document', '$window', function ($document, $window) {
-
+  .factory('$position', ['$document', '$window', function($document, $window) {
     function getStyle(el, cssprop) {
       if (el.currentStyle) { //IE
         return el.currentStyle[cssprop];
@@ -86437,7 +71326,7 @@ angular.module('ui.bootstrap.position', [])
      * returns the closest, non-statically positioned parentOffset of a given element
      * @param element
      */
-    var parentOffsetEl = function (element) {
+    var parentOffsetEl = function(element) {
       var docDomEl = $document[0];
       var offsetParent = element.offsetParent || docDomEl;
       while (offsetParent && offsetParent !== docDomEl && isStaticPositioned(offsetParent) ) {
@@ -86451,7 +71340,7 @@ angular.module('ui.bootstrap.position', [])
        * Provides read-only equivalent of jQuery's position function:
        * http://api.jquery.com/position/
        */
-      position: function (element) {
+      position: function(element) {
         var elBCR = this.offset(element);
         var offsetParentBCR = { top: 0, left: 0 };
         var offsetParentEl = parentOffsetEl(element[0]);
@@ -86474,7 +71363,7 @@ angular.module('ui.bootstrap.position', [])
        * Provides read-only equivalent of jQuery's offset function:
        * http://api.jquery.com/offset/
        */
-      offset: function (element) {
+      offset: function(element) {
         var boundingClientRect = element[0].getBoundingClientRect();
         return {
           width: boundingClientRect.width || element.prop('offsetWidth'),
@@ -86487,8 +71376,7 @@ angular.module('ui.bootstrap.position', [])
       /**
        * Provides coordinates for the targetEl in relation to hostEl
        */
-      positionElements: function (hostEl, targetEl, positionStr, appendToBody) {
-
+      positionElements: function(hostEl, targetEl, positionStr, appendToBody) {
         var positionStrParts = positionStr.split('-');
         var pos0 = positionStrParts[0], pos1 = positionStrParts[1] || 'center';
 
@@ -86503,25 +71391,25 @@ angular.module('ui.bootstrap.position', [])
         targetElHeight = targetEl.prop('offsetHeight');
 
         var shiftWidth = {
-          center: function () {
+          center: function() {
             return hostElPos.left + hostElPos.width / 2 - targetElWidth / 2;
           },
-          left: function () {
+          left: function() {
             return hostElPos.left;
           },
-          right: function () {
+          right: function() {
             return hostElPos.left + hostElPos.width;
           }
         };
 
         var shiftHeight = {
-          center: function () {
+          center: function() {
             return hostElPos.top + hostElPos.height / 2 - targetElHeight / 2;
           },
-          top: function () {
+          top: function() {
             return hostElPos.top;
           },
-          bottom: function () {
+          bottom: function() {
             return hostElPos.top + hostElPos.height;
           }
         };
@@ -86560,6 +71448,8 @@ angular.module('ui.bootstrap.position', [])
 
 angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootstrap.position'])
 
+.value('$datepickerSuppressError', false)
+
 .constant('datepickerConfig', {
   formatDay: 'dd',
   formatMonth: 'MMMM',
@@ -86574,10 +71464,11 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
   startingDay: 0,
   yearRange: 20,
   minDate: null,
-  maxDate: null
+  maxDate: null,
+  shortcutPropagation: false
 })
 
-.controller('DatepickerController', ['$scope', '$attrs', '$parse', '$interpolate', '$timeout', '$log', 'dateFilter', 'datepickerConfig', function($scope, $attrs, $parse, $interpolate, $timeout, $log, dateFilter, datepickerConfig) {
+.controller('DatepickerController', ['$scope', '$attrs', '$parse', '$interpolate', '$log', 'dateFilter', 'datepickerConfig', '$datepickerSuppressError', function($scope, $attrs, $parse, $interpolate, $log, dateFilter, datepickerConfig, $datepickerSuppressError) {
   var self = this,
       ngModelCtrl = { $setViewValue: angular.noop }; // nullModelCtrl;
 
@@ -86586,13 +71477,13 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
 
   // Configuration attributes
   angular.forEach(['formatDay', 'formatMonth', 'formatYear', 'formatDayHeader', 'formatDayTitle', 'formatMonthTitle',
-                   'minMode', 'maxMode', 'showWeeks', 'startingDay', 'yearRange'], function( key, index ) {
-    self[key] = angular.isDefined($attrs[key]) ? (index < 8 ? $interpolate($attrs[key])($scope.$parent) : $scope.$parent.$eval($attrs[key])) : datepickerConfig[key];
+                   'showWeeks', 'startingDay', 'yearRange', 'shortcutPropagation'], function(key, index) {
+    self[key] = angular.isDefined($attrs[key]) ? (index < 6 ? $interpolate($attrs[key])($scope.$parent) : $scope.$parent.$eval($attrs[key])) : datepickerConfig[key];
   });
 
   // Watchable date attributes
-  angular.forEach(['minDate', 'maxDate'], function( key ) {
-    if ( $attrs[key] ) {
+  angular.forEach(['minDate', 'maxDate'], function(key) {
+    if ($attrs[key]) {
       $scope.$parent.$watch($parse($attrs[key]), function(value) {
         self[key] = value ? new Date(value) : null;
         self.refreshView();
@@ -86602,9 +71493,35 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
     }
   });
 
+  angular.forEach(['minMode', 'maxMode'], function(key) {
+    if ($attrs[key]) {
+      $scope.$parent.$watch($parse($attrs[key]), function(value) {
+        self[key] = angular.isDefined(value) ? value : $attrs[key];
+        $scope[key] = self[key];
+        if ((key == 'minMode' && self.modes.indexOf($scope.datepickerMode) < self.modes.indexOf(self[key])) || (key == 'maxMode' && self.modes.indexOf($scope.datepickerMode) > self.modes.indexOf(self[key]))) {
+          $scope.datepickerMode = self[key];
+        }
+      });
+    } else {
+      self[key] = datepickerConfig[key] || null;
+      $scope[key] = self[key];
+    }
+  });
+
   $scope.datepickerMode = $scope.datepickerMode || datepickerConfig.datepickerMode;
   $scope.uniqueId = 'datepicker-' + $scope.$id + '-' + Math.floor(Math.random() * 10000);
-  this.activeDate = angular.isDefined($attrs.initDate) ? $scope.$parent.$eval($attrs.initDate) : new Date();
+
+  if (angular.isDefined($attrs.initDate)) {
+    this.activeDate = $scope.$parent.$eval($attrs.initDate) || new Date();
+    $scope.$parent.$watch($attrs.initDate, function(initDate) {
+      if (initDate && (ngModelCtrl.$isEmpty(ngModelCtrl.$modelValue) || ngModelCtrl.$invalid)) {
+        self.activeDate = initDate;
+        self.refreshView();
+      }
+    });
+  } else {
+    this.activeDate = new Date();
+  }
 
   $scope.isActive = function(dateObject) {
     if (self.compare(dateObject.date, self.activeDate) === 0) {
@@ -86614,7 +71531,7 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
     return false;
   };
 
-  this.init = function( ngModelCtrl_ ) {
+  this.init = function(ngModelCtrl_) {
     ngModelCtrl = ngModelCtrl_;
 
     ngModelCtrl.$render = function() {
@@ -86623,42 +71540,46 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
   };
 
   this.render = function() {
-    if ( ngModelCtrl.$modelValue ) {
-      var date = new Date( ngModelCtrl.$modelValue ),
+    if (ngModelCtrl.$viewValue) {
+      var date = new Date(ngModelCtrl.$viewValue),
           isValid = !isNaN(date);
 
-      if ( isValid ) {
+      if (isValid) {
         this.activeDate = date;
-      } else {
+      } else if (!$datepickerSuppressError) {
         $log.error('Datepicker directive: "ng-model" value must be a Date object, a number of milliseconds since 01.01.1970 or a string representing an RFC2822 or ISO 8601 date.');
       }
-      ngModelCtrl.$setValidity('date', isValid);
     }
     this.refreshView();
   };
 
   this.refreshView = function() {
-    if ( this.element ) {
+    if (this.element) {
       this._refreshView();
 
-      var date = ngModelCtrl.$modelValue ? new Date(ngModelCtrl.$modelValue) : null;
-      ngModelCtrl.$setValidity('date-disabled', !date || (this.element && !this.isDisabled(date)));
+      var date = ngModelCtrl.$viewValue ? new Date(ngModelCtrl.$viewValue) : null;
+      ngModelCtrl.$setValidity('dateDisabled', !date || (this.element && !this.isDisabled(date)));
     }
   };
 
   this.createDateObject = function(date, format) {
-    var model = ngModelCtrl.$modelValue ? new Date(ngModelCtrl.$modelValue) : null;
+    var model = ngModelCtrl.$viewValue ? new Date(ngModelCtrl.$viewValue) : null;
     return {
       date: date,
       label: dateFilter(date, format),
       selected: model && this.compare(date, model) === 0,
       disabled: this.isDisabled(date),
-      current: this.compare(date, new Date()) === 0
+      current: this.compare(date, new Date()) === 0,
+      customClass: this.customClass(date)
     };
   };
 
-  this.isDisabled = function( date ) {
+  this.isDisabled = function(date) {
     return ((this.minDate && this.compare(date, this.minDate) < 0) || (this.maxDate && this.compare(date, this.maxDate) > 0) || ($attrs.dateDisabled && $scope.dateDisabled({date: date, mode: $scope.datepickerMode})));
+  };
+
+  this.customClass = function(date) {
+    return $scope.customClass({date: date, mode: $scope.datepickerMode});
   };
 
   // Split array into smaller arrays
@@ -86670,59 +71591,70 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
     return arrays;
   };
 
-  $scope.select = function( date ) {
-    if ( $scope.datepickerMode === self.minMode ) {
-      var dt = ngModelCtrl.$modelValue ? new Date( ngModelCtrl.$modelValue ) : new Date(0, 0, 0, 0, 0, 0, 0);
-      dt.setFullYear( date.getFullYear(), date.getMonth(), date.getDate() );
-      ngModelCtrl.$setViewValue( dt );
+  // Fix a hard-reprodusible bug with timezones
+  // The bug depends on OS, browser, current timezone and current date
+  // i.e.
+  // var date = new Date(2014, 0, 1);
+  // console.log(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours());
+  // can result in "2013 11 31 23" because of the bug.
+  this.fixTimeZone = function(date) {
+    var hours = date.getHours();
+    date.setHours(hours === 23 ? hours + 2 : 0);
+  };
+
+  $scope.select = function(date) {
+    if ($scope.datepickerMode === self.minMode) {
+      var dt = ngModelCtrl.$viewValue ? new Date(ngModelCtrl.$viewValue) : new Date(0, 0, 0, 0, 0, 0, 0);
+      dt.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+      ngModelCtrl.$setViewValue(dt);
       ngModelCtrl.$render();
     } else {
       self.activeDate = date;
-      $scope.datepickerMode = self.modes[ self.modes.indexOf( $scope.datepickerMode ) - 1 ];
+      $scope.datepickerMode = self.modes[self.modes.indexOf($scope.datepickerMode) - 1];
     }
   };
 
-  $scope.move = function( direction ) {
+  $scope.move = function(direction) {
     var year = self.activeDate.getFullYear() + direction * (self.step.years || 0),
         month = self.activeDate.getMonth() + direction * (self.step.months || 0);
     self.activeDate.setFullYear(year, month, 1);
     self.refreshView();
   };
 
-  $scope.toggleMode = function( direction ) {
+  $scope.toggleMode = function(direction) {
     direction = direction || 1;
 
     if (($scope.datepickerMode === self.maxMode && direction === 1) || ($scope.datepickerMode === self.minMode && direction === -1)) {
       return;
     }
 
-    $scope.datepickerMode = self.modes[ self.modes.indexOf( $scope.datepickerMode ) + direction ];
+    $scope.datepickerMode = self.modes[self.modes.indexOf($scope.datepickerMode) + direction];
   };
 
   // Key event mapper
-  $scope.keys = { 13:'enter', 32:'space', 33:'pageup', 34:'pagedown', 35:'end', 36:'home', 37:'left', 38:'up', 39:'right', 40:'down' };
+  $scope.keys = { 13: 'enter', 32: 'space', 33: 'pageup', 34: 'pagedown', 35: 'end', 36: 'home', 37: 'left', 38: 'up', 39: 'right', 40: 'down' };
 
   var focusElement = function() {
-    $timeout(function() {
-      self.element[0].focus();
-    }, 0 , false);
+    self.element[0].focus();
   };
 
   // Listen for focus requests from popup directive
   $scope.$on('datepicker.focus', focusElement);
 
-  $scope.keydown = function( evt ) {
+  $scope.keydown = function(evt) {
     var key = $scope.keys[evt.which];
 
-    if ( !key || evt.shiftKey || evt.altKey ) {
+    if (!key || evt.shiftKey || evt.altKey) {
       return;
     }
 
     evt.preventDefault();
-    evt.stopPropagation();
+    if (!self.shortcutPropagation) {
+      evt.stopPropagation();
+    }
 
     if (key === 'enter' || key === 'space') {
-      if ( self.isDisabled(self.activeDate)) {
+      if (self.isDisabled(self.activeDate)) {
         return; // do nothing
       }
       $scope.select(self.activeDate);
@@ -86737,28 +71669,31 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
   };
 }])
 
-.directive( 'datepicker', function () {
+.directive('datepicker', function() {
   return {
     restrict: 'EA',
     replace: true,
-    templateUrl: 'template/datepicker/datepicker.html',
+    templateUrl: function(element, attrs) {
+      return attrs.templateUrl || 'template/datepicker/datepicker.html';
+    },
     scope: {
       datepickerMode: '=?',
-      dateDisabled: '&'
+      dateDisabled: '&',
+      customClass: '&',
+      shortcutPropagation: '&?'
     },
-    require: ['datepicker', '?^ngModel'],
+    require: ['datepicker', '^ngModel'],
     controller: 'DatepickerController',
+    controllerAs: 'datepicker',
     link: function(scope, element, attrs, ctrls) {
       var datepickerCtrl = ctrls[0], ngModelCtrl = ctrls[1];
 
-      if ( ngModelCtrl ) {
-        datepickerCtrl.init( ngModelCtrl );
-      }
+      datepickerCtrl.init(ngModelCtrl);
     }
   };
 })
 
-.directive('daypicker', ['dateFilter', function (dateFilter) {
+.directive('daypicker', ['dateFilter', function(dateFilter) {
   return {
     restrict: 'EA',
     replace: true,
@@ -86771,16 +71706,17 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
       ctrl.element = element;
 
       var DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-      function getDaysInMonth( year, month ) {
+      function getDaysInMonth(year, month) {
         return ((month === 1) && (year % 4 === 0) && ((year % 100 !== 0) || (year % 400 === 0))) ? 29 : DAYS_IN_MONTH[month];
       }
 
       function getDates(startDate, n) {
-        var dates = new Array(n), current = new Date(startDate), i = 0;
-        current.setHours(12); // Prevent repeated dates because of timezone bug
-        while ( i < n ) {
-          dates[i++] = new Date(current);
-          current.setDate( current.getDate() + 1 );
+        var dates = new Array(n), current = new Date(startDate), i = 0, date;
+        while (i < n) {
+          date = new Date(current);
+          ctrl.fixTimeZone(date);
+          dates[i++] = date;
+          current.setDate(current.getDate() + 1);
         }
         return dates;
       }
@@ -86793,8 +71729,8 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
           numDisplayedFromPreviousMonth = (difference > 0) ? 7 - difference : - difference,
           firstDate = new Date(firstDayOfMonth);
 
-        if ( numDisplayedFromPreviousMonth > 0 ) {
-          firstDate.setDate( - numDisplayedFromPreviousMonth + 1 );
+        if (numDisplayedFromPreviousMonth > 0) {
+          firstDate.setDate(-numDisplayedFromPreviousMonth + 1);
         }
 
         // 42 is the number of days on a six-month calendar
@@ -86817,16 +71753,19 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
         scope.title = dateFilter(ctrl.activeDate, ctrl.formatDayTitle);
         scope.rows = ctrl.split(days, 7);
 
-        if ( scope.showWeeks ) {
+        if (scope.showWeeks) {
           scope.weekNumbers = [];
-          var weekNumber = getISO8601WeekNumber( scope.rows[0][0].date ),
+          var thursdayIndex = (4 + 7 - ctrl.startingDay) % 7,
               numWeeks = scope.rows.length;
-          while( scope.weekNumbers.push(weekNumber++) < numWeeks ) {}
+          for (var curWeek = 0; curWeek < numWeeks; curWeek++) {
+            scope.weekNumbers.push(
+              getISO8601WeekNumber(scope.rows[curWeek][thursdayIndex].date));
+          }
         }
       };
 
       ctrl.compare = function(date1, date2) {
-        return (new Date( date1.getFullYear(), date1.getMonth(), date1.getDate() ) - new Date( date2.getFullYear(), date2.getMonth(), date2.getDate() ) );
+        return (new Date(date1.getFullYear(), date1.getMonth(), date1.getDate()) - new Date(date2.getFullYear(), date2.getMonth(), date2.getDate()));
       };
 
       function getISO8601WeekNumber(date) {
@@ -86838,7 +71777,7 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
         return Math.floor(Math.round((time - checkDate) / 86400000) / 7) + 1;
       }
 
-      ctrl.handleKeyDown = function( key, evt ) {
+      ctrl.handleKeyDown = function(key, evt) {
         var date = ctrl.activeDate.getDate();
 
         if (key === 'left') {
@@ -86866,7 +71805,7 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
   };
 }])
 
-.directive('monthpicker', ['dateFilter', function (dateFilter) {
+.directive('monthpicker', ['dateFilter', function(dateFilter) {
   return {
     restrict: 'EA',
     replace: true,
@@ -86878,10 +71817,13 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
 
       ctrl._refreshView = function() {
         var months = new Array(12),
-            year = ctrl.activeDate.getFullYear();
+            year = ctrl.activeDate.getFullYear(),
+            date;
 
-        for ( var i = 0; i < 12; i++ ) {
-          months[i] = angular.extend(ctrl.createDateObject(new Date(year, i, 1), ctrl.formatMonth), {
+        for (var i = 0; i < 12; i++) {
+          date = new Date(year, i, 1);
+          ctrl.fixTimeZone(date);
+          months[i] = angular.extend(ctrl.createDateObject(date, ctrl.formatMonth), {
             uid: scope.uniqueId + '-' + i
           });
         }
@@ -86891,10 +71833,10 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
       };
 
       ctrl.compare = function(date1, date2) {
-        return new Date( date1.getFullYear(), date1.getMonth() ) - new Date( date2.getFullYear(), date2.getMonth() );
+        return new Date(date1.getFullYear(), date1.getMonth()) - new Date(date2.getFullYear(), date2.getMonth());
       };
 
-      ctrl.handleKeyDown = function( key, evt ) {
+      ctrl.handleKeyDown = function(key, evt) {
         var date = ctrl.activeDate.getMonth();
 
         if (key === 'left') {
@@ -86921,7 +71863,7 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
   };
 }])
 
-.directive('yearpicker', ['dateFilter', function (dateFilter) {
+.directive('yearpicker', ['dateFilter', function(dateFilter) {
   return {
     restrict: 'EA',
     replace: true,
@@ -86938,10 +71880,12 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
       }
 
       ctrl._refreshView = function() {
-        var years = new Array(range);
+        var years = new Array(range), date;
 
-        for ( var i = 0, start = getStartingYear(ctrl.activeDate.getFullYear()); i < range; i++ ) {
-          years[i] = angular.extend(ctrl.createDateObject(new Date(start + i, 0, 1), ctrl.formatYear), {
+        for (var i = 0, start = getStartingYear(ctrl.activeDate.getFullYear()); i < range; i++) {
+          date = new Date(start + i, 0, 1);
+          ctrl.fixTimeZone(date);
+          years[i] = angular.extend(ctrl.createDateObject(date, ctrl.formatYear), {
             uid: scope.uniqueId + '-' + i
           });
         }
@@ -86954,7 +71898,7 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
         return date1.getFullYear() - date2.getFullYear();
       };
 
-      ctrl.handleKeyDown = function( key, evt ) {
+      ctrl.handleKeyDown = function(key, evt) {
         var date = ctrl.activeDate.getFullYear();
 
         if (key === 'left') {
@@ -86968,9 +71912,9 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
         } else if (key === 'pageup' || key === 'pagedown') {
           date += (key === 'pageup' ? - 1 : 1) * ctrl.step.years;
         } else if (key === 'home') {
-          date = getStartingYear( ctrl.activeDate.getFullYear() );
+          date = getStartingYear(ctrl.activeDate.getFullYear());
         } else if (key === 'end') {
-          date = getStartingYear( ctrl.activeDate.getFullYear() ) + range - 1;
+          date = getStartingYear(ctrl.activeDate.getFullYear()) + range - 1;
         }
         ctrl.activeDate.setFullYear(date);
       };
@@ -86982,16 +71926,24 @@ angular.module('ui.bootstrap.datepicker', ['ui.bootstrap.dateparser', 'ui.bootst
 
 .constant('datepickerPopupConfig', {
   datepickerPopup: 'yyyy-MM-dd',
+  datepickerPopupTemplateUrl: 'template/datepicker/popup.html',
+  datepickerTemplateUrl: 'template/datepicker/datepicker.html',
+  html5Types: {
+    date: 'yyyy-MM-dd',
+    'datetime-local': 'yyyy-MM-ddTHH:mm:ss.sss',
+    'month': 'yyyy-MM'
+  },
   currentText: 'Today',
   clearText: 'Clear',
   closeText: 'Done',
   closeOnDateSelection: true,
   appendToBody: false,
-  showButtonBar: true
+  showButtonBar: true,
+  onOpenFocus: true
 })
 
-.directive('datepickerPopup', ['$compile', '$parse', '$document', '$position', 'dateFilter', 'dateParser', 'datepickerPopupConfig',
-function ($compile, $parse, $document, $position, dateFilter, dateParser, datepickerPopupConfig) {
+.directive('datepickerPopup', ['$compile', '$parse', '$document', '$rootScope', '$position', 'dateFilter', 'dateParser', 'datepickerPopupConfig', '$timeout',
+function($compile, $parse, $document, $rootScope, $position, dateFilter, dateParser, datepickerPopupConfig, $timeout) {
   return {
     restrict: 'EA',
     require: 'ngModel',
@@ -87000,57 +71952,118 @@ function ($compile, $parse, $document, $position, dateFilter, dateParser, datepi
       currentText: '@',
       clearText: '@',
       closeText: '@',
-      dateDisabled: '&'
+      dateDisabled: '&',
+      customClass: '&'
     },
     link: function(scope, element, attrs, ngModel) {
       var dateFormat,
           closeOnDateSelection = angular.isDefined(attrs.closeOnDateSelection) ? scope.$parent.$eval(attrs.closeOnDateSelection) : datepickerPopupConfig.closeOnDateSelection,
-          appendToBody = angular.isDefined(attrs.datepickerAppendToBody) ? scope.$parent.$eval(attrs.datepickerAppendToBody) : datepickerPopupConfig.appendToBody;
+          appendToBody = angular.isDefined(attrs.datepickerAppendToBody) ? scope.$parent.$eval(attrs.datepickerAppendToBody) : datepickerPopupConfig.appendToBody,
+          onOpenFocus = angular.isDefined(attrs.onOpenFocus) ? scope.$parent.$eval(attrs.onOpenFocus) : datepickerPopupConfig.onOpenFocus,
+          datepickerPopupTemplateUrl = angular.isDefined(attrs.datepickerPopupTemplateUrl) ? attrs.datepickerPopupTemplateUrl : datepickerPopupConfig.datepickerPopupTemplateUrl,
+          datepickerTemplateUrl = angular.isDefined(attrs.datepickerTemplateUrl) ? attrs.datepickerTemplateUrl : datepickerPopupConfig.datepickerTemplateUrl,
+          cache = {};
 
       scope.showButtonBar = angular.isDefined(attrs.showButtonBar) ? scope.$parent.$eval(attrs.showButtonBar) : datepickerPopupConfig.showButtonBar;
 
-      scope.getText = function( key ) {
+      scope.getText = function(key) {
         return scope[key + 'Text'] || datepickerPopupConfig[key + 'Text'];
       };
 
-      attrs.$observe('datepickerPopup', function(value) {
-          dateFormat = value || datepickerPopupConfig.datepickerPopup;
-          ngModel.$render();
-      });
+      scope.isDisabled = function(date) {
+        if (date === 'today') {
+          date = new Date();
+        }
+
+        return ((scope.watchData.minDate && scope.compare(date, cache.minDate) < 0) ||
+          (scope.watchData.maxDate && scope.compare(date, cache.maxDate) > 0));
+      };
+
+      scope.compare = function(date1, date2) {
+        return (new Date(date1.getFullYear(), date1.getMonth(), date1.getDate()) - new Date(date2.getFullYear(), date2.getMonth(), date2.getDate()));
+      };
+
+      var isHtml5DateInput = false;
+      if (datepickerPopupConfig.html5Types[attrs.type]) {
+        dateFormat = datepickerPopupConfig.html5Types[attrs.type];
+        isHtml5DateInput = true;
+      } else {
+        dateFormat = attrs.datepickerPopup || datepickerPopupConfig.datepickerPopup;
+        attrs.$observe('datepickerPopup', function(value, oldValue) {
+            var newDateFormat = value || datepickerPopupConfig.datepickerPopup;
+            // Invalidate the $modelValue to ensure that formatters re-run
+            // FIXME: Refactor when PR is merged: https://github.com/angular/angular.js/pull/10764
+            if (newDateFormat !== dateFormat) {
+              dateFormat = newDateFormat;
+              ngModel.$modelValue = null;
+
+              if (!dateFormat) {
+                throw new Error('datepickerPopup must have a date format specified.');
+              }
+            }
+        });
+      }
+
+      if (!dateFormat) {
+        throw new Error('datepickerPopup must have a date format specified.');
+      }
+
+      if (isHtml5DateInput && attrs.datepickerPopup) {
+        throw new Error('HTML5 date input types do not support custom formats.');
+      }
 
       // popup element used to display calendar
       var popupEl = angular.element('<div datepicker-popup-wrap><div datepicker></div></div>');
       popupEl.attr({
         'ng-model': 'date',
-        'ng-change': 'dateSelection()'
+        'ng-change': 'dateSelection(date)',
+        'template-url': datepickerPopupTemplateUrl
       });
 
-      function cameltoDash( string ){
+      function cameltoDash(string) {
         return string.replace(/([A-Z])/g, function($1) { return '-' + $1.toLowerCase(); });
       }
 
       // datepicker element
       var datepickerEl = angular.element(popupEl.children()[0]);
-      if ( attrs.datepickerOptions ) {
-        angular.forEach(scope.$parent.$eval(attrs.datepickerOptions), function( value, option ) {
+      datepickerEl.attr('template-url', datepickerTemplateUrl);
+
+      if (isHtml5DateInput) {
+        if (attrs.type === 'month') {
+          datepickerEl.attr('datepicker-mode', '"month"');
+          datepickerEl.attr('min-mode', 'month');
+        }
+      }
+
+      if (attrs.datepickerOptions) {
+        var options = scope.$parent.$eval(attrs.datepickerOptions);
+        if (options && options.initDate) {
+          scope.initDate = options.initDate;
+          datepickerEl.attr('init-date', 'initDate');
+          delete options.initDate;
+        }
+        angular.forEach(options, function(value, option) {
           datepickerEl.attr( cameltoDash(option), value );
         });
       }
 
       scope.watchData = {};
-      angular.forEach(['minDate', 'maxDate', 'datepickerMode'], function( key ) {
-        if ( attrs[key] ) {
+      angular.forEach(['minMode', 'maxMode', 'minDate', 'maxDate', 'datepickerMode', 'initDate', 'shortcutPropagation'], function(key) {
+        if (attrs[key]) {
           var getAttribute = $parse(attrs[key]);
-          scope.$parent.$watch(getAttribute, function(value){
+          scope.$parent.$watch(getAttribute, function(value) {
             scope.watchData[key] = value;
+            if (key === 'minDate' || key === 'maxDate') {
+              cache[key] = new Date(value);
+            }
           });
           datepickerEl.attr(cameltoDash(key), 'watchData.' + key);
 
           // Propagate changes from datepicker to outside
-          if ( key === 'datepickerMode' ) {
+          if (key === 'datepickerMode') {
             var setAttribute = getAttribute.assign;
             scope.$watch('watchData.' + key, function(value, oldvalue) {
-              if ( value !== oldvalue ) {
+              if (angular.isFunction(setAttribute) && value !== oldvalue) {
                 setAttribute(scope.$parent, value);
               }
             });
@@ -87061,102 +72074,154 @@ function ($compile, $parse, $document, $position, dateFilter, dateParser, datepi
         datepickerEl.attr('date-disabled', 'dateDisabled({ date: date, mode: mode })');
       }
 
+      if (attrs.showWeeks) {
+        datepickerEl.attr('show-weeks', attrs.showWeeks);
+      }
+
+      if (attrs.customClass) {
+        datepickerEl.attr('custom-class', 'customClass({ date: date, mode: mode })');
+      }
+
       function parseDate(viewValue) {
+        if (angular.isNumber(viewValue)) {
+          // presumably timestamp to date object
+          viewValue = new Date(viewValue);
+        }
+
         if (!viewValue) {
-          ngModel.$setValidity('date', true);
           return null;
         } else if (angular.isDate(viewValue) && !isNaN(viewValue)) {
-          ngModel.$setValidity('date', true);
           return viewValue;
         } else if (angular.isString(viewValue)) {
-          var date = dateParser.parse(viewValue, dateFormat) || new Date(viewValue);
+          var date = dateParser.parse(viewValue, dateFormat, scope.date);
           if (isNaN(date)) {
-            ngModel.$setValidity('date', false);
             return undefined;
           } else {
-            ngModel.$setValidity('date', true);
             return date;
           }
         } else {
-          ngModel.$setValidity('date', false);
           return undefined;
         }
       }
-      ngModel.$parsers.unshift(parseDate);
+
+      function validator(modelValue, viewValue) {
+        var value = modelValue || viewValue;
+
+        if (!attrs.ngRequired && !value) {
+          return true;
+        }
+
+        if (angular.isNumber(value)) {
+          value = new Date(value);
+        }
+        if (!value) {
+          return true;
+        } else if (angular.isDate(value) && !isNaN(value)) {
+          return true;
+        } else if (angular.isString(value)) {
+          var date = dateParser.parse(value, dateFormat);
+          return !isNaN(date);
+        } else {
+          return false;
+        }
+      }
+
+      if (!isHtml5DateInput) {
+        // Internal API to maintain the correct ng-invalid-[key] class
+        ngModel.$$parserName = 'date';
+        ngModel.$validators.date = validator;
+        ngModel.$parsers.unshift(parseDate);
+        ngModel.$formatters.push(function(value) {
+          scope.date = value;
+          return ngModel.$isEmpty(value) ? value : dateFilter(value, dateFormat);
+        });
+      } else {
+        ngModel.$formatters.push(function(value) {
+          scope.date = value;
+          return value;
+        });
+      }
 
       // Inner change
       scope.dateSelection = function(dt) {
         if (angular.isDefined(dt)) {
           scope.date = dt;
         }
-        ngModel.$setViewValue(scope.date);
-        ngModel.$render();
+        var date = scope.date ? dateFilter(scope.date, dateFormat) : null; // Setting to NULL is necessary for form validators to function
+        element.val(date);
+        ngModel.$setViewValue(date);
 
-        if ( closeOnDateSelection ) {
+        if (closeOnDateSelection) {
           scope.isOpen = false;
           element[0].focus();
         }
       };
 
-      element.bind('input change keyup', function() {
-        scope.$apply(function() {
-          scope.date = ngModel.$modelValue;
-        });
+      // Detect changes in the view from the text box
+      ngModel.$viewChangeListeners.push(function() {
+        scope.date = dateParser.parse(ngModel.$viewValue, dateFormat, scope.date);
       });
 
-      // Outter change
-      ngModel.$render = function() {
-        var date = ngModel.$viewValue ? dateFilter(ngModel.$viewValue, dateFormat) : '';
-        element.val(date);
-        scope.date = parseDate( ngModel.$modelValue );
-      };
-
       var documentClickBind = function(event) {
-        if (scope.isOpen && event.target !== element[0]) {
+        if (scope.isOpen && !(element[0].contains(event.target) || popupEl[0].contains(event.target))) {
           scope.$apply(function() {
             scope.isOpen = false;
           });
         }
       };
 
-      var keydown = function(evt, noApply) {
-        scope.keydown(evt);
+      var inputKeydownBind = function(evt) {
+        if (evt.which === 27 && scope.isOpen) {
+          evt.preventDefault();
+          evt.stopPropagation();
+          scope.$apply(function() {
+            scope.isOpen = false;
+          });
+          element[0].focus();
+        } else if (evt.which === 40 && !scope.isOpen) {
+          evt.preventDefault();
+          evt.stopPropagation();
+          scope.$apply(function() {
+            scope.isOpen = true;
+          });
+        }
       };
-      element.bind('keydown', keydown);
+      element.bind('keydown', inputKeydownBind);
 
       scope.keydown = function(evt) {
         if (evt.which === 27) {
-          evt.preventDefault();
-          evt.stopPropagation();
-          scope.close();
-        } else if (evt.which === 40 && !scope.isOpen) {
-          scope.isOpen = true;
+          scope.isOpen = false;
+          element[0].focus();
         }
       };
 
       scope.$watch('isOpen', function(value) {
         if (value) {
-          scope.$broadcast('datepicker.focus');
           scope.position = appendToBody ? $position.offset(element) : $position.position(element);
           scope.position.top = scope.position.top + element.prop('offsetHeight');
 
-          $document.bind('click', documentClickBind);
+          $timeout(function() {
+            if (onOpenFocus) {
+              scope.$broadcast('datepicker.focus');
+            }
+            $document.bind('click', documentClickBind);
+          }, 0, false);
         } else {
           $document.unbind('click', documentClickBind);
         }
       });
 
-      scope.select = function( date ) {
+      scope.select = function(date) {
         if (date === 'today') {
           var today = new Date();
-          if (angular.isDate(ngModel.$modelValue)) {
-            date = new Date(ngModel.$modelValue);
+          if (angular.isDate(scope.date)) {
+            date = new Date(scope.date);
             date.setFullYear(today.getFullYear(), today.getMonth(), today.getDate());
           } else {
             date = new Date(today.setHours(0, 0, 0, 0));
           }
         }
-        scope.dateSelection( date );
+        scope.dateSelection(date);
       };
 
       scope.close = function() {
@@ -87168,15 +72233,23 @@ function ($compile, $parse, $document, $position, dateFilter, dateParser, datepi
       // Prevent jQuery cache memory leak (template is now redundant after linking)
       popupEl.remove();
 
-      if ( appendToBody ) {
+      if (appendToBody) {
         $document.find('body').append($popup);
       } else {
         element.after($popup);
       }
 
       scope.$on('$destroy', function() {
+        if (scope.isOpen === true) {
+          if (!$rootScope.$$phase) {
+            scope.$apply(function() {
+              scope.isOpen = false;
+            });
+          }
+        }
+
         $popup.remove();
-        element.unbind('keydown', keydown);
+        element.unbind('keydown', inputKeydownBind);
         $document.unbind('click', documentClickBind);
       });
     }
@@ -87188,81 +72261,96 @@ function ($compile, $parse, $document, $position, dateFilter, dateParser, datepi
     restrict:'EA',
     replace: true,
     transclude: true,
-    templateUrl: 'template/datepicker/popup.html',
-    link:function (scope, element, attrs) {
-      element.bind('click', function(event) {
-        event.preventDefault();
-        event.stopPropagation();
-      });
+    templateUrl: function(element, attrs) {
+      return attrs.templateUrl || 'template/datepicker/popup.html';
     }
   };
 });
 
-angular.module('ui.bootstrap.dropdown', [])
+angular.module('ui.bootstrap.dropdown', ['ui.bootstrap.position'])
 
 .constant('dropdownConfig', {
   openClass: 'open'
 })
 
-.service('dropdownService', ['$document', function($document) {
+.service('dropdownService', ['$document', '$rootScope', function($document, $rootScope) {
   var openScope = null;
 
-  this.open = function( dropdownScope ) {
-    if ( !openScope ) {
+  this.open = function(dropdownScope) {
+    if (!openScope) {
       $document.bind('click', closeDropdown);
-      $document.bind('keydown', escapeKeyBind);
+      $document.bind('keydown', keybindFilter);
     }
 
-    if ( openScope && openScope !== dropdownScope ) {
-        openScope.isOpen = false;
+    if (openScope && openScope !== dropdownScope) {
+      openScope.isOpen = false;
     }
 
     openScope = dropdownScope;
   };
 
-  this.close = function( dropdownScope ) {
-    if ( openScope === dropdownScope ) {
+  this.close = function(dropdownScope) {
+    if (openScope === dropdownScope) {
       openScope = null;
       $document.unbind('click', closeDropdown);
-      $document.unbind('keydown', escapeKeyBind);
+      $document.unbind('keydown', keybindFilter);
     }
   };
 
-  var closeDropdown = function( evt ) {
+  var closeDropdown = function(evt) {
     // This method may still be called during the same mouse event that
     // unbound this event handler. So check openScope before proceeding.
     if (!openScope) { return; }
 
+    if (evt && openScope.getAutoClose() === 'disabled')  { return ; }
+
     var toggleElement = openScope.getToggleElement();
-    if ( evt && toggleElement && toggleElement[0].contains(evt.target) ) {
-        return;
+    if (evt && toggleElement && toggleElement[0].contains(evt.target)) {
+      return;
     }
 
-    openScope.$apply(function() {
-      openScope.isOpen = false;
-    });
+    var dropdownElement = openScope.getDropdownElement();
+    if (evt && openScope.getAutoClose() === 'outsideClick' &&
+      dropdownElement && dropdownElement[0].contains(evt.target)) {
+      return;
+    }
+
+    openScope.isOpen = false;
+
+    if (!$rootScope.$$phase) {
+      openScope.$apply();
+    }
   };
 
-  var escapeKeyBind = function( evt ) {
-    if ( evt.which === 27 ) {
+  var keybindFilter = function(evt) {
+    if (evt.which === 27) {
       openScope.focusToggleElement();
       closeDropdown();
+    } else if (openScope.isKeynavEnabled() && /(38|40)/.test(evt.which) && openScope.isOpen) {
+      evt.preventDefault();
+      evt.stopPropagation();
+      openScope.focusDropdownEntry(evt.which);
     }
   };
 }])
 
-.controller('DropdownController', ['$scope', '$attrs', '$parse', 'dropdownConfig', 'dropdownService', '$animate', function($scope, $attrs, $parse, dropdownConfig, dropdownService, $animate) {
+.controller('DropdownController', ['$scope', '$attrs', '$parse', 'dropdownConfig', 'dropdownService', '$animate', '$position', '$document', '$compile', '$templateRequest', function($scope, $attrs, $parse, dropdownConfig, dropdownService, $animate, $position, $document, $compile, $templateRequest) {
   var self = this,
-      scope = $scope.$new(), // create a child scope so we are not polluting original one
-      openClass = dropdownConfig.openClass,
-      getIsOpen,
-      setIsOpen = angular.noop,
-      toggleInvoker = $attrs.onToggle ? $parse($attrs.onToggle) : angular.noop;
+    scope = $scope.$new(), // create a child scope so we are not polluting original one
+    templateScope,
+    openClass = dropdownConfig.openClass,
+    getIsOpen,
+    setIsOpen = angular.noop,
+    toggleInvoker = $attrs.onToggle ? $parse($attrs.onToggle) : angular.noop,
+    appendToBody = false,
+    keynavEnabled = false,
+    selectedOption = null,
+    body = $document.find('body');
 
-  this.init = function( element ) {
+  this.init = function(element) {
     self.$element = element;
 
-    if ( $attrs.isOpen ) {
+    if ($attrs.isOpen) {
       getIsOpen = $parse($attrs.isOpen);
       setIsOpen = getIsOpen.assign;
 
@@ -87270,9 +72358,20 @@ angular.module('ui.bootstrap.dropdown', [])
         scope.isOpen = !!value;
       });
     }
+
+    appendToBody = angular.isDefined($attrs.dropdownAppendToBody);
+    keynavEnabled = angular.isDefined($attrs.keyboardNav);
+
+    if (appendToBody && self.dropdownMenu) {
+      body.append(self.dropdownMenu);
+      body.addClass('dropdown');
+      element.on('$destroy', function handleDestroyEvent() {
+        self.dropdownMenu.remove();
+      });
+    }
   };
 
-  this.toggle = function( open ) {
+  this.toggle = function(open) {
     return scope.isOpen = arguments.length ? !!open : !scope.isOpen;
   };
 
@@ -87285,35 +72384,128 @@ angular.module('ui.bootstrap.dropdown', [])
     return self.toggleElement;
   };
 
+  scope.getAutoClose = function() {
+    return $attrs.autoClose || 'always'; //or 'outsideClick' or 'disabled'
+  };
+
+  scope.getElement = function() {
+    return self.$element;
+  };
+
+  scope.isKeynavEnabled = function() {
+    return keynavEnabled;
+  };
+
+  scope.focusDropdownEntry = function(keyCode) {
+    var elems = self.dropdownMenu ? //If append to body is used.
+      (angular.element(self.dropdownMenu).find('a')) :
+      (angular.element(self.$element).find('ul').eq(0).find('a'));
+
+    switch (keyCode) {
+      case (40): {
+        if (!angular.isNumber(self.selectedOption)) {
+          self.selectedOption = 0;
+        } else {
+          self.selectedOption = (self.selectedOption === elems.length -1 ?
+            self.selectedOption :
+            self.selectedOption + 1);
+        }
+        break;
+      }
+      case (38): {
+        if (!angular.isNumber(self.selectedOption)) {
+          self.selectedOption = elems.length - 1;
+        } else {
+          self.selectedOption = self.selectedOption === 0 ?
+            0 : self.selectedOption - 1;
+        }
+        break;
+      }
+    }
+    elems[self.selectedOption].focus();
+  };
+
+  scope.getDropdownElement = function() {
+    return self.dropdownMenu;
+  };
+
   scope.focusToggleElement = function() {
-    if ( self.toggleElement ) {
+    if (self.toggleElement) {
       self.toggleElement[0].focus();
     }
   };
 
-  scope.$watch('isOpen', function( isOpen, wasOpen ) {
-    $animate[isOpen ? 'addClass' : 'removeClass'](self.$element, openClass);
+  scope.$watch('isOpen', function(isOpen, wasOpen) {
+    if (appendToBody && self.dropdownMenu) {
+      var pos = $position.positionElements(self.$element, self.dropdownMenu, 'bottom-left', true);
+      var css = {
+        top: pos.top + 'px',
+        display: isOpen ? 'block' : 'none'
+      };
 
-    if ( isOpen ) {
-      scope.focusToggleElement();
-      dropdownService.open( scope );
-    } else {
-      dropdownService.close( scope );
+      var rightalign = self.dropdownMenu.hasClass('dropdown-menu-right');
+      if (!rightalign) {
+        css.left = pos.left + 'px';
+        css.right = 'auto';
+      } else {
+        css.left = 'auto';
+        css.right = (window.innerWidth - (pos.left + self.$element.prop('offsetWidth'))) + 'px';
+      }
+
+      self.dropdownMenu.css(css);
     }
 
-    setIsOpen($scope, isOpen);
-    if (angular.isDefined(isOpen) && isOpen !== wasOpen) {
-      toggleInvoker($scope, { open: !!isOpen });
+    var openContainer = appendToBody ? body : self.$element;
+
+    $animate[isOpen ? 'addClass' : 'removeClass'](openContainer, openClass).then(function() {
+      if (angular.isDefined(isOpen) && isOpen !== wasOpen) {
+        toggleInvoker($scope, { open: !!isOpen });
+      }
+    });
+
+    if (isOpen) {
+      if (self.dropdownMenuTemplateUrl) {
+        $templateRequest(self.dropdownMenuTemplateUrl).then(function(tplContent) {
+          templateScope = scope.$new();
+          $compile(tplContent.trim())(templateScope, function(dropdownElement) {
+            var newEl = dropdownElement;
+            self.dropdownMenu.replaceWith(newEl);
+            self.dropdownMenu = newEl;
+          });
+        });
+      }
+
+      scope.focusToggleElement();
+      dropdownService.open(scope);
+    } else {
+      if (self.dropdownMenuTemplateUrl) {
+        if (templateScope) {
+          templateScope.$destroy();
+        }
+        var newEl = angular.element('<ul class="dropdown-menu"></ul>');
+        self.dropdownMenu.replaceWith(newEl);
+        self.dropdownMenu = newEl;
+      }
+
+      dropdownService.close(scope);
+      self.selectedOption = null;
+    }
+
+    if (angular.isFunction(setIsOpen)) {
+      setIsOpen($scope, isOpen);
     }
   });
 
   $scope.$on('$locationChangeSuccess', function() {
-    scope.isOpen = false;
+    if (scope.getAutoClose() !== 'disabled') {
+      scope.isOpen = false;
+    }
   });
 
-  $scope.$on('$destroy', function() {
+  var offDestroy = $scope.$on('$destroy', function() {
     scope.$destroy();
   });
+  scope.$on('$destroy', offDestroy);
 }])
 
 .directive('dropdown', function() {
@@ -87321,6 +72513,66 @@ angular.module('ui.bootstrap.dropdown', [])
     controller: 'DropdownController',
     link: function(scope, element, attrs, dropdownCtrl) {
       dropdownCtrl.init( element );
+      element.addClass('dropdown');
+    }
+  };
+})
+
+.directive('dropdownMenu', function() {
+  return {
+    restrict: 'AC',
+    require: '?^dropdown',
+    link: function(scope, element, attrs, dropdownCtrl) {
+      if (!dropdownCtrl) {
+        return;
+      }
+      var tplUrl = attrs.templateUrl;
+      if (tplUrl) {
+        dropdownCtrl.dropdownMenuTemplateUrl = tplUrl;
+      }
+      if (!dropdownCtrl.dropdownMenu) {
+        dropdownCtrl.dropdownMenu = element;
+      }
+    }
+  };
+})
+
+.directive('keyboardNav', function() {
+  return {
+    restrict: 'A',
+    require: '?^dropdown',
+    link: function (scope, element, attrs, dropdownCtrl) {
+
+      element.bind('keydown', function(e) {
+        if ([38, 40].indexOf(e.which) !== -1) {
+          e.preventDefault();
+          e.stopPropagation();
+
+          var elems = dropdownCtrl.dropdownMenu.find('a');
+
+          switch (e.which) {
+            case (40): { // Down
+              if (!angular.isNumber(dropdownCtrl.selectedOption)) {
+                dropdownCtrl.selectedOption = 0;
+              } else {
+                dropdownCtrl.selectedOption = dropdownCtrl.selectedOption === elems.length -1 ?
+                  dropdownCtrl.selectedOption : dropdownCtrl.selectedOption + 1;
+              }
+              break;
+            }
+            case (38): { // Up
+              if (!angular.isNumber(dropdownCtrl.selectedOption)) {
+                dropdownCtrl.selectedOption = elems.length - 1;
+              } else {
+                dropdownCtrl.selectedOption = dropdownCtrl.selectedOption === 0 ?
+                  0 : dropdownCtrl.selectedOption - 1;
+              }
+              break;
+            }
+          }
+          elems[dropdownCtrl.selectedOption].focus();
+        }
+      });
     }
   };
 })
@@ -87329,16 +72581,18 @@ angular.module('ui.bootstrap.dropdown', [])
   return {
     require: '?^dropdown',
     link: function(scope, element, attrs, dropdownCtrl) {
-      if ( !dropdownCtrl ) {
+      if (!dropdownCtrl) {
         return;
       }
+
+      element.addClass('dropdown-toggle');
 
       dropdownCtrl.toggleElement = element;
 
       var toggleDropdown = function(event) {
         event.preventDefault();
 
-        if ( !element.hasClass('disabled') && !attrs.disabled ) {
+        if (!element.hasClass('disabled') && !attrs.disabled) {
           scope.$apply(function() {
             dropdownCtrl.toggle();
           });
@@ -87360,25 +72614,25 @@ angular.module('ui.bootstrap.dropdown', [])
   };
 });
 
-angular.module('ui.bootstrap.modal', ['ui.bootstrap.transition'])
+angular.module('ui.bootstrap.modal', [])
 
 /**
  * A helper, internal data structure that acts as a map but also allows getting / removing
  * elements in the LIFO order
  */
-  .factory('$$stackedMap', function () {
+  .factory('$$stackedMap', function() {
     return {
-      createNew: function () {
+      createNew: function() {
         var stack = [];
 
         return {
-          add: function (key, value) {
+          add: function(key, value) {
             stack.push({
               key: key,
               value: value
             });
           },
-          get: function (key) {
+          get: function(key) {
             for (var i = 0; i < stack.length; i++) {
               if (key == stack[i].key) {
                 return stack[i];
@@ -87392,10 +72646,10 @@ angular.module('ui.bootstrap.modal', ['ui.bootstrap.transition'])
             }
             return keys;
           },
-          top: function () {
+          top: function() {
             return stack[stack.length - 1];
           },
-          remove: function (key) {
+          remove: function(key) {
             var idx = -1;
             for (var i = 0; i < stack.length; i++) {
               if (key == stack[i].key) {
@@ -87405,11 +72659,66 @@ angular.module('ui.bootstrap.modal', ['ui.bootstrap.transition'])
             }
             return stack.splice(idx, 1)[0];
           },
-          removeTop: function () {
+          removeTop: function() {
             return stack.splice(stack.length - 1, 1)[0];
           },
-          length: function () {
+          length: function() {
             return stack.length;
+          }
+        };
+      }
+    };
+  })
+
+/**
+ * A helper, internal data structure that stores all references attached to key
+ */
+  .factory('$$multiMap', function() {
+    return {
+      createNew: function() {
+        var map = {};
+
+        return {
+          entries: function() {
+            return Object.keys(map).map(function(key) {
+              return {
+                key: key,
+                value: map[key]
+              };
+            });
+          },
+          get: function(key) {
+            return map[key];
+          },
+          hasKey: function(key) {
+            return !!map[key];
+          },
+          keys: function() {
+            return Object.keys(map);
+          },
+          put: function(key, value) {
+            if (!map[key]) {
+              map[key] = [];
+            }
+
+            map[key].push(value);
+          },
+          remove: function(key, value) {
+            var values = map[key];
+
+            if (!values) {
+              return;
+            }
+
+            var idx = values.indexOf(value);
+
+            if (idx !== -1) {
+              values.splice(idx, 1);
+            }
+
+            if (!values.length) {
+              delete map[key];
+            }
           }
         };
       }
@@ -87419,70 +72728,160 @@ angular.module('ui.bootstrap.modal', ['ui.bootstrap.transition'])
 /**
  * A helper directive for the $modal service. It creates a backdrop element.
  */
-  .directive('modalBackdrop', ['$timeout', function ($timeout) {
+  .directive('modalBackdrop', [
+           '$animate', '$injector', '$modalStack',
+  function($animate ,  $injector,   $modalStack) {
+    var $animateCss = null;
+
+    if ($injector.has('$animateCss')) {
+      $animateCss = $injector.get('$animateCss');
+    }
+
     return {
       restrict: 'EA',
       replace: true,
       templateUrl: 'template/modal/backdrop.html',
-      link: function (scope, element, attrs) {
-        scope.backdropClass = attrs.backdropClass || '';
-
-        scope.animate = false;
-
-        //trigger CSS transitions
-        $timeout(function () {
-          scope.animate = true;
-        });
+      compile: function(tElement, tAttrs) {
+        tElement.addClass(tAttrs.backdropClass);
+        return linkFn;
       }
     };
+
+    function linkFn(scope, element, attrs) {
+      if (attrs.modalInClass) {
+        if ($animateCss) {
+          $animateCss(element, {
+            addClass: attrs.modalInClass
+          }).start();
+        } else {
+          $animate.addClass(element, attrs.modalInClass);
+        }
+
+        scope.$on($modalStack.NOW_CLOSING_EVENT, function(e, setIsAsync) {
+          var done = setIsAsync();
+          if ($animateCss) {
+            $animateCss(element, {
+              removeClass: attrs.modalInClass
+            }).start().then(done);
+          } else {
+            $animate.removeClass(element, attrs.modalInClass).then(done);
+          }
+        });
+      }
+    }
   }])
 
-  .directive('modalWindow', ['$modalStack', '$timeout', function ($modalStack, $timeout) {
+  .directive('modalWindow', [
+           '$modalStack', '$q', '$animate', '$injector',
+  function($modalStack ,  $q ,  $animate,   $injector) {
+    var $animateCss = null;
+
+    if ($injector.has('$animateCss')) {
+      $animateCss = $injector.get('$animateCss');
+    }
+
     return {
       restrict: 'EA',
       scope: {
-        index: '@',
-        animate: '='
+        index: '@'
       },
       replace: true,
       transclude: true,
       templateUrl: function(tElement, tAttrs) {
         return tAttrs.templateUrl || 'template/modal/window.html';
       },
-      link: function (scope, element, attrs) {
+      link: function(scope, element, attrs) {
         element.addClass(attrs.windowClass || '');
         scope.size = attrs.size;
 
-        $timeout(function () {
-          // trigger CSS transitions
-          scope.animate = true;
-
-          /**
-           * Auto-focusing of a freshly-opened modal element causes any child elements
-           * with the autofocus attribute to lose focus. This is an issue on touch
-           * based devices which will show and then hide the onscreen keyboard.
-           * Attempts to refocus the autofocus element via JavaScript will not reopen
-           * the onscreen keyboard. Fixed by updated the focusing logic to only autofocus
-           * the modal element if the modal does not contain an autofocus element.
-           */
-          if (!element[0].querySelectorAll('[autofocus]').length) {
-            element[0].focus();
-          }
-        });
-
-        scope.close = function (evt) {
+        scope.close = function(evt) {
           var modal = $modalStack.getTop();
-          if (modal && modal.value.backdrop && modal.value.backdrop != 'static' && (evt.target === evt.currentTarget)) {
+          if (modal && modal.value.backdrop && modal.value.backdrop !== 'static' && (evt.target === evt.currentTarget)) {
             evt.preventDefault();
             evt.stopPropagation();
             $modalStack.dismiss(modal.key, 'backdrop click');
           }
         };
+
+        // This property is only added to the scope for the purpose of detecting when this directive is rendered.
+        // We can detect that by using this property in the template associated with this directive and then use
+        // {@link Attribute#$observe} on it. For more details please see {@link TableColumnResize}.
+        scope.$isRendered = true;
+
+        // Deferred object that will be resolved when this modal is render.
+        var modalRenderDeferObj = $q.defer();
+        // Observe function will be called on next digest cycle after compilation, ensuring that the DOM is ready.
+        // In order to use this way of finding whether DOM is ready, we need to observe a scope property used in modal's template.
+        attrs.$observe('modalRender', function(value) {
+          if (value == 'true') {
+            modalRenderDeferObj.resolve();
+          }
+        });
+
+        modalRenderDeferObj.promise.then(function() {
+          var animationPromise = null;
+
+          if (attrs.modalInClass) {
+            if ($animateCss) {
+              animationPromise = $animateCss(element, {
+                addClass: attrs.modalInClass
+              }).start();
+            } else {
+              animationPromise = $animate.addClass(element, attrs.modalInClass);
+            }
+
+            scope.$on($modalStack.NOW_CLOSING_EVENT, function(e, setIsAsync) {
+              var done = setIsAsync();
+              if ($animateCss) {
+                $animateCss(element, {
+                  removeClass: attrs.modalInClass
+                }).start().then(done);
+              } else {
+                $animate.removeClass(element, attrs.modalInClass).then(done);
+              }
+            });
+          }
+
+
+          $q.when(animationPromise).then(function() {
+            var inputsWithAutofocus = element[0].querySelectorAll('[autofocus]');
+            /**
+             * Auto-focusing of a freshly-opened modal element causes any child elements
+             * with the autofocus attribute to lose focus. This is an issue on touch
+             * based devices which will show and then hide the onscreen keyboard.
+             * Attempts to refocus the autofocus element via JavaScript will not reopen
+             * the onscreen keyboard. Fixed by updated the focusing logic to only autofocus
+             * the modal element if the modal does not contain an autofocus element.
+             */
+            if (inputsWithAutofocus.length) {
+              inputsWithAutofocus[0].focus();
+            } else {
+              element[0].focus();
+            }
+          });
+
+          // Notify {@link $modalStack} that modal is rendered.
+          var modal = $modalStack.getTop();
+          if (modal) {
+            $modalStack.modalRendered(modal.key);
+          }
+        });
       }
     };
   }])
 
-  .directive('modalTransclude', function () {
+  .directive('modalAnimationClass', [
+    function () {
+      return {
+        compile: function(tElement, tAttrs) {
+          if (tAttrs.modalAnimation) {
+            tElement.addClass(tAttrs.modalAnimationClass);
+          }
+        }
+      };
+    }])
+
+  .directive('modalTransclude', function() {
     return {
       link: function($scope, $element, $attrs, controller, $transclude) {
         $transclude($scope.$parent, function(clone) {
@@ -87493,14 +72892,38 @@ angular.module('ui.bootstrap.modal', ['ui.bootstrap.transition'])
     };
   })
 
-  .factory('$modalStack', ['$transition', '$timeout', '$document', '$compile', '$rootScope', '$$stackedMap',
-    function ($transition, $timeout, $document, $compile, $rootScope, $$stackedMap) {
+  .factory('$modalStack', [
+             '$animate', '$timeout', '$document', '$compile', '$rootScope',
+             '$q',
+             '$injector',
+             '$$multiMap',
+             '$$stackedMap',
+    function($animate ,  $timeout ,  $document ,  $compile ,  $rootScope ,
+              $q,
+              $injector,
+              $$multiMap,
+              $$stackedMap) {
+      var $animateCss = null;
+
+      if ($injector.has('$animateCss')) {
+        $animateCss = $injector.get('$animateCss');
+      }
 
       var OPENED_MODAL_CLASS = 'modal-open';
 
       var backdropDomEl, backdropScope;
       var openedWindows = $$stackedMap.createNew();
-      var $modalStack = {};
+      var openedClasses = $$multiMap.createNew();
+      var $modalStack = {
+        NOW_CLOSING_EVENT: 'modal.stack.now-closing'
+      };
+
+      //Modal focus behavior
+      var focusableElementList;
+      var focusIndex = 0;
+      var tababbleSelector = 'a[href], area[href], input:not([disabled]), ' +
+        'button:not([disabled]),select:not([disabled]), textarea:not([disabled]), ' +
+        'iframe, object, embed, *[tabindex], *[contenteditable=true]';
 
       function backdropIndex() {
         var topBackdropIndex = -1;
@@ -87513,34 +72936,39 @@ angular.module('ui.bootstrap.modal', ['ui.bootstrap.transition'])
         return topBackdropIndex;
       }
 
-      $rootScope.$watch(backdropIndex, function(newBackdropIndex){
+      $rootScope.$watch(backdropIndex, function(newBackdropIndex) {
         if (backdropScope) {
           backdropScope.index = newBackdropIndex;
         }
       });
 
-      function removeModalWindow(modalInstance) {
-
+      function removeModalWindow(modalInstance, elementToReceiveFocus) {
         var body = $document.find('body').eq(0);
         var modalWindow = openedWindows.get(modalInstance).value;
 
         //clean up the stack
         openedWindows.remove(modalInstance);
 
-        //remove window DOM element
-        removeAfterAnimate(modalWindow.modalDomEl, modalWindow.modalScope, 300, function() {
-          modalWindow.modalScope.$destroy();
-          body.toggleClass(OPENED_MODAL_CLASS, openedWindows.length() > 0);
-          checkRemoveBackdrop();
+        removeAfterAnimate(modalWindow.modalDomEl, modalWindow.modalScope, function() {
+          var modalBodyClass = modalWindow.openedClass || OPENED_MODAL_CLASS;
+          openedClasses.remove(modalBodyClass, modalInstance);
+          body.toggleClass(modalBodyClass, openedClasses.hasKey(modalBodyClass));
         });
+        checkRemoveBackdrop();
+
+        //move focus to specified element if available, or else to body
+        if (elementToReceiveFocus && elementToReceiveFocus.focus) {
+          elementToReceiveFocus.focus();
+        } else {
+          body.focus();
+        }
       }
 
       function checkRemoveBackdrop() {
           //remove backdrop if no longer needed
           if (backdropDomEl && backdropIndex() == -1) {
             var backdropScopeRef = backdropScope;
-            removeAfterAnimate(backdropDomEl, backdropScope, 150, function () {
-              backdropScopeRef.$destroy();
+            removeAfterAnimate(backdropDomEl, backdropScope, function() {
               backdropScopeRef = null;
             });
             backdropDomEl = undefined;
@@ -87548,24 +72976,25 @@ angular.module('ui.bootstrap.modal', ['ui.bootstrap.transition'])
           }
       }
 
-      function removeAfterAnimate(domEl, scope, emulateTime, done) {
-        // Closing animation
-        scope.animate = false;
+      function removeAfterAnimate(domEl, scope, done) {
+        var asyncDeferred;
+        var asyncPromise = null;
+        var setIsAsync = function() {
+          if (!asyncDeferred) {
+            asyncDeferred = $q.defer();
+            asyncPromise = asyncDeferred.promise;
+          }
 
-        var transitionEndEventName = $transition.transitionEndEventName;
-        if (transitionEndEventName) {
-          // transition out
-          var timeout = $timeout(afterAnimating, emulateTime);
+          return function asyncDone() {
+            asyncDeferred.resolve();
+          };
+        };
+        scope.$broadcast($modalStack.NOW_CLOSING_EVENT, setIsAsync);
 
-          domEl.bind(transitionEndEventName, function () {
-            $timeout.cancel(timeout);
-            afterAnimating();
-            scope.$apply();
-          });
-        } else {
-          // Ensure this call is async
-          $timeout(afterAnimating);
-        }
+        // Note that it's intentional that asyncPromise might be null.
+        // That's when setIsAsync has not been called during the
+        // NOW_CLOSING_EVENT broadcast.
+        return $q.when(asyncPromise).then(afterAnimating);
 
         function afterAnimating() {
           if (afterAnimating.done) {
@@ -87573,35 +73002,74 @@ angular.module('ui.bootstrap.modal', ['ui.bootstrap.transition'])
           }
           afterAnimating.done = true;
 
-          domEl.remove();
+          if ($animateCss) {
+            $animateCss(domEl, {
+              event: 'leave'
+            }).start().then(function() {
+              domEl.remove();
+            });
+          } else {
+            $animate.leave(domEl);
+          }
+          scope.$destroy();
           if (done) {
             done();
           }
         }
       }
 
-      $document.bind('keydown', function (evt) {
-        var modal;
+      $document.bind('keydown', function(evt) {
+        if (evt.isDefaultPrevented()) {
+          return evt;
+        }
 
-        if (evt.which === 27) {
-          modal = openedWindows.top();
-          if (modal && modal.value.keyboard) {
-            evt.preventDefault();
-            $rootScope.$apply(function () {
-              $modalStack.dismiss(modal.key, 'escape key press');
-            });
+        var modal = openedWindows.top();
+        if (modal && modal.value.keyboard) {
+          switch (evt.which){
+            case 27: {
+              evt.preventDefault();
+              $rootScope.$apply(function() {
+                $modalStack.dismiss(modal.key, 'escape key press');
+              });
+              break;
+            }
+            case 9: {
+              $modalStack.loadFocusElementList(modal);
+              var focusChanged = false;
+              if (evt.shiftKey) {
+                if ($modalStack.isFocusInFirstItem(evt)) {
+                  focusChanged = $modalStack.focusLastFocusableElement();
+                }
+              } else {
+                if ($modalStack.isFocusInLastItem(evt)) {
+                  focusChanged = $modalStack.focusFirstFocusableElement();
+                }
+              }
+
+              if (focusChanged) {
+                evt.preventDefault();
+                evt.stopPropagation();
+              }
+              break;
+            }
           }
         }
       });
 
-      $modalStack.open = function (modalInstance, modal) {
+      $modalStack.open = function(modalInstance, modal) {
+        var modalOpener = $document[0].activeElement,
+          modalBodyClass = modal.openedClass || OPENED_MODAL_CLASS;
 
         openedWindows.add(modalInstance, {
           deferred: modal.deferred,
+          renderDeferred: modal.renderDeferred,
           modalScope: modal.scope,
           backdrop: modal.backdrop,
-          keyboard: modal.keyboard
+          keyboard: modal.keyboard,
+          openedClass: modal.openedClass
         });
+
+        openedClasses.put(modalBodyClass, modalInstance);
 
         var body = $document.find('body').eq(0),
             currBackdropIndex = backdropIndex();
@@ -87609,13 +73077,16 @@ angular.module('ui.bootstrap.modal', ['ui.bootstrap.transition'])
         if (currBackdropIndex >= 0 && !backdropDomEl) {
           backdropScope = $rootScope.$new(true);
           backdropScope.index = currBackdropIndex;
-          var angularBackgroundDomEl = angular.element('<div modal-backdrop></div>');
+          var angularBackgroundDomEl = angular.element('<div modal-backdrop="modal-backdrop"></div>');
           angularBackgroundDomEl.attr('backdrop-class', modal.backdropClass);
+          if (modal.animation) {
+            angularBackgroundDomEl.attr('modal-animation', 'true');
+          }
           backdropDomEl = $compile(angularBackgroundDomEl)(backdropScope);
           body.append(backdropDomEl);
         }
 
-        var angularDomEl = angular.element('<div modal-window></div>');
+        var angularDomEl = angular.element('<div modal-window="modal-window"></div>');
         angularDomEl.attr({
           'template-url': modal.windowTemplateUrl,
           'window-class': modal.windowClass,
@@ -87623,88 +73094,162 @@ angular.module('ui.bootstrap.modal', ['ui.bootstrap.transition'])
           'index': openedWindows.length() - 1,
           'animate': 'animate'
         }).html(modal.content);
+        if (modal.animation) {
+          angularDomEl.attr('modal-animation', 'true');
+        }
 
         var modalDomEl = $compile(angularDomEl)(modal.scope);
         openedWindows.top().value.modalDomEl = modalDomEl;
+        openedWindows.top().value.modalOpener = modalOpener;
         body.append(modalDomEl);
-        body.addClass(OPENED_MODAL_CLASS);
+        body.addClass(modalBodyClass);
+
+        $modalStack.clearFocusListCache();
       };
 
-      $modalStack.close = function (modalInstance, result) {
+      function broadcastClosing(modalWindow, resultOrReason, closing) {
+          return !modalWindow.value.modalScope.$broadcast('modal.closing', resultOrReason, closing).defaultPrevented;
+      }
+
+      $modalStack.close = function(modalInstance, result) {
         var modalWindow = openedWindows.get(modalInstance);
-        if (modalWindow) {
+        if (modalWindow && broadcastClosing(modalWindow, result, true)) {
+          modalWindow.value.modalScope.$$uibDestructionScheduled = true;
           modalWindow.value.deferred.resolve(result);
-          removeModalWindow(modalInstance);
+          removeModalWindow(modalInstance, modalWindow.value.modalOpener);
+          return true;
         }
+        return !modalWindow;
       };
 
-      $modalStack.dismiss = function (modalInstance, reason) {
+      $modalStack.dismiss = function(modalInstance, reason) {
         var modalWindow = openedWindows.get(modalInstance);
-        if (modalWindow) {
+        if (modalWindow && broadcastClosing(modalWindow, reason, false)) {
+          modalWindow.value.modalScope.$$uibDestructionScheduled = true;
           modalWindow.value.deferred.reject(reason);
-          removeModalWindow(modalInstance);
+          removeModalWindow(modalInstance, modalWindow.value.modalOpener);
+          return true;
         }
+        return !modalWindow;
       };
 
-      $modalStack.dismissAll = function (reason) {
+      $modalStack.dismissAll = function(reason) {
         var topModal = this.getTop();
-        while (topModal) {
-          this.dismiss(topModal.key, reason);
+        while (topModal && this.dismiss(topModal.key, reason)) {
           topModal = this.getTop();
         }
       };
 
-      $modalStack.getTop = function () {
+      $modalStack.getTop = function() {
         return openedWindows.top();
+      };
+
+      $modalStack.modalRendered = function(modalInstance) {
+        var modalWindow = openedWindows.get(modalInstance);
+        if (modalWindow) {
+          modalWindow.value.renderDeferred.resolve();
+        }
+      };
+
+      $modalStack.focusFirstFocusableElement = function() {
+        if (focusableElementList.length > 0) {
+          focusableElementList[0].focus();
+          return true;
+        }
+        return false;
+      };
+      $modalStack.focusLastFocusableElement = function() {
+        if (focusableElementList.length > 0) {
+          focusableElementList[focusableElementList.length - 1].focus();
+          return true;
+        }
+        return false;
+      };
+
+      $modalStack.isFocusInFirstItem = function(evt) {
+        if (focusableElementList.length > 0) {
+          return (evt.target || evt.srcElement) == focusableElementList[0];
+        }
+        return false;
+      };
+
+      $modalStack.isFocusInLastItem = function(evt) {
+        if (focusableElementList.length > 0) {
+          return (evt.target || evt.srcElement) == focusableElementList[focusableElementList.length - 1];
+        }
+        return false;
+      };
+
+      $modalStack.clearFocusListCache = function() {
+        focusableElementList = [];
+        focusIndex = 0;
+      };
+
+      $modalStack.loadFocusElementList = function(modalWindow) {
+        if (focusableElementList === undefined || !focusableElementList.length0) {
+          if (modalWindow) {
+            var modalDomE1 = modalWindow.value.modalDomEl;
+            if (modalDomE1 && modalDomE1.length) {
+              focusableElementList = modalDomE1[0].querySelectorAll(tababbleSelector);
+            }
+          }
+        }
       };
 
       return $modalStack;
     }])
 
-  .provider('$modal', function () {
-
+  .provider('$modal', function() {
     var $modalProvider = {
       options: {
-        backdrop: true, //can be also false or 'static'
+        animation: true,
+        backdrop: true, //can also be false or 'static'
         keyboard: true
       },
-      $get: ['$injector', '$rootScope', '$q', '$http', '$templateCache', '$controller', '$modalStack',
-        function ($injector, $rootScope, $q, $http, $templateCache, $controller, $modalStack) {
-
+      $get: ['$injector', '$rootScope', '$q', '$templateRequest', '$controller', '$modalStack',
+        function ($injector, $rootScope, $q, $templateRequest, $controller, $modalStack) {
           var $modal = {};
 
           function getTemplatePromise(options) {
             return options.template ? $q.when(options.template) :
-              $http.get(angular.isFunction(options.templateUrl) ? (options.templateUrl)() : options.templateUrl,
-                {cache: $templateCache}).then(function (result) {
-                  return result.data;
-              });
+              $templateRequest(angular.isFunction(options.templateUrl) ? (options.templateUrl)() : options.templateUrl);
           }
 
           function getResolvePromises(resolves) {
             var promisesArr = [];
-            angular.forEach(resolves, function (value) {
+            angular.forEach(resolves, function(value) {
               if (angular.isFunction(value) || angular.isArray(value)) {
                 promisesArr.push($q.when($injector.invoke(value)));
+              } else if (angular.isString(value)) {
+                promisesArr.push($q.when($injector.get(value)));
+              } else {
+                promisesArr.push($q.when(value));
               }
             });
             return promisesArr;
           }
 
+          var promiseChain = null;
+          $modal.getPromiseChain = function() {
+            return promiseChain;
+          };
+
           $modal.open = function (modalOptions) {
 
             var modalResultDeferred = $q.defer();
             var modalOpenedDeferred = $q.defer();
+            var modalRenderDeferred = $q.defer();
 
             //prepare an instance of a modal to be injected into controllers and returned to a caller
             var modalInstance = {
               result: modalResultDeferred.promise,
               opened: modalOpenedDeferred.promise,
+              rendered: modalRenderDeferred.promise,
               close: function (result) {
-                $modalStack.close(modalInstance, result);
+                return $modalStack.close(modalInstance, result);
               },
               dismiss: function (reason) {
-                $modalStack.dismiss(modalInstance, reason);
+                return $modalStack.dismiss(modalInstance, reason);
               }
             };
 
@@ -87720,50 +73265,70 @@ angular.module('ui.bootstrap.modal', ['ui.bootstrap.transition'])
             var templateAndResolvePromise =
               $q.all([getTemplatePromise(modalOptions)].concat(getResolvePromises(modalOptions.resolve)));
 
+            // Wait for the resolution of the existing promise chain.
+            // Then switch to our own combined promise dependency (regardless of how the previous modal fared).
+            // Then add to $modalStack and resolve opened.
+            // Finally clean up the chain variable if no subsequent modal has overwritten it.
+            var samePromise;
+            samePromise = promiseChain = $q.all([promiseChain])
+              .then(function() { return templateAndResolvePromise; }, function() { return templateAndResolvePromise; })
+              .then(function resolveSuccess(tplAndVars) {
 
-            templateAndResolvePromise.then(function resolveSuccess(tplAndVars) {
+                var modalScope = (modalOptions.scope || $rootScope).$new();
+                modalScope.$close = modalInstance.close;
+                modalScope.$dismiss = modalInstance.dismiss;
 
-              var modalScope = (modalOptions.scope || $rootScope).$new();
-              modalScope.$close = modalInstance.close;
-              modalScope.$dismiss = modalInstance.dismiss;
-
-              var ctrlInstance, ctrlLocals = {};
-              var resolveIter = 1;
-
-              //controllers
-              if (modalOptions.controller) {
-                ctrlLocals.$scope = modalScope;
-                ctrlLocals.$modalInstance = modalInstance;
-                angular.forEach(modalOptions.resolve, function (value, key) {
-                  ctrlLocals[key] = tplAndVars[resolveIter++];
+                modalScope.$on('$destroy', function() {
+                  if (!modalScope.$$uibDestructionScheduled) {
+                    modalScope.$dismiss('$uibUnscheduledDestruction');
+                  }
                 });
 
-                ctrlInstance = $controller(modalOptions.controller, ctrlLocals);
-                if (modalOptions.controllerAs) {
-                  modalScope[modalOptions.controllerAs] = ctrlInstance;
-                }
-              }
+                var ctrlInstance, ctrlLocals = {};
+                var resolveIter = 1;
 
-              $modalStack.open(modalInstance, {
-                scope: modalScope,
-                deferred: modalResultDeferred,
-                content: tplAndVars[0],
-                backdrop: modalOptions.backdrop,
-                keyboard: modalOptions.keyboard,
-                backdropClass: modalOptions.backdropClass,
-                windowClass: modalOptions.windowClass,
-                windowTemplateUrl: modalOptions.windowTemplateUrl,
-                size: modalOptions.size
-              });
+                //controllers
+                if (modalOptions.controller) {
+                  ctrlLocals.$scope = modalScope;
+                  ctrlLocals.$modalInstance = modalInstance;
+                  angular.forEach(modalOptions.resolve, function(value, key) {
+                    ctrlLocals[key] = tplAndVars[resolveIter++];
+                  });
+
+                  ctrlInstance = $controller(modalOptions.controller, ctrlLocals);
+                  if (modalOptions.controllerAs) {
+                    if (modalOptions.bindToController) {
+                      angular.extend(ctrlInstance, modalScope);
+                    }
+
+                    modalScope[modalOptions.controllerAs] = ctrlInstance;
+                  }
+                }
+
+                $modalStack.open(modalInstance, {
+                  scope: modalScope,
+                  deferred: modalResultDeferred,
+                  renderDeferred: modalRenderDeferred,
+                  content: tplAndVars[0],
+                  animation: modalOptions.animation,
+                  backdrop: modalOptions.backdrop,
+                  keyboard: modalOptions.keyboard,
+                  backdropClass: modalOptions.backdropClass,
+                  windowClass: modalOptions.windowClass,
+                  windowTemplateUrl: modalOptions.windowTemplateUrl,
+                  size: modalOptions.size,
+                  openedClass: modalOptions.openedClass
+                });
+                modalOpenedDeferred.resolve(true);
 
             }, function resolveError(reason) {
+              modalOpenedDeferred.reject(reason);
               modalResultDeferred.reject(reason);
-            });
-
-            templateAndResolvePromise.then(function () {
-              modalOpenedDeferred.resolve(true);
-            }, function () {
-              modalOpenedDeferred.reject(false);
+            })
+            .finally(function() {
+              if (promiseChain === samePromise) {
+                promiseChain = null;
+              }
             });
 
             return modalInstance;
@@ -87777,8 +73342,7 @@ angular.module('ui.bootstrap.modal', ['ui.bootstrap.transition'])
   });
 
 angular.module('ui.bootstrap.pagination', [])
-
-.controller('PaginationController', ['$scope', '$attrs', '$parse', function ($scope, $attrs, $parse) {
+.controller('PaginationController', ['$scope', '$attrs', '$parse', function($scope, $attrs, $parse) {
   var self = this,
       ngModelCtrl = { $setViewValue: angular.noop }, // nullModelCtrl
       setNumPages = $attrs.numPages ? $parse($attrs.numPages).assign : angular.noop;
@@ -87799,6 +73363,20 @@ angular.module('ui.bootstrap.pagination', [])
     } else {
       this.itemsPerPage = config.itemsPerPage;
     }
+
+    $scope.$watch('totalItems', function() {
+      $scope.totalPages = self.calculateTotalPages();
+    });
+
+    $scope.$watch('totalPages', function(value) {
+      setNumPages($scope.$parent, value); // Readonly variable
+
+      if ( $scope.page > value ) {
+        $scope.selectPage(value);
+      } else {
+        ngModelCtrl.$render();
+      }
+    });
   };
 
   this.calculateTotalPages = function() {
@@ -87810,36 +73388,32 @@ angular.module('ui.bootstrap.pagination', [])
     $scope.page = parseInt(ngModelCtrl.$viewValue, 10) || 1;
   };
 
-  $scope.selectPage = function(page) {
-    if ( $scope.page !== page && page > 0 && page <= $scope.totalPages) {
+  $scope.selectPage = function(page, evt) {
+    if (evt) {
+      evt.preventDefault();
+    }
+
+    var clickAllowed = !$scope.ngDisabled || !evt;
+    if (clickAllowed && $scope.page !== page && page > 0 && page <= $scope.totalPages) {
+      if (evt && evt.target) {
+        evt.target.blur();
+      }
       ngModelCtrl.$setViewValue(page);
       ngModelCtrl.$render();
     }
   };
 
-  $scope.getText = function( key ) {
+  $scope.getText = function(key) {
     return $scope[key + 'Text'] || self.config[key + 'Text'];
   };
+
   $scope.noPrevious = function() {
     return $scope.page === 1;
   };
+
   $scope.noNext = function() {
     return $scope.page === $scope.totalPages;
   };
-
-  $scope.$watch('totalItems', function() {
-    $scope.totalPages = self.calculateTotalPages();
-  });
-
-  $scope.$watch('totalPages', function(value) {
-    setNumPages($scope.$parent, value); // Readonly variable
-
-    if ( $scope.page > value ) {
-      $scope.selectPage(value);
-    } else {
-      ngModelCtrl.$render();
-    }
-  });
 }])
 
 .constant('paginationConfig', {
@@ -87861,11 +73435,15 @@ angular.module('ui.bootstrap.pagination', [])
       firstText: '@',
       previousText: '@',
       nextText: '@',
-      lastText: '@'
+      lastText: '@',
+      ngDisabled:'='
     },
     require: ['pagination', '?ngModel'],
     controller: 'PaginationController',
-    templateUrl: 'template/pagination/pagination.html',
+    controllerAs: 'pagination',
+    templateUrl: function(element, attrs) {
+      return attrs.templateUrl || 'template/pagination/pagination.html';
+    },
     replace: true,
     link: function(scope, element, attrs, ctrls) {
       var paginationCtrl = ctrls[0], ngModelCtrl = ctrls[1];
@@ -87903,11 +73481,11 @@ angular.module('ui.bootstrap.pagination', [])
 
         // Default page limits
         var startPage = 1, endPage = totalPages;
-        var isMaxSized = ( angular.isDefined(maxSize) && maxSize < totalPages );
+        var isMaxSized = angular.isDefined(maxSize) && maxSize < totalPages;
 
         // recompute if maxSize
-        if ( isMaxSized ) {
-          if ( rotate ) {
+        if (isMaxSized) {
+          if (rotate) {
             // Current page is displayed in the middle of the visible ones
             startPage = Math.max(currentPage - Math.floor(maxSize/2), 1);
             endPage   = startPage + maxSize - 1;
@@ -87933,13 +73511,13 @@ angular.module('ui.bootstrap.pagination', [])
         }
 
         // Add links to move between page sets
-        if ( isMaxSized && ! rotate ) {
-          if ( startPage > 1 ) {
+        if (isMaxSized && ! rotate) {
+          if (startPage > 1) {
             var previousPageSet = makePage(startPage - 1, '...', false);
             pages.unshift(previousPageSet);
           }
 
-          if ( endPage < totalPages ) {
+          if (endPage < totalPages) {
             var nextPageSet = makePage(endPage + 1, '...', false);
             pages.push(nextPageSet);
           }
@@ -87972,11 +73550,15 @@ angular.module('ui.bootstrap.pagination', [])
     scope: {
       totalItems: '=',
       previousText: '@',
-      nextText: '@'
+      nextText: '@',
+      ngDisabled: '='
     },
     require: ['pager', '?ngModel'],
     controller: 'PaginationController',
-    templateUrl: 'template/pagination/pager.html',
+    controllerAs: 'pagination',
+    templateUrl: function(element, attrs) {
+      return attrs.templateUrl || 'template/pagination/pager.html';
+    },
     replace: true,
     link: function(scope, element, attrs, ctrls) {
       var paginationCtrl = ctrls[0], ngModelCtrl = ctrls[1];
@@ -87996,25 +73578,27 @@ angular.module('ui.bootstrap.pagination', [])
  * function, placement as a function, inside, support for more triggers than
  * just mouse enter/leave, html tooltips, and selector delegation.
  */
-angular.module( 'ui.bootstrap.tooltip', [ 'ui.bootstrap.position', 'ui.bootstrap.bindHtml' ] )
+angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.bindHtml'])
 
 /**
  * The $tooltip service creates tooltip- and popover-like directives as well as
  * houses global options for them.
  */
-.provider( '$tooltip', function () {
+.provider('$tooltip', function() {
   // The default options tooltip and popover.
   var defaultOptions = {
     placement: 'top',
     animation: true,
-    popupDelay: 0
+    popupDelay: 0,
+    useContentExp: false
   };
 
   // Default hide triggers for each show trigger
   var triggerMap = {
     'mouseenter': 'mouseleave',
     'click': 'click',
-    'focus': 'blur'
+    'focus': 'blur',
+    'none': ''
   };
 
   // The options specified to the provider globally.
@@ -88029,8 +73613,8 @@ angular.module( 'ui.bootstrap.tooltip', [ 'ui.bootstrap.position', 'ui.bootstrap
    *     $tooltipProvider.options( { placement: 'left' } );
    *   });
    */
-	this.options = function( value ) {
-		angular.extend( globalOptions, value );
+	this.options = function(value) {
+		angular.extend(globalOptions, value);
 	};
 
   /**
@@ -88038,14 +73622,14 @@ angular.module( 'ui.bootstrap.tooltip', [ 'ui.bootstrap.position', 'ui.bootstrap
    *
    *   $tooltipProvider.setTriggers( 'openTrigger': 'closeTrigger' );
    */
-  this.setTriggers = function setTriggers ( triggers ) {
-    angular.extend( triggerMap, triggers );
+  this.setTriggers = function setTriggers(triggers) {
+    angular.extend(triggerMap, triggers);
   };
 
   /**
    * This is a helper function for translating camel-case to snake-case.
    */
-  function snake_case(name){
+  function snake_case(name) {
     var regexp = /[A-Z]/g;
     var separator = '-';
     return name.replace(regexp, function(letter, pos) {
@@ -88057,9 +73641,9 @@ angular.module( 'ui.bootstrap.tooltip', [ 'ui.bootstrap.position', 'ui.bootstrap
    * Returns the actual instance of the $tooltip service.
    * TODO support multiple triggers
    */
-  this.$get = [ '$window', '$compile', '$timeout', '$document', '$position', '$interpolate', function ( $window, $compile, $timeout, $document, $position, $interpolate ) {
-    return function $tooltip ( type, prefix, defaultTriggerShow ) {
-      var options = angular.extend( {}, defaultOptions, globalOptions );
+  this.$get = ['$window', '$compile', '$timeout', '$document', '$position', '$interpolate', '$rootScope', '$parse', function($window, $compile, $timeout, $document, $position, $interpolate, $rootScope, $parse) {
+    return function $tooltip(type, prefix, defaultTriggerShow, options) {
+      options = angular.extend({}, defaultOptions, globalOptions, options);
 
       /**
        * Returns an object of show and hide triggers.
@@ -88075,60 +73659,87 @@ angular.module( 'ui.bootstrap.tooltip', [ 'ui.bootstrap.position', 'ui.bootstrap
        * undefined; otherwise, it uses the `triggerMap` value of the show
        * trigger; else it will just use the show trigger.
        */
-      function getTriggers ( trigger ) {
-        var show = trigger || options.trigger || defaultTriggerShow;
-        var hide = triggerMap[show] || show;
+      function getTriggers(trigger) {
+        var show = (trigger || options.trigger || defaultTriggerShow).split(' ');
+        var hide = show.map(function(trigger) {
+          return triggerMap[trigger] || trigger;
+        });
         return {
           show: show,
           hide: hide
         };
       }
 
-      var directiveName = snake_case( type );
+      var directiveName = snake_case(type);
 
       var startSym = $interpolate.startSymbol();
       var endSym = $interpolate.endSymbol();
       var template =
         '<div '+ directiveName +'-popup '+
           'title="'+startSym+'title'+endSym+'" '+
-          'content="'+startSym+'content'+endSym+'" '+
+          (options.useContentExp ?
+            'content-exp="contentExp()" ' :
+            'content="'+startSym+'content'+endSym+'" ') +
           'placement="'+startSym+'placement'+endSym+'" '+
+          'popup-class="'+startSym+'popupClass'+endSym+'" '+
           'animation="animation" '+
           'is-open="isOpen"'+
+          'origin-scope="origScope" '+
           '>'+
         '</div>';
 
       return {
         restrict: 'EA',
-        compile: function (tElem, tAttrs) {
+        compile: function(tElem, tAttrs) {
           var tooltipLinker = $compile( template );
 
-          return function link ( scope, element, attrs ) {
+          return function link(scope, element, attrs, tooltipCtrl) {
             var tooltip;
             var tooltipLinkedScope;
             var transitionTimeout;
             var popupTimeout;
-            var appendToBody = angular.isDefined( options.appendToBody ) ? options.appendToBody : false;
-            var triggers = getTriggers( undefined );
-            var hasEnableExp = angular.isDefined(attrs[prefix+'Enable']);
+            var positionTimeout;
+            var appendToBody = angular.isDefined(options.appendToBody) ? options.appendToBody : false;
+            var triggers = getTriggers(undefined);
+            var hasEnableExp = angular.isDefined(attrs[prefix + 'Enable']);
             var ttScope = scope.$new(true);
+            var repositionScheduled = false;
+            var isOpenExp = angular.isDefined(attrs[prefix + 'IsOpen']) ? $parse(attrs[prefix + 'IsOpen']) : false;
 
-            var positionTooltip = function () {
+            var positionTooltip = function() {
+              if (!tooltip) { return; }
 
-              var ttPosition = $position.positionElements(element, tooltip, ttScope.placement, appendToBody);
-              ttPosition.top += 'px';
-              ttPosition.left += 'px';
+              if (!positionTimeout) {
+                positionTimeout = $timeout(function() {
+                  // Reset the positioning and box size for correct width and height values.
+                  tooltip.css({ top: 0, left: 0, width: 'auto', height: 'auto' });
 
-              // Now set the calculated positioning.
-              tooltip.css( ttPosition );
+                  var ttBox = $position.position(tooltip);
+                  var ttCss = $position.positionElements(element, tooltip, ttScope.placement, appendToBody);
+                  ttCss.top += 'px';
+                  ttCss.left += 'px';
+
+                  ttCss.width = ttBox.width + 'px';
+                  ttCss.height = ttBox.height + 'px';
+
+                  // Now set the calculated positioning and size.
+                  tooltip.css(ttCss);
+
+                  positionTimeout = null;
+
+                }, 0, false);
+              }
             };
+
+            // Set up the correct scope to allow transclusion later
+            ttScope.origScope = scope;
 
             // By default, the tooltip is not open.
             // TODO add ability to start tooltip opened
             ttScope.isOpen = false;
 
-            function toggleTooltipBind () {
-              if ( ! ttScope.isOpen ) {
+            function toggleTooltipBind() {
+              if (!ttScope.isOpen) {
                 showTooltipBind();
               } else {
                 hideTooltipBind();
@@ -88137,77 +73748,82 @@ angular.module( 'ui.bootstrap.tooltip', [ 'ui.bootstrap.position', 'ui.bootstrap
 
             // Show the tooltip with delay if specified, otherwise show it immediately
             function showTooltipBind() {
-              if(hasEnableExp && !scope.$eval(attrs[prefix+'Enable'])) {
+              if (hasEnableExp && !scope.$eval(attrs[prefix + 'Enable'])) {
                 return;
               }
 
               prepareTooltip();
 
-              if ( ttScope.popupDelay ) {
+              if (ttScope.popupDelay) {
                 // Do nothing if the tooltip was already scheduled to pop-up.
                 // This happens if show is triggered multiple times before any hide is triggered.
                 if (!popupTimeout) {
-                  popupTimeout = $timeout( show, ttScope.popupDelay, false );
-                  popupTimeout.then(function(reposition){reposition();});
+                  popupTimeout = $timeout(show, ttScope.popupDelay, false);
                 }
               } else {
-                show()();
+                show();
               }
             }
 
             function hideTooltipBind () {
-              scope.$apply(function () {
-                hide();
-              });
+              hide();
+              if (!$rootScope.$$phase) {
+                $rootScope.$digest();
+              }
             }
 
             // Show the tooltip popup element.
             function show() {
-
               popupTimeout = null;
 
               // If there is a pending remove transition, we must cancel it, lest the
               // tooltip be mysteriously removed.
-              if ( transitionTimeout ) {
-                $timeout.cancel( transitionTimeout );
+              if (transitionTimeout) {
+                $timeout.cancel(transitionTimeout);
                 transitionTimeout = null;
               }
 
               // Don't show empty tooltips.
-              if ( ! ttScope.content ) {
+              if (!(options.useContentExp ? ttScope.contentExp() : ttScope.content)) {
                 return angular.noop;
               }
 
               createTooltip();
 
-              // Set the initial positioning.
-              tooltip.css({ top: 0, left: 0, display: 'block' });
-              ttScope.$digest();
-
-              positionTooltip();
-
               // And show the tooltip.
               ttScope.isOpen = true;
-              ttScope.$digest(); // digest required as $apply is not called
+              if (isOpenExp) {
+                isOpenExp.assign(ttScope.origScope, ttScope.isOpen);
+              }
 
-              // Return positioning function as promise callback for correct
-              // positioning after draw.
-              return positionTooltip;
+              if (!$rootScope.$$phase) {
+                ttScope.$apply(); // digest required as $apply is not called
+              }
+
+              tooltip.css({ display: 'block' });
+
+              positionTooltip();
             }
 
             // Hide the tooltip popup element.
             function hide() {
               // First things first: we don't show it anymore.
               ttScope.isOpen = false;
+              if (isOpenExp) {
+                isOpenExp.assign(ttScope.origScope, ttScope.isOpen);
+              }
 
               //if tooltip is going to be shown after delay, we must cancel this
-              $timeout.cancel( popupTimeout );
+              $timeout.cancel(popupTimeout);
               popupTimeout = null;
+
+              $timeout.cancel(positionTimeout);
+              positionTimeout = null;
 
               // And now we remove it from the DOM. However, if we have animation, we
               // need to wait for it to expire beforehand.
               // FIXME: this is a placeholder for a port of the transitions library.
-              if ( ttScope.animation ) {
+              if (ttScope.animation) {
                 if (!transitionTimeout) {
                   transitionTimeout = $timeout(removeTooltip, 500);
                 }
@@ -88222,13 +73838,34 @@ angular.module( 'ui.bootstrap.tooltip', [ 'ui.bootstrap.position', 'ui.bootstrap
                 removeTooltip();
               }
               tooltipLinkedScope = ttScope.$new();
-              tooltip = tooltipLinker(tooltipLinkedScope, function (tooltip) {
-                if ( appendToBody ) {
-                  $document.find( 'body' ).append( tooltip );
+              tooltip = tooltipLinker(tooltipLinkedScope, function(tooltip) {
+                if (appendToBody) {
+                  $document.find('body').append(tooltip);
                 } else {
-                  element.after( tooltip );
+                  element.after(tooltip);
                 }
               });
+
+              if (options.useContentExp) {
+                tooltipLinkedScope.$watch('contentExp()', function(val) {
+                  if (!val && ttScope.isOpen) {
+                    hide();
+                  }
+                });
+
+                tooltipLinkedScope.$watch(function() {
+                  if (!repositionScheduled) {
+                    repositionScheduled = true;
+                    tooltipLinkedScope.$$postDigest(function() {
+                      repositionScheduled = false;
+                      if (ttScope.isOpen) {
+                        positionTooltip();
+                      }
+                    });
+                  }
+                });
+
+              }
             }
 
             function removeTooltip() {
@@ -88244,52 +73881,101 @@ angular.module( 'ui.bootstrap.tooltip', [ 'ui.bootstrap.position', 'ui.bootstrap
             }
 
             function prepareTooltip() {
+              prepPopupClass();
               prepPlacement();
               prepPopupDelay();
             }
 
+            ttScope.contentExp = function() {
+              return scope.$eval(attrs[type]);
+            };
+
             /**
              * Observe the relevant attributes.
              */
-            attrs.$observe( type, function ( val ) {
-              ttScope.content = val;
+            if (!options.useContentExp) {
+              attrs.$observe(type, function(val) {
+                ttScope.content = val;
 
-              if (!val && ttScope.isOpen ) {
+                if (!val && ttScope.isOpen) {
+                  hide();
+                } else {
+                  positionTooltip();
+                }
+              });
+            }
+
+            attrs.$observe('disabled', function(val) {
+              if (popupTimeout && val) {
+                $timeout.cancel(popupTimeout);
+                popupTimeout = null;
+              }
+
+              if (val && ttScope.isOpen) {
                 hide();
               }
             });
 
-            attrs.$observe( prefix+'Title', function ( val ) {
+            attrs.$observe(prefix + 'Title', function(val) {
               ttScope.title = val;
+              positionTooltip();
             });
 
+            attrs.$observe(prefix + 'Placement', function() {
+              if (ttScope.isOpen) {
+                prepPlacement();
+                positionTooltip();
+              }
+            });
+
+            if (isOpenExp) {
+              scope.$watch(isOpenExp, function(val) {
+                if (val !== ttScope.isOpen) {
+                  toggleTooltipBind();
+                }
+              });
+            }
+
+            function prepPopupClass() {
+              ttScope.popupClass = attrs[prefix + 'Class'];
+            }
+
             function prepPlacement() {
-              var val = attrs[ prefix + 'Placement' ];
-              ttScope.placement = angular.isDefined( val ) ? val : options.placement;
+              var val = attrs[prefix + 'Placement'];
+              ttScope.placement = angular.isDefined(val) ? val : options.placement;
             }
 
             function prepPopupDelay() {
-              var val = attrs[ prefix + 'PopupDelay' ];
-              var delay = parseInt( val, 10 );
-              ttScope.popupDelay = ! isNaN(delay) ? delay : options.popupDelay;
+              var val = attrs[prefix + 'PopupDelay'];
+              var delay = parseInt(val, 10);
+              ttScope.popupDelay = !isNaN(delay) ? delay : options.popupDelay;
             }
 
-            var unregisterTriggers = function () {
-              element.unbind(triggers.show, showTooltipBind);
-              element.unbind(triggers.hide, hideTooltipBind);
+            var unregisterTriggers = function() {
+              triggers.show.forEach(function(trigger) {
+                element.unbind(trigger, showTooltipBind);
+              });
+              triggers.hide.forEach(function(trigger) {
+                element.unbind(trigger, hideTooltipBind);
+              });
             };
 
             function prepTriggers() {
-              var val = attrs[ prefix + 'Trigger' ];
+              var val = attrs[prefix + 'Trigger'];
               unregisterTriggers();
 
-              triggers = getTriggers( val );
+              triggers = getTriggers(val);
 
-              if ( triggers.show === triggers.hide ) {
-                element.bind( triggers.show, toggleTooltipBind );
-              } else {
-                element.bind( triggers.show, showTooltipBind );
-                element.bind( triggers.hide, hideTooltipBind );
+              if (triggers.show !== 'none') {
+                triggers.show.forEach(function(trigger, idx) {
+                  // Using raw addEventListener due to jqLite/jQuery bug - #4060
+                  if (trigger === triggers.hide[idx]) {
+                    element[0].addEventListener(trigger, toggleTooltipBind);
+                  } else if (trigger) {
+                    element[0].addEventListener(trigger, showTooltipBind);
+                    element[0].addEventListener(triggers.hide[idx], hideTooltipBind);
+                  }
+                });
               }
             }
             prepTriggers();
@@ -88303,18 +73989,19 @@ angular.module( 'ui.bootstrap.tooltip', [ 'ui.bootstrap.position', 'ui.bootstrap
             // if a tooltip is attached to <body> we need to remove it on
             // location change as its parent scope will probably not be destroyed
             // by the change.
-            if ( appendToBody ) {
-              scope.$on('$locationChangeSuccess', function closeTooltipOnLocationChangeSuccess () {
-              if ( ttScope.isOpen ) {
-                hide();
-              }
-            });
+            if (appendToBody) {
+              scope.$on('$locationChangeSuccess', function closeTooltipOnLocationChangeSuccess() {
+                if (ttScope.isOpen) {
+                  hide();
+                }
+              });
             }
 
             // Make sure tooltip is destroyed and removed.
             scope.$on('$destroy', function onDestroyTooltip() {
-              $timeout.cancel( transitionTimeout );
-              $timeout.cancel( popupTimeout );
+              $timeout.cancel(transitionTimeout);
+              $timeout.cancel(popupTimeout);
+              $timeout.cancel(positionTimeout);
               unregisterTriggers();
               removeTooltip();
               ttScope = null;
@@ -88326,49 +74013,210 @@ angular.module( 'ui.bootstrap.tooltip', [ 'ui.bootstrap.position', 'ui.bootstrap
   }];
 })
 
-.directive( 'tooltipPopup', function () {
+// This is mostly ngInclude code but with a custom scope
+.directive('tooltipTemplateTransclude', [
+         '$animate', '$sce', '$compile', '$templateRequest',
+function ($animate ,  $sce ,  $compile ,  $templateRequest) {
+  return {
+    link: function(scope, elem, attrs) {
+      var origScope = scope.$eval(attrs.tooltipTemplateTranscludeScope);
+
+      var changeCounter = 0,
+        currentScope,
+        previousElement,
+        currentElement;
+
+      var cleanupLastIncludeContent = function() {
+        if (previousElement) {
+          previousElement.remove();
+          previousElement = null;
+        }
+        if (currentScope) {
+          currentScope.$destroy();
+          currentScope = null;
+        }
+        if (currentElement) {
+          $animate.leave(currentElement).then(function() {
+            previousElement = null;
+          });
+          previousElement = currentElement;
+          currentElement = null;
+        }
+      };
+
+      scope.$watch($sce.parseAsResourceUrl(attrs.tooltipTemplateTransclude), function(src) {
+        var thisChangeId = ++changeCounter;
+
+        if (src) {
+          //set the 2nd param to true to ignore the template request error so that the inner
+          //contents and scope can be cleaned up.
+          $templateRequest(src, true).then(function(response) {
+            if (thisChangeId !== changeCounter) { return; }
+            var newScope = origScope.$new();
+            var template = response;
+
+            var clone = $compile(template)(newScope, function(clone) {
+              cleanupLastIncludeContent();
+              $animate.enter(clone, elem);
+            });
+
+            currentScope = newScope;
+            currentElement = clone;
+
+            currentScope.$emit('$includeContentLoaded', src);
+          }, function() {
+            if (thisChangeId === changeCounter) {
+              cleanupLastIncludeContent();
+              scope.$emit('$includeContentError', src);
+            }
+          });
+          scope.$emit('$includeContentRequested', src);
+        } else {
+          cleanupLastIncludeContent();
+        }
+      });
+
+      scope.$on('$destroy', cleanupLastIncludeContent);
+    }
+  };
+}])
+
+/**
+ * Note that it's intentional that these classes are *not* applied through $animate.
+ * They must not be animated as they're expected to be present on the tooltip on
+ * initialization.
+ */
+.directive('tooltipClasses', function() {
+  return {
+    restrict: 'A',
+    link: function(scope, element, attrs) {
+      if (scope.placement) {
+        element.addClass(scope.placement);
+      }
+      if (scope.popupClass) {
+        element.addClass(scope.popupClass);
+      }
+      if (scope.animation()) {
+        element.addClass(attrs.tooltipAnimationClass);
+      }
+    }
+  };
+})
+
+.directive('tooltipPopup', function() {
   return {
     restrict: 'EA',
     replace: true,
-    scope: { content: '@', placement: '@', animation: '&', isOpen: '&' },
+    scope: { content: '@', placement: '@', popupClass: '@', animation: '&', isOpen: '&' },
     templateUrl: 'template/tooltip/tooltip-popup.html'
   };
 })
 
-.directive( 'tooltip', [ '$tooltip', function ( $tooltip ) {
-  return $tooltip( 'tooltip', 'tooltip', 'mouseenter' );
+.directive('tooltip', [ '$tooltip', function($tooltip) {
+  return $tooltip('tooltip', 'tooltip', 'mouseenter');
 }])
 
-.directive( 'tooltipHtmlUnsafePopup', function () {
+.directive('tooltipTemplatePopup', function() {
   return {
     restrict: 'EA',
     replace: true,
-    scope: { content: '@', placement: '@', animation: '&', isOpen: '&' },
+    scope: { contentExp: '&', placement: '@', popupClass: '@', animation: '&', isOpen: '&',
+      originScope: '&' },
+    templateUrl: 'template/tooltip/tooltip-template-popup.html'
+  };
+})
+
+.directive('tooltipTemplate', ['$tooltip', function($tooltip) {
+  return $tooltip('tooltipTemplate', 'tooltip', 'mouseenter', {
+    useContentExp: true
+  });
+}])
+
+.directive('tooltipHtmlPopup', function() {
+  return {
+    restrict: 'EA',
+    replace: true,
+    scope: { contentExp: '&', placement: '@', popupClass: '@', animation: '&', isOpen: '&' },
+    templateUrl: 'template/tooltip/tooltip-html-popup.html'
+  };
+})
+
+.directive('tooltipHtml', ['$tooltip', function($tooltip) {
+  return $tooltip('tooltipHtml', 'tooltip', 'mouseenter', {
+    useContentExp: true
+  });
+}])
+
+/*
+Deprecated
+*/
+.directive('tooltipHtmlUnsafePopup', function() {
+  return {
+    restrict: 'EA',
+    replace: true,
+    scope: { content: '@', placement: '@', popupClass: '@', animation: '&', isOpen: '&' },
     templateUrl: 'template/tooltip/tooltip-html-unsafe-popup.html'
   };
 })
 
-.directive( 'tooltipHtmlUnsafe', [ '$tooltip', function ( $tooltip ) {
-  return $tooltip( 'tooltipHtmlUnsafe', 'tooltip', 'mouseenter' );
+.value('tooltipHtmlUnsafeSuppressDeprecated', false)
+.directive('tooltipHtmlUnsafe', [
+          '$tooltip', 'tooltipHtmlUnsafeSuppressDeprecated', '$log',
+function($tooltip ,  tooltipHtmlUnsafeSuppressDeprecated ,  $log) {
+  if (!tooltipHtmlUnsafeSuppressDeprecated) {
+    $log.warn('tooltip-html-unsafe is now deprecated. Use tooltip-html or tooltip-template instead.');
+  }
+  return $tooltip('tooltipHtmlUnsafe', 'tooltip', 'mouseenter');
 }]);
 
 /**
  * The following features are still outstanding: popup delay, animation as a
  * function, placement as a function, inside, support for more triggers than
- * just mouse enter/leave, html popovers, and selector delegatation.
+ * just mouse enter/leave, and selector delegatation.
  */
-angular.module( 'ui.bootstrap.popover', [ 'ui.bootstrap.tooltip' ] )
+angular.module( 'ui.bootstrap.popover', ['ui.bootstrap.tooltip'])
 
-.directive( 'popoverPopup', function () {
+.directive('popoverTemplatePopup', function() {
   return {
     restrict: 'EA',
     replace: true,
-    scope: { title: '@', content: '@', placement: '@', animation: '&', isOpen: '&' },
+    scope: { title: '@', contentExp: '&', placement: '@', popupClass: '@', animation: '&', isOpen: '&',
+      originScope: '&' },
+    templateUrl: 'template/popover/popover-template.html'
+  };
+})
+
+.directive('popoverTemplate', ['$tooltip', function($tooltip) {
+  return $tooltip('popoverTemplate', 'popover', 'click', {
+    useContentExp: true
+  });
+}])
+
+.directive('popoverHtmlPopup', function() {
+  return {
+    restrict: 'EA',
+    replace: true,
+    scope: { contentExp: '&', title: '@', placement: '@', popupClass: '@', animation: '&', isOpen: '&' },
+    templateUrl: 'template/popover/popover-html.html'
+  };
+})
+
+.directive('popoverHtml', ['$tooltip', function($tooltip) {
+  return $tooltip( 'popoverHtml', 'popover', 'click', {
+    useContentExp: true
+  });
+}])
+
+.directive('popoverPopup', function() {
+  return {
+    restrict: 'EA',
+    replace: true,
+    scope: { title: '@', content: '@', placement: '@', popupClass: '@', animation: '&', isOpen: '&' },
     templateUrl: 'template/popover/popover.html'
   };
 })
 
-.directive( 'popover', [ '$tooltip', function ( $tooltip ) {
+.directive('popover', ['$tooltip', function($tooltip) {
   return $tooltip( 'popover', 'popover', 'click' );
 }]);
 
@@ -88379,86 +74227,153 @@ angular.module('ui.bootstrap.progressbar', [])
   max: 100
 })
 
+.value('$progressSuppressWarning', false)
+
 .controller('ProgressController', ['$scope', '$attrs', 'progressConfig', function($scope, $attrs, progressConfig) {
-    var self = this,
-        animate = angular.isDefined($attrs.animate) ? $scope.$parent.$eval($attrs.animate) : progressConfig.animate;
+  var self = this,
+      animate = angular.isDefined($attrs.animate) ? $scope.$parent.$eval($attrs.animate) : progressConfig.animate;
 
-    this.bars = [];
-    $scope.max = angular.isDefined($attrs.max) ? $scope.$parent.$eval($attrs.max) : progressConfig.max;
+  this.bars = [];
+  $scope.max = angular.isDefined($scope.max) ? $scope.max : progressConfig.max;
 
-    this.addBar = function(bar, element) {
-        if ( !animate ) {
-            element.css({'transition': 'none'});
-        }
+  this.addBar = function(bar, element) {
+    if (!animate) {
+      element.css({'transition': 'none'});
+    }
 
-        this.bars.push(bar);
+    this.bars.push(bar);
 
-        bar.$watch('value', function( value ) {
-            bar.percent = +(100 * value / $scope.max).toFixed(2);
-        });
+    bar.max = $scope.max;
 
-        bar.$on('$destroy', function() {
-            element = null;
-            self.removeBar(bar);
-        });
+    bar.$watch('value', function(value) {
+      bar.recalculatePercentage();
+    });
+
+    bar.recalculatePercentage = function() {
+      bar.percent = +(100 * bar.value / bar.max).toFixed(2);
+
+      var totalPercentage = self.bars.reduce(function(total, bar) {
+        return total + bar.percent;
+      }, 0);
+
+      if (totalPercentage > 100) {
+        bar.percent -= totalPercentage - 100;
+      }
     };
 
-    this.removeBar = function(bar) {
-        this.bars.splice(this.bars.indexOf(bar), 1);
-    };
+    bar.$on('$destroy', function() {
+      element = null;
+      self.removeBar(bar);
+    });
+  };
+
+  this.removeBar = function(bar) {
+      this.bars.splice(this.bars.indexOf(bar), 1);
+  };
+
+  $scope.$watch('max', function(max) {
+    self.bars.forEach(function(bar) {
+      bar.max = $scope.max;
+      bar.recalculatePercentage();
+    });
+  });
 }])
 
-.directive('progress', function() {
-    return {
-        restrict: 'EA',
-        replace: true,
-        transclude: true,
-        controller: 'ProgressController',
-        require: 'progress',
-        scope: {},
-        templateUrl: 'template/progressbar/progress.html'
-    };
+.directive('uibProgress', function() {
+  return {
+    restrict: 'EA',
+    replace: true,
+    transclude: true,
+    controller: 'ProgressController',
+    require: 'uibProgress',
+    scope: {
+      max: '=?'
+    },
+    templateUrl: 'template/progressbar/progress.html'
+  };
 })
 
-.directive('bar', function() {
-    return {
-        restrict: 'EA',
-        replace: true,
-        transclude: true,
-        require: '^progress',
-        scope: {
-            value: '=',
-            type: '@'
-        },
-        templateUrl: 'template/progressbar/bar.html',
-        link: function(scope, element, attrs, progressCtrl) {
-            progressCtrl.addBar(scope, element);
-        }
-    };
+.directive('progress', ['$log', '$progressSuppressWarning', function($log, $progressSuppressWarning) {
+  return {
+    restrict: 'EA',
+    replace: true,
+    transclude: true,
+    controller: 'ProgressController',
+    require: 'progress',
+    scope: {
+      max: '=?'
+    },
+    templateUrl: 'template/progressbar/progress.html',
+    link: function() {
+      if ($progressSuppressWarning) {
+        $log.warn('progress is now deprecated. Use uib-progress instead');
+      }
+    }
+  };
+}])
+
+.directive('uibBar', function() {
+  return {
+    restrict: 'EA',
+    replace: true,
+    transclude: true,
+    require: '^uibProgress',
+    scope: {
+      value: '=',
+      type: '@'
+    },
+    templateUrl: 'template/progressbar/bar.html',
+    link: function(scope, element, attrs, progressCtrl) {
+      progressCtrl.addBar(scope, element);
+    }
+  };
 })
+
+.directive('bar', ['$log', '$progressSuppressWarning', function($log, $progressSuppressWarning) {
+  return {
+    restrict: 'EA',
+    replace: true,
+    transclude: true,
+    require: '^progress',
+    scope: {
+      value: '=',
+      type: '@'
+    },
+    templateUrl: 'template/progressbar/bar.html',
+    link: function(scope, element, attrs, progressCtrl) {
+      if ($progressSuppressWarning) {
+        $log.warn('bar is now deprecated. Use uib-bar instead');
+      }
+      progressCtrl.addBar(scope, element);
+    }
+  };
+}])
 
 .directive('progressbar', function() {
-    return {
-        restrict: 'EA',
-        replace: true,
-        transclude: true,
-        controller: 'ProgressController',
-        scope: {
-            value: '=',
-            type: '@'
-        },
-        templateUrl: 'template/progressbar/progressbar.html',
-        link: function(scope, element, attrs, progressCtrl) {
-            progressCtrl.addBar(scope, angular.element(element.children()[0]));
-        }
-    };
+  return {
+    restrict: 'EA',
+    replace: true,
+    transclude: true,
+    controller: 'ProgressController',
+    scope: {
+      value: '=',
+      max: '=?',
+      type: '@'
+    },
+    templateUrl: 'template/progressbar/progressbar.html',
+    link: function(scope, element, attrs, progressCtrl) {
+      progressCtrl.addBar(scope, angular.element(element.children()[0]));
+    }
+  };
 });
+
 angular.module('ui.bootstrap.rating', [])
 
 .constant('ratingConfig', {
   max: 5,
   stateOn: null,
-  stateOff: null
+  stateOff: null,
+  titles : ['one', 'two', 'three', 'four', 'five']
 })
 
 .controller('RatingController', ['$scope', '$attrs', 'ratingConfig', function($scope, $attrs, ratingConfig) {
@@ -88468,30 +74383,49 @@ angular.module('ui.bootstrap.rating', [])
     ngModelCtrl = ngModelCtrl_;
     ngModelCtrl.$render = this.render;
 
+    ngModelCtrl.$formatters.push(function(value) {
+      if (angular.isNumber(value) && value << 0 !== value) {
+        value = Math.round(value);
+      }
+      return value;
+    });
+
     this.stateOn = angular.isDefined($attrs.stateOn) ? $scope.$parent.$eval($attrs.stateOn) : ratingConfig.stateOn;
     this.stateOff = angular.isDefined($attrs.stateOff) ? $scope.$parent.$eval($attrs.stateOff) : ratingConfig.stateOff;
-
-    var ratingStates = angular.isDefined($attrs.ratingStates) ? $scope.$parent.$eval($attrs.ratingStates) :
-                        new Array( angular.isDefined($attrs.max) ? $scope.$parent.$eval($attrs.max) : ratingConfig.max );
+    var tmpTitles = angular.isDefined($attrs.titles)  ? $scope.$parent.$eval($attrs.titles) : ratingConfig.titles ;    
+    this.titles = angular.isArray(tmpTitles) && tmpTitles.length > 0 ?
+      tmpTitles : ratingConfig.titles;
+    
+    var ratingStates = angular.isDefined($attrs.ratingStates) ?
+      $scope.$parent.$eval($attrs.ratingStates) :
+      new Array(angular.isDefined($attrs.max) ? $scope.$parent.$eval($attrs.max) : ratingConfig.max);
     $scope.range = this.buildTemplateObjects(ratingStates);
   };
 
   this.buildTemplateObjects = function(states) {
     for (var i = 0, n = states.length; i < n; i++) {
-      states[i] = angular.extend({ index: i }, { stateOn: this.stateOn, stateOff: this.stateOff }, states[i]);
+      states[i] = angular.extend({ index: i }, { stateOn: this.stateOn, stateOff: this.stateOff, title: this.getTitle(i) }, states[i]);
     }
     return states;
   };
-
+  
+  this.getTitle = function(index) {
+    if (index >= this.titles.length) {
+      return index + 1;
+    } else {
+      return this.titles[index];
+    }
+  };
+  
   $scope.rate = function(value) {
-    if ( !$scope.readonly && value >= 0 && value <= $scope.range.length ) {
-      ngModelCtrl.$setViewValue(value);
+    if (!$scope.readonly && value >= 0 && value <= $scope.range.length) {
+      ngModelCtrl.$setViewValue(ngModelCtrl.$viewValue === value ? 0 : value);
       ngModelCtrl.$render();
     }
   };
 
   $scope.enter = function(value) {
-    if ( !$scope.readonly ) {
+    if (!$scope.readonly) {
       $scope.value = value;
     }
     $scope.onHover({value: value});
@@ -88506,7 +74440,7 @@ angular.module('ui.bootstrap.rating', [])
     if (/(37|38|39|40)/.test(evt.which)) {
       evt.preventDefault();
       evt.stopPropagation();
-      $scope.rate( $scope.value + (evt.which === 38 || evt.which === 39 ? 1 : -1) );
+      $scope.rate($scope.value + (evt.which === 38 || evt.which === 39 ? 1 : -1));
     }
   };
 
@@ -88529,13 +74463,11 @@ angular.module('ui.bootstrap.rating', [])
     replace: true,
     link: function(scope, element, attrs, ctrls) {
       var ratingCtrl = ctrls[0], ngModelCtrl = ctrls[1];
-
-      if ( ngModelCtrl ) {
-        ratingCtrl.init( ngModelCtrl );
-      }
+      ratingCtrl.init( ngModelCtrl );
     }
   };
 });
+
 
 /**
  * @ngdoc overview
@@ -88556,20 +74488,27 @@ angular.module('ui.bootstrap.tabs', [])
       if (tab.active && tab !== selectedTab) {
         tab.active = false;
         tab.onDeselect();
+        selectedTab.selectCalled = false;
       }
     });
     selectedTab.active = true;
-    selectedTab.onSelect();
+    // only call select if it has not already been called
+    if (!selectedTab.selectCalled) {
+      selectedTab.onSelect();
+      selectedTab.selectCalled = true;
+    }
   };
 
   ctrl.addTab = function addTab(tab) {
     tabs.push(tab);
     // we can't run the select function on the first tab
     // since that would select it twice
-    if (tabs.length === 1) {
+    if (tabs.length === 1 && tab.active !== false) {
       tab.active = true;
     } else if (tab.active) {
       ctrl.select(tab);
+    } else {
+      tab.active = false;
     }
   };
 
@@ -88717,7 +74656,7 @@ angular.module('ui.bootstrap.tabs', [])
   </file>
 </example>
  */
-.directive('tab', ['$parse', function($parse) {
+.directive('tab', ['$parse', '$log', function($parse, $log) {
   return {
     require: '^tabset',
     restrict: 'EA',
@@ -88734,41 +74673,50 @@ angular.module('ui.bootstrap.tabs', [])
     controller: function() {
       //Empty controller so other directives can require being 'under' a tab
     },
-    compile: function(elm, attrs, transclude) {
-      return function postLink(scope, elm, attrs, tabsetCtrl) {
-        scope.$watch('active', function(active) {
-          if (active) {
-            tabsetCtrl.select(scope);
-          }
-        });
-
-        scope.disabled = false;
-        if ( attrs.disabled ) {
-          scope.$parent.$watch($parse(attrs.disabled), function(value) {
-            scope.disabled = !! value;
-          });
+    link: function(scope, elm, attrs, tabsetCtrl, transclude) {
+      scope.$watch('active', function(active) {
+        if (active) {
+          tabsetCtrl.select(scope);
         }
+      });
 
-        scope.select = function() {
-          if ( !scope.disabled ) {
-            scope.active = true;
-          }
-        };
-
-        tabsetCtrl.addTab(scope);
-        scope.$on('$destroy', function() {
-          tabsetCtrl.removeTab(scope);
+      scope.disabled = false;
+      if (attrs.disable) {
+        scope.$parent.$watch($parse(attrs.disable), function(value) {
+          scope.disabled = !! value;
         });
+      }
 
-        //We need to transclude later, once the content container is ready.
-        //when this link happens, we're inside a tab heading.
-        scope.$transcludeFn = transclude;
+      // Deprecation support of "disabled" parameter
+      // fix(tab): IE9 disabled attr renders grey text on enabled tab #2677
+      // This code is duplicated from the lines above to make it easy to remove once
+      // the feature has been completely deprecated
+      if (attrs.disabled) {
+        $log.warn('Use of "disabled" attribute has been deprecated, please use "disable"');
+        scope.$parent.$watch($parse(attrs.disabled), function(value) {
+          scope.disabled = !! value;
+        });
+      }
+
+      scope.select = function() {
+        if (!scope.disabled) {
+          scope.active = true;
+        }
       };
+
+      tabsetCtrl.addTab(scope);
+      scope.$on('$destroy', function() {
+        tabsetCtrl.removeTab(scope);
+      });
+
+      //We need to transclude later, once the content container is ready.
+      //when this link happens, we're inside a tab heading.
+      scope.$transcludeFn = transclude;
     }
   };
 }])
 
-.directive('tabHeadingTransclude', [function() {
+.directive('tabHeadingTransclude', function() {
   return {
     restrict: 'A',
     require: '^tab',
@@ -88781,7 +74729,7 @@ angular.module('ui.bootstrap.tabs', [])
       });
     }
   };
-}])
+})
 
 .directive('tabContentTransclude', function() {
   return {
@@ -88804,17 +74752,18 @@ angular.module('ui.bootstrap.tabs', [])
       });
     }
   };
+
   function isTabHeading(node) {
-    return node.tagName &&  (
+    return node.tagName && (
       node.hasAttribute('tab-heading') ||
       node.hasAttribute('data-tab-heading') ||
+      node.hasAttribute('x-tab-heading') ||
       node.tagName.toLowerCase() === 'tab-heading' ||
-      node.tagName.toLowerCase() === 'data-tab-heading'
+      node.tagName.toLowerCase() === 'data-tab-heading' ||
+      node.tagName.toLowerCase() === 'x-tab-heading'
     );
   }
-})
-
-;
+});
 
 angular.module('ui.bootstrap.timepicker', [])
 
@@ -88824,7 +74773,9 @@ angular.module('ui.bootstrap.timepicker', [])
   showMeridian: true,
   meridians: null,
   readonlyInput: false,
-  mousewheel: true
+  mousewheel: true,
+  arrowkeys: true,
+  showSpinners: true
 })
 
 .controller('TimepickerController', ['$scope', '$attrs', '$parse', '$log', '$locale', 'timepickerConfig', function($scope, $attrs, $parse, $log, $locale, timepickerConfig) {
@@ -88832,20 +74783,29 @@ angular.module('ui.bootstrap.timepicker', [])
       ngModelCtrl = { $setViewValue: angular.noop }, // nullModelCtrl
       meridians = angular.isDefined($attrs.meridians) ? $scope.$parent.$eval($attrs.meridians) : timepickerConfig.meridians || $locale.DATETIME_FORMATS.AMPMS;
 
-  this.init = function( ngModelCtrl_, inputs ) {
+  this.init = function(ngModelCtrl_, inputs) {
     ngModelCtrl = ngModelCtrl_;
     ngModelCtrl.$render = this.render;
+
+    ngModelCtrl.$formatters.unshift(function(modelValue) {
+      return modelValue ? new Date(modelValue) : null;
+    });
 
     var hoursInputEl = inputs.eq(0),
         minutesInputEl = inputs.eq(1);
 
     var mousewheel = angular.isDefined($attrs.mousewheel) ? $scope.$parent.$eval($attrs.mousewheel) : timepickerConfig.mousewheel;
-    if ( mousewheel ) {
-      this.setupMousewheelEvents( hoursInputEl, minutesInputEl );
+    if (mousewheel) {
+      this.setupMousewheelEvents(hoursInputEl, minutesInputEl);
+    }
+
+    var arrowkeys = angular.isDefined($attrs.arrowkeys) ? $scope.$parent.$eval($attrs.arrowkeys) : timepickerConfig.arrowkeys;
+    if (arrowkeys) {
+      this.setupArrowkeyEvents(hoursInputEl, minutesInputEl);
     }
 
     $scope.readonlyInput = angular.isDefined($attrs.readonlyInput) ? $scope.$parent.$eval($attrs.readonlyInput) : timepickerConfig.readonlyInput;
-    this.setupInputEvents( hoursInputEl, minutesInputEl );
+    this.setupInputEvents(hoursInputEl, minutesInputEl);
   };
 
   var hourStep = timepickerConfig.hourStep;
@@ -88862,17 +74822,61 @@ angular.module('ui.bootstrap.timepicker', [])
     });
   }
 
+  var min;
+  $scope.$parent.$watch($parse($attrs.min), function(value) {
+    var dt = new Date(value);
+    min = isNaN(dt) ? undefined : dt;
+  });
+
+  var max;
+  $scope.$parent.$watch($parse($attrs.max), function(value) {
+    var dt = new Date(value);
+    max = isNaN(dt) ? undefined : dt;
+  });
+
+  $scope.noIncrementHours = function() {
+    var incrementedSelected = addMinutes(selected, hourStep * 60);
+    return incrementedSelected > max ||
+      (incrementedSelected < selected && incrementedSelected < min);
+  };
+
+  $scope.noDecrementHours = function() {
+    var decrementedSelected = addMinutes(selected, -hourStep * 60);
+    return decrementedSelected < min ||
+      (decrementedSelected > selected && decrementedSelected > max);
+  };
+
+  $scope.noIncrementMinutes = function() {
+    var incrementedSelected = addMinutes(selected, minuteStep);
+    return incrementedSelected > max ||
+      (incrementedSelected < selected && incrementedSelected < min);
+  };
+
+  $scope.noDecrementMinutes = function() {
+    var decrementedSelected = addMinutes(selected, -minuteStep);
+    return decrementedSelected < min ||
+      (decrementedSelected > selected && decrementedSelected > max);
+  };
+
+  $scope.noToggleMeridian = function() {
+    if (selected.getHours() < 13) {
+      return addMinutes(selected, 12 * 60) > max;
+    } else {
+      return addMinutes(selected, -12 * 60) < min;
+    }
+  };
+
   // 12H / 24H mode
   $scope.showMeridian = timepickerConfig.showMeridian;
   if ($attrs.showMeridian) {
     $scope.$parent.$watch($parse($attrs.showMeridian), function(value) {
       $scope.showMeridian = !!value;
 
-      if ( ngModelCtrl.$error.time ) {
+      if (ngModelCtrl.$error.time) {
         // Evaluate from template
         var hours = getHoursFromTemplate(), minutes = getMinutesFromTemplate();
-        if (angular.isDefined( hours ) && angular.isDefined( minutes )) {
-          selected.setHours( hours );
+        if (angular.isDefined(hours) && angular.isDefined(minutes)) {
+          selected.setHours(hours);
           refresh();
         }
       } else {
@@ -88882,18 +74886,18 @@ angular.module('ui.bootstrap.timepicker', [])
   }
 
   // Get $scope.hours in 24H mode if valid
-  function getHoursFromTemplate ( ) {
-    var hours = parseInt( $scope.hours, 10 );
-    var valid = ( $scope.showMeridian ) ? (hours > 0 && hours < 13) : (hours >= 0 && hours < 24);
-    if ( !valid ) {
+  function getHoursFromTemplate() {
+    var hours = parseInt($scope.hours, 10);
+    var valid = $scope.showMeridian ? (hours > 0 && hours < 13) : (hours >= 0 && hours < 24);
+    if (!valid) {
       return undefined;
     }
 
-    if ( $scope.showMeridian ) {
-      if ( hours === 12 ) {
+    if ($scope.showMeridian) {
+      if (hours === 12) {
         hours = 0;
       }
-      if ( $scope.meridian === meridians[1] ) {
+      if ($scope.meridian === meridians[1]) {
         hours = hours + 12;
       }
     }
@@ -88902,15 +74906,15 @@ angular.module('ui.bootstrap.timepicker', [])
 
   function getMinutesFromTemplate() {
     var minutes = parseInt($scope.minutes, 10);
-    return ( minutes >= 0 && minutes < 60 ) ? minutes : undefined;
+    return (minutes >= 0 && minutes < 60) ? minutes : undefined;
   }
 
-  function pad( value ) {
-    return ( angular.isDefined(value) && value.toString().length < 2 ) ? '0' + value : value;
+  function pad(value) {
+    return (angular.isDefined(value) && value.toString().length < 2) ? '0' + value : value.toString();
   }
 
   // Respond on mousewheel spin
-  this.setupMousewheelEvents = function( hoursInputEl, minutesInputEl ) {
+  this.setupMousewheelEvents = function(hoursInputEl, minutesInputEl) {
     var isScrollingUp = function(e) {
       if (e.originalEvent) {
         e = e.originalEvent;
@@ -88921,26 +74925,53 @@ angular.module('ui.bootstrap.timepicker', [])
     };
 
     hoursInputEl.bind('mousewheel wheel', function(e) {
-      $scope.$apply( (isScrollingUp(e)) ? $scope.incrementHours() : $scope.decrementHours() );
+      $scope.$apply(isScrollingUp(e) ? $scope.incrementHours() : $scope.decrementHours());
       e.preventDefault();
     });
 
     minutesInputEl.bind('mousewheel wheel', function(e) {
-      $scope.$apply( (isScrollingUp(e)) ? $scope.incrementMinutes() : $scope.decrementMinutes() );
+      $scope.$apply(isScrollingUp(e) ? $scope.incrementMinutes() : $scope.decrementMinutes());
       e.preventDefault();
     });
 
   };
 
-  this.setupInputEvents = function( hoursInputEl, minutesInputEl ) {
-    if ( $scope.readonlyInput ) {
+  // Respond on up/down arrowkeys
+  this.setupArrowkeyEvents = function(hoursInputEl, minutesInputEl) {
+    hoursInputEl.bind('keydown', function(e) {
+      if (e.which === 38) { // up
+        e.preventDefault();
+        $scope.incrementHours();
+        $scope.$apply();
+      } else if (e.which === 40) { // down
+        e.preventDefault();
+        $scope.decrementHours();
+        $scope.$apply();
+      }
+    });
+
+    minutesInputEl.bind('keydown', function(e) {
+      if (e.which === 38) { // up
+        e.preventDefault();
+        $scope.incrementMinutes();
+        $scope.$apply();
+      } else if (e.which === 40) { // down
+        e.preventDefault();
+        $scope.decrementMinutes();
+        $scope.$apply();
+      }
+    });
+  };
+
+  this.setupInputEvents = function(hoursInputEl, minutesInputEl) {
+    if ($scope.readonlyInput) {
       $scope.updateHours = angular.noop;
       $scope.updateMinutes = angular.noop;
       return;
     }
 
     var invalidate = function(invalidHours, invalidMinutes) {
-      ngModelCtrl.$setViewValue( null );
+      ngModelCtrl.$setViewValue(null);
       ngModelCtrl.$setValidity('time', false);
       if (angular.isDefined(invalidHours)) {
         $scope.invalidHours = invalidHours;
@@ -88951,39 +74982,49 @@ angular.module('ui.bootstrap.timepicker', [])
     };
 
     $scope.updateHours = function() {
-      var hours = getHoursFromTemplate();
+      var hours = getHoursFromTemplate(),
+        minutes = getMinutesFromTemplate();
 
-      if ( angular.isDefined(hours) ) {
-        selected.setHours( hours );
-        refresh( 'h' );
+      if (angular.isDefined(hours) && angular.isDefined(minutes)) {
+        selected.setHours(hours);
+        if (selected < min || selected > max) {
+          invalidate(true);
+        } else {
+          refresh('h');
+        }
       } else {
         invalidate(true);
       }
     };
 
     hoursInputEl.bind('blur', function(e) {
-      if ( !$scope.invalidHours && $scope.hours < 10) {
-        $scope.$apply( function() {
-          $scope.hours = pad( $scope.hours );
+      if (!$scope.invalidHours && $scope.hours < 10) {
+        $scope.$apply(function() {
+          $scope.hours = pad($scope.hours);
         });
       }
     });
 
     $scope.updateMinutes = function() {
-      var minutes = getMinutesFromTemplate();
+      var minutes = getMinutesFromTemplate(),
+        hours = getHoursFromTemplate();
 
-      if ( angular.isDefined(minutes) ) {
-        selected.setMinutes( minutes );
-        refresh( 'm' );
+      if (angular.isDefined(minutes) && angular.isDefined(hours)) {
+        selected.setMinutes(minutes);
+        if (selected < min || selected > max) {
+          invalidate(undefined, true);
+        } else {
+          refresh('m');
+        }
       } else {
         invalidate(undefined, true);
       }
     };
 
     minutesInputEl.bind('blur', function(e) {
-      if ( !$scope.invalidMinutes && $scope.minutes < 10 ) {
-        $scope.$apply( function() {
-          $scope.minutes = pad( $scope.minutes );
+      if (!$scope.invalidMinutes && $scope.minutes < 10) {
+        $scope.$apply(function() {
+          $scope.minutes = pad($scope.minutes);
         });
       }
     });
@@ -88991,25 +75032,32 @@ angular.module('ui.bootstrap.timepicker', [])
   };
 
   this.render = function() {
-    var date = ngModelCtrl.$modelValue ? new Date( ngModelCtrl.$modelValue ) : null;
+    var date = ngModelCtrl.$viewValue;
 
-    if ( isNaN(date) ) {
+    if (isNaN(date)) {
       ngModelCtrl.$setValidity('time', false);
       $log.error('Timepicker directive: "ng-model" value must be a Date object, a number of milliseconds since 01.01.1970 or a string representing an RFC2822 or ISO 8601 date.');
     } else {
-      if ( date ) {
+      if (date) {
         selected = date;
       }
-      makeValid();
+
+      if (selected < min || selected > max) {
+        ngModelCtrl.$setValidity('time', false);
+        $scope.invalidHours = true;
+        $scope.invalidMinutes = true;
+      } else {
+        makeValid();
+      }
       updateTemplate();
     }
   };
 
   // Call internally when we know that model is valid.
-  function refresh( keyboardChange ) {
+  function refresh(keyboardChange) {
     makeValid();
-    ngModelCtrl.$setViewValue( new Date(selected) );
-    updateTemplate( keyboardChange );
+    ngModelCtrl.$setViewValue(new Date(selected));
+    updateTemplate(keyboardChange);
   }
 
   function makeValid() {
@@ -89018,73 +75066,190 @@ angular.module('ui.bootstrap.timepicker', [])
     $scope.invalidMinutes = false;
   }
 
-  function updateTemplate( keyboardChange ) {
+  function updateTemplate(keyboardChange) {
     var hours = selected.getHours(), minutes = selected.getMinutes();
 
-    if ( $scope.showMeridian ) {
-      hours = ( hours === 0 || hours === 12 ) ? 12 : hours % 12; // Convert 24 to 12 hour system
+    if ($scope.showMeridian) {
+      hours = (hours === 0 || hours === 12) ? 12 : hours % 12; // Convert 24 to 12 hour system
     }
 
     $scope.hours = keyboardChange === 'h' ? hours : pad(hours);
-    $scope.minutes = keyboardChange === 'm' ? minutes : pad(minutes);
+    if (keyboardChange !== 'm') {
+      $scope.minutes = pad(minutes);
+    }
     $scope.meridian = selected.getHours() < 12 ? meridians[0] : meridians[1];
   }
 
-  function addMinutes( minutes ) {
-    var dt = new Date( selected.getTime() + minutes * 60000 );
-    selected.setHours( dt.getHours(), dt.getMinutes() );
+  function addMinutes(date, minutes) {
+    var dt = new Date(date.getTime() + minutes * 60000);
+    var newDate = new Date(date);
+    newDate.setHours(dt.getHours(), dt.getMinutes());
+    return newDate;
+  }
+
+  function addMinutesToSelected(minutes) {
+    selected = addMinutes(selected, minutes);
     refresh();
   }
 
+  $scope.showSpinners = angular.isDefined($attrs.showSpinners) ?
+    $scope.$parent.$eval($attrs.showSpinners) : timepickerConfig.showSpinners;
+
   $scope.incrementHours = function() {
-    addMinutes( hourStep * 60 );
+    if (!$scope.noIncrementHours()) {
+      addMinutesToSelected(hourStep * 60);
+    }
   };
+
   $scope.decrementHours = function() {
-    addMinutes( - hourStep * 60 );
+    if (!$scope.noDecrementHours()) {
+      addMinutesToSelected(-hourStep * 60);
+    }
   };
+
   $scope.incrementMinutes = function() {
-    addMinutes( minuteStep );
+    if (!$scope.noIncrementMinutes()) {
+      addMinutesToSelected(minuteStep);
+    }
   };
+
   $scope.decrementMinutes = function() {
-    addMinutes( - minuteStep );
+    if (!$scope.noDecrementMinutes()) {
+      addMinutesToSelected(-minuteStep);
+    }
   };
+
   $scope.toggleMeridian = function() {
-    addMinutes( 12 * 60 * (( selected.getHours() < 12 ) ? 1 : -1) );
+    if (!$scope.noToggleMeridian()) {
+      addMinutesToSelected(12 * 60 * (selected.getHours() < 12 ? 1 : -1));
+    }
   };
 }])
 
-.directive('timepicker', function () {
+.directive('timepicker', function() {
   return {
     restrict: 'EA',
     require: ['timepicker', '?^ngModel'],
     controller:'TimepickerController',
+    controllerAs: 'timepicker',
     replace: true,
     scope: {},
-    templateUrl: 'template/timepicker/timepicker.html',
+    templateUrl: function(element, attrs) {
+      return attrs.templateUrl || 'template/timepicker/timepicker.html';
+    },
     link: function(scope, element, attrs, ctrls) {
       var timepickerCtrl = ctrls[0], ngModelCtrl = ctrls[1];
 
-      if ( ngModelCtrl ) {
-        timepickerCtrl.init( ngModelCtrl, element.find('input') );
+      if (ngModelCtrl) {
+        timepickerCtrl.init(ngModelCtrl, element.find('input'));
       }
     }
   };
 });
 
-angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap.bindHtml'])
+angular.module('ui.bootstrap.transition', [])
+
+.value('$transitionSuppressDeprecated', false)
+/**
+ * $transition service provides a consistent interface to trigger CSS 3 transitions and to be informed when they complete.
+ * @param  {DOMElement} element  The DOMElement that will be animated.
+ * @param  {string|object|function} trigger  The thing that will cause the transition to start:
+ *   - As a string, it represents the css class to be added to the element.
+ *   - As an object, it represents a hash of style attributes to be applied to the element.
+ *   - As a function, it represents a function to be called that will cause the transition to occur.
+ * @return {Promise}  A promise that is resolved when the transition finishes.
+ */
+.factory('$transition', [
+        '$q', '$timeout', '$rootScope', '$log', '$transitionSuppressDeprecated',
+function($q ,  $timeout ,  $rootScope ,  $log ,  $transitionSuppressDeprecated) {
+
+  if (!$transitionSuppressDeprecated) {
+    $log.warn('$transition is now deprecated. Use $animate from ngAnimate instead.');
+  }
+
+  var $transition = function(element, trigger, options) {
+    options = options || {};
+    var deferred = $q.defer();
+    var endEventName = $transition[options.animation ? 'animationEndEventName' : 'transitionEndEventName'];
+
+    var transitionEndHandler = function(event) {
+      $rootScope.$apply(function() {
+        element.unbind(endEventName, transitionEndHandler);
+        deferred.resolve(element);
+      });
+    };
+
+    if (endEventName) {
+      element.bind(endEventName, transitionEndHandler);
+    }
+
+    // Wrap in a timeout to allow the browser time to update the DOM before the transition is to occur
+    $timeout(function() {
+      if ( angular.isString(trigger) ) {
+        element.addClass(trigger);
+      } else if ( angular.isFunction(trigger) ) {
+        trigger(element);
+      } else if ( angular.isObject(trigger) ) {
+        element.css(trigger);
+      }
+      //If browser does not support transitions, instantly resolve
+      if ( !endEventName ) {
+        deferred.resolve(element);
+      }
+    });
+
+    // Add our custom cancel function to the promise that is returned
+    // We can call this if we are about to run a new transition, which we know will prevent this transition from ending,
+    // i.e. it will therefore never raise a transitionEnd event for that transition
+    deferred.promise.cancel = function() {
+      if ( endEventName ) {
+        element.unbind(endEventName, transitionEndHandler);
+      }
+      deferred.reject('Transition cancelled');
+    };
+
+    return deferred.promise;
+  };
+
+  // Work out the name of the transitionEnd event
+  var transElement = document.createElement('trans');
+  var transitionEndEventNames = {
+    'WebkitTransition': 'webkitTransitionEnd',
+    'MozTransition': 'transitionend',
+    'OTransition': 'oTransitionEnd',
+    'transition': 'transitionend'
+  };
+  var animationEndEventNames = {
+    'WebkitTransition': 'webkitAnimationEnd',
+    'MozTransition': 'animationend',
+    'OTransition': 'oAnimationEnd',
+    'transition': 'animationend'
+  };
+  function findEndEventName(endEventNames) {
+    for (var name in endEventNames){
+      if (transElement.style[name] !== undefined) {
+        return endEventNames[name];
+      }
+    }
+  }
+  $transition.transitionEndEventName = findEndEventName(transitionEndEventNames);
+  $transition.animationEndEventName = findEndEventName(animationEndEventNames);
+  return $transition;
+}]);
+
+angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position'])
 
 /**
  * A helper service that can parse typeahead's syntax (string provided by users)
  * Extracted to a separate service for ease of unit testing
  */
-  .factory('typeaheadParser', ['$parse', function ($parse) {
+  .factory('typeaheadParser', ['$parse', function($parse) {
 
   //                      00000111000000000000022200000000000000003333333333333330000000000044000
   var TYPEAHEAD_REGEXP = /^\s*([\s\S]+?)(?:\s+as\s+([\s\S]+?))?\s+for\s+(?:([\$\w][\$\w\d]*))\s+in\s+([\s\S]+?)$/;
 
   return {
-    parse:function (input) {
-
+    parse: function(input) {
       var match = input.match(TYPEAHEAD_REGEXP);
       if (!match) {
         throw new Error(
@@ -89102,383 +75267,512 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
   };
 }])
 
-  .directive('typeahead', ['$compile', '$parse', '$q', '$timeout', '$document', '$position', 'typeaheadParser',
-    function ($compile, $parse, $q, $timeout, $document, $position, typeaheadParser) {
+  .directive('typeahead', ['$compile', '$parse', '$q', '$timeout', '$document', '$window', '$rootScope', '$position', 'typeaheadParser',
+    function($compile, $parse, $q, $timeout, $document, $window, $rootScope, $position, typeaheadParser) {
+    var HOT_KEYS = [9, 13, 27, 38, 40];
+    var eventDebounceTime = 200;
 
-  var HOT_KEYS = [9, 13, 27, 38, 40];
+    return {
+      require: ['ngModel', '^?ngModelOptions'],
+      link: function(originalScope, element, attrs, ctrls) {
+        var modelCtrl = ctrls[0];
+        var ngModelOptions = ctrls[1];
+        //SUPPORTED ATTRIBUTES (OPTIONS)
 
-  return {
-    require:'ngModel',
-    link:function (originalScope, element, attrs, modelCtrl) {
-
-      //SUPPORTED ATTRIBUTES (OPTIONS)
-
-      //minimal no of characters that needs to be entered before typeahead kicks-in
-      var minSearch = originalScope.$eval(attrs.typeaheadMinLength) || 1;
-
-      //minimal wait time after last character typed before typehead kicks-in
-      var waitTime = originalScope.$eval(attrs.typeaheadWaitMs) || 0;
-
-      //should it restrict model values to the ones selected from the popup only?
-      var isEditable = originalScope.$eval(attrs.typeaheadEditable) !== false;
-
-      //binding to a variable that indicates if matches are being retrieved asynchronously
-      var isLoadingSetter = $parse(attrs.typeaheadLoading).assign || angular.noop;
-
-      //a callback executed when a match is selected
-      var onSelectCallback = $parse(attrs.typeaheadOnSelect);
-
-      var inputFormatter = attrs.typeaheadInputFormatter ? $parse(attrs.typeaheadInputFormatter) : undefined;
-
-      var appendToBody =  attrs.typeaheadAppendToBody ? originalScope.$eval(attrs.typeaheadAppendToBody) : false;
-
-      var focusFirst = originalScope.$eval(attrs.typeaheadFocusFirst) !== false;
-
-      //INTERNAL VARIABLES
-
-      //model setter executed upon match selection
-      var $setModelValue = $parse(attrs.ngModel).assign;
-
-      //expressions used by typeahead
-      var parserResult = typeaheadParser.parse(attrs.typeahead);
-
-      var hasFocus;
-
-      //create a child scope for the typeahead directive so we are not polluting original scope
-      //with typeahead-specific data (matches, query etc.)
-      var scope = originalScope.$new();
-      originalScope.$on('$destroy', function(){
-        scope.$destroy();
-      });
-
-      // WAI-ARIA
-      var popupId = 'typeahead-' + scope.$id + '-' + Math.floor(Math.random() * 10000);
-      element.attr({
-        'aria-autocomplete': 'list',
-        'aria-expanded': false,
-        'aria-owns': popupId
-      });
-
-      //pop-up element used to display matches
-      var popUpEl = angular.element('<div typeahead-popup></div>');
-      popUpEl.attr({
-        id: popupId,
-        matches: 'matches',
-        active: 'activeIdx',
-        select: 'select(activeIdx)',
-        query: 'query',
-        position: 'position'
-      });
-      //custom item template
-      if (angular.isDefined(attrs.typeaheadTemplateUrl)) {
-        popUpEl.attr('template-url', attrs.typeaheadTemplateUrl);
-      }
-
-      var resetMatches = function() {
-        scope.matches = [];
-        scope.activeIdx = -1;
-        element.attr('aria-expanded', false);
-      };
-
-      var getMatchId = function(index) {
-        return popupId + '-option-' + index;
-      };
-
-      // Indicate that the specified match is the active (pre-selected) item in the list owned by this typeahead.
-      // This attribute is added or removed automatically when the `activeIdx` changes.
-      scope.$watch('activeIdx', function(index) {
-        if (index < 0) {
-          element.removeAttr('aria-activedescendant');
-        } else {
-          element.attr('aria-activedescendant', getMatchId(index));
+        //minimal no of characters that needs to be entered before typeahead kicks-in
+        var minLength = originalScope.$eval(attrs.typeaheadMinLength);
+        if (!minLength && minLength !== 0) {
+          minLength = 1;
         }
-      });
 
-      var getMatchesAsync = function(inputValue) {
+        //minimal wait time after last character typed before typeahead kicks-in
+        var waitTime = originalScope.$eval(attrs.typeaheadWaitMs) || 0;
 
-        var locals = {$viewValue: inputValue};
-        isLoadingSetter(originalScope, true);
-        $q.when(parserResult.source(originalScope, locals)).then(function(matches) {
+        //should it restrict model values to the ones selected from the popup only?
+        var isEditable = originalScope.$eval(attrs.typeaheadEditable) !== false;
 
-          //it might happen that several async queries were in progress if a user were typing fast
-          //but we are interested only in responses that correspond to the current view value
-          var onCurrentRequest = (inputValue === modelCtrl.$viewValue);
-          if (onCurrentRequest && hasFocus) {
-            if (matches.length > 0) {
+        //binding to a variable that indicates if matches are being retrieved asynchronously
+        var isLoadingSetter = $parse(attrs.typeaheadLoading).assign || angular.noop;
 
-              scope.activeIdx = focusFirst ? 0 : -1;
-              scope.matches.length = 0;
+        //a callback executed when a match is selected
+        var onSelectCallback = $parse(attrs.typeaheadOnSelect);
 
-              //transform labels
-              for(var i=0; i<matches.length; i++) {
-                locals[parserResult.itemName] = matches[i];
-                scope.matches.push({
-                  id: getMatchId(i),
-                  label: parserResult.viewMapper(scope, locals),
-                  model: matches[i]
-                });
+        //should it select highlighted popup value when losing focus?
+        var isSelectOnBlur = angular.isDefined(attrs.typeaheadSelectOnBlur) ? originalScope.$eval(attrs.typeaheadSelectOnBlur) : false;
+
+        //binding to a variable that indicates if there were no results after the query is completed
+        var isNoResultsSetter = $parse(attrs.typeaheadNoResults).assign || angular.noop;
+
+        var inputFormatter = attrs.typeaheadInputFormatter ? $parse(attrs.typeaheadInputFormatter) : undefined;
+
+        var appendToBody =  attrs.typeaheadAppendToBody ? originalScope.$eval(attrs.typeaheadAppendToBody) : false;
+
+        var focusFirst = originalScope.$eval(attrs.typeaheadFocusFirst) !== false;
+
+        //If input matches an item of the list exactly, select it automatically
+        var selectOnExact = attrs.typeaheadSelectOnExact ? originalScope.$eval(attrs.typeaheadSelectOnExact) : false;
+
+        //INTERNAL VARIABLES
+
+        //model setter executed upon match selection
+        var parsedModel = $parse(attrs.ngModel);
+        var invokeModelSetter = $parse(attrs.ngModel + '($$$p)');
+        var $setModelValue = function(scope, newValue) {
+          if (angular.isFunction(parsedModel(originalScope)) &&
+            ngModelOptions && ngModelOptions.$options && ngModelOptions.$options.getterSetter) {
+            return invokeModelSetter(scope, {$$$p: newValue});
+          } else {
+            return parsedModel.assign(scope, newValue);
+          }
+        };
+
+        //expressions used by typeahead
+        var parserResult = typeaheadParser.parse(attrs.typeahead);
+
+        var hasFocus;
+
+        //Used to avoid bug in iOS webview where iOS keyboard does not fire
+        //mousedown & mouseup events
+        //Issue #3699
+        var selected;
+
+        //create a child scope for the typeahead directive so we are not polluting original scope
+        //with typeahead-specific data (matches, query etc.)
+        var scope = originalScope.$new();
+        var offDestroy = originalScope.$on('$destroy', function() {
+			    scope.$destroy();
+        });
+        scope.$on('$destroy', offDestroy);
+
+        // WAI-ARIA
+        var popupId = 'typeahead-' + scope.$id + '-' + Math.floor(Math.random() * 10000);
+        element.attr({
+          'aria-autocomplete': 'list',
+          'aria-expanded': false,
+          'aria-owns': popupId
+        });
+
+        //pop-up element used to display matches
+        var popUpEl = angular.element('<div typeahead-popup></div>');
+        popUpEl.attr({
+          id: popupId,
+          matches: 'matches',
+          active: 'activeIdx',
+          select: 'select(activeIdx)',
+          'move-in-progress': 'moveInProgress',
+          query: 'query',
+          position: 'position'
+        });
+        //custom item template
+        if (angular.isDefined(attrs.typeaheadTemplateUrl)) {
+          popUpEl.attr('template-url', attrs.typeaheadTemplateUrl);
+        }
+
+        if (angular.isDefined(attrs.typeaheadPopupTemplateUrl)) {
+          popUpEl.attr('popup-template-url', attrs.typeaheadPopupTemplateUrl);
+        }
+
+        var resetMatches = function() {
+          scope.matches = [];
+          scope.activeIdx = -1;
+          element.attr('aria-expanded', false);
+        };
+
+        var getMatchId = function(index) {
+          return popupId + '-option-' + index;
+        };
+
+        // Indicate that the specified match is the active (pre-selected) item in the list owned by this typeahead.
+        // This attribute is added or removed automatically when the `activeIdx` changes.
+        scope.$watch('activeIdx', function(index) {
+          if (index < 0) {
+            element.removeAttr('aria-activedescendant');
+          } else {
+            element.attr('aria-activedescendant', getMatchId(index));
+          }
+        });
+
+        var inputIsExactMatch = function(inputValue, index) {
+          if (scope.matches.length > index && inputValue) {
+            return inputValue.toUpperCase() === scope.matches[index].label.toUpperCase();
+          }
+
+          return false;
+        };
+
+        var getMatchesAsync = function(inputValue) {
+          var locals = {$viewValue: inputValue};
+          isLoadingSetter(originalScope, true);
+          isNoResultsSetter(originalScope, false);
+          $q.when(parserResult.source(originalScope, locals)).then(function(matches) {
+            //it might happen that several async queries were in progress if a user were typing fast
+            //but we are interested only in responses that correspond to the current view value
+            var onCurrentRequest = (inputValue === modelCtrl.$viewValue);
+            if (onCurrentRequest && hasFocus) {
+              if (matches && matches.length > 0) {
+
+                scope.activeIdx = focusFirst ? 0 : -1;
+                isNoResultsSetter(originalScope, false);
+                scope.matches.length = 0;
+
+                //transform labels
+                for (var i = 0; i < matches.length; i++) {
+                  locals[parserResult.itemName] = matches[i];
+                  scope.matches.push({
+                    id: getMatchId(i),
+                    label: parserResult.viewMapper(scope, locals),
+                    model: matches[i]
+                  });
+                }
+
+                scope.query = inputValue;
+                //position pop-up with matches - we need to re-calculate its position each time we are opening a window
+                //with matches as a pop-up might be absolute-positioned and position of an input might have changed on a page
+                //due to other elements being rendered
+                recalculatePosition();
+
+                element.attr('aria-expanded', true);
+
+                //Select the single remaining option if user input matches
+                if (selectOnExact && scope.matches.length === 1 && inputIsExactMatch(inputValue, 0)) {
+                  scope.select(0);
+                }
+              } else {
+                resetMatches();
+                isNoResultsSetter(originalScope, true);
               }
-
-              scope.query = inputValue;
-              //position pop-up with matches - we need to re-calculate its position each time we are opening a window
-              //with matches as a pop-up might be absolute-positioned and position of an input might have changed on a page
-              //due to other elements being rendered
-              scope.position = appendToBody ? $position.offset(element) : $position.position(element);
-              scope.position.top = scope.position.top + element.prop('offsetHeight');
-
-              element.attr('aria-expanded', true);
-            } else {
-              resetMatches();
             }
-          }
-          if (onCurrentRequest) {
+            if (onCurrentRequest) {
+              isLoadingSetter(originalScope, false);
+            }
+          }, function() {
+            resetMatches();
             isLoadingSetter(originalScope, false);
+            isNoResultsSetter(originalScope, true);
+          });
+        };
+
+        // bind events only if appendToBody params exist - performance feature
+        if (appendToBody) {
+          angular.element($window).bind('resize', fireRecalculating);
+          $document.find('body').bind('scroll', fireRecalculating);
+        }
+
+        // Declare the timeout promise var outside the function scope so that stacked calls can be cancelled later
+        var timeoutEventPromise;
+
+        // Default progress type
+        scope.moveInProgress = false;
+
+        function fireRecalculating() {
+          if (!scope.moveInProgress) {
+            scope.moveInProgress = true;
+            scope.$digest();
           }
-        }, function(){
-          resetMatches();
-          isLoadingSetter(originalScope, false);
-        });
-      };
 
-      resetMatches();
-
-      //we need to propagate user's query so we can higlight matches
-      scope.query = undefined;
-
-      //Declare the timeout promise var outside the function scope so that stacked calls can be cancelled later 
-      var timeoutPromise;
-
-      var scheduleSearchWithTimeout = function(inputValue) {
-        timeoutPromise = $timeout(function () {
-          getMatchesAsync(inputValue);
-        }, waitTime);
-      };
-
-      var cancelPreviousTimeout = function() {
-        if (timeoutPromise) {
-          $timeout.cancel(timeoutPromise);
-        }
-      };
-
-      //plug into $parsers pipeline to open a typeahead on view changes initiated from DOM
-      //$parsers kick-in on all the changes coming from the view as well as manually triggered by $setViewValue
-      modelCtrl.$parsers.unshift(function (inputValue) {
-
-        hasFocus = true;
-
-        if (inputValue && inputValue.length >= minSearch) {
-          if (waitTime > 0) {
-            cancelPreviousTimeout();
-            scheduleSearchWithTimeout(inputValue);
-          } else {
-            getMatchesAsync(inputValue);
+          // Cancel previous timeout
+          if (timeoutEventPromise) {
+            $timeout.cancel(timeoutEventPromise);
           }
-        } else {
-          isLoadingSetter(originalScope, false);
-          cancelPreviousTimeout();
-          resetMatches();
+
+          // Debounced executing recalculate after events fired
+          timeoutEventPromise = $timeout(function() {
+            // if popup is visible
+            if (scope.matches.length) {
+              recalculatePosition();
+            }
+
+            scope.moveInProgress = false;
+            scope.$digest();
+          }, eventDebounceTime);
         }
 
-        if (isEditable) {
-          return inputValue;
-        } else {
-          if (!inputValue) {
-            // Reset in case user had typed something previously.
-            modelCtrl.$setValidity('editable', true);
-            return inputValue;
-          } else {
-            modelCtrl.$setValidity('editable', false);
-            return undefined;
-          }
+        // recalculate actual position and set new values to scope
+        // after digest loop is popup in right position
+        function recalculatePosition() {
+          scope.position = appendToBody ? $position.offset(element) : $position.position(element);
+          scope.position.top += element.prop('offsetHeight');
         }
-      });
-
-      modelCtrl.$formatters.push(function (modelValue) {
-
-        var candidateViewValue, emptyViewValue;
-        var locals = {};
-
-        if (inputFormatter) {
-
-          locals.$model = modelValue;
-          return inputFormatter(originalScope, locals);
-
-        } else {
-
-          //it might happen that we don't have enough info to properly render input value
-          //we need to check for this situation and simply return model value if we can't apply custom formatting
-          locals[parserResult.itemName] = modelValue;
-          candidateViewValue = parserResult.viewMapper(originalScope, locals);
-          locals[parserResult.itemName] = undefined;
-          emptyViewValue = parserResult.viewMapper(originalScope, locals);
-
-          return candidateViewValue!== emptyViewValue ? candidateViewValue : modelValue;
-        }
-      });
-
-      scope.select = function (activeIdx) {
-        //called from within the $digest() cycle
-        var locals = {};
-        var model, item;
-
-        locals[parserResult.itemName] = item = scope.matches[activeIdx].model;
-        model = parserResult.modelMapper(originalScope, locals);
-        $setModelValue(originalScope, model);
-        modelCtrl.$setValidity('editable', true);
-
-        onSelectCallback(originalScope, {
-          $item: item,
-          $model: model,
-          $label: parserResult.viewMapper(originalScope, locals)
-        });
 
         resetMatches();
 
-        //return focus to the input element if a match was selected via a mouse click event
-        // use timeout to avoid $rootScope:inprog error
-        $timeout(function() { element[0].focus(); }, 0, false);
-      };
+        //we need to propagate user's query so we can higlight matches
+        scope.query = undefined;
 
-      //bind keyboard events: arrows up(38) / down(40), enter(13) and tab(9), esc(27)
-      element.bind('keydown', function (evt) {
+        //Declare the timeout promise var outside the function scope so that stacked calls can be cancelled later
+        var timeoutPromise;
 
-        //typeahead is open and an "interesting" key was pressed
-        if (scope.matches.length === 0 || HOT_KEYS.indexOf(evt.which) === -1) {
-          return;
-        }
+        var scheduleSearchWithTimeout = function(inputValue) {
+          timeoutPromise = $timeout(function() {
+            getMatchesAsync(inputValue);
+          }, waitTime);
+        };
 
-        // if there's nothing selected (i.e. focusFirst) and enter is hit, don't do anything
-        if (scope.activeIdx == -1 && (evt.which === 13 || evt.which === 9)) {
-          return;
-        }
+        var cancelPreviousTimeout = function() {
+          if (timeoutPromise) {
+            $timeout.cancel(timeoutPromise);
+          }
+        };
 
-        evt.preventDefault();
+        //plug into $parsers pipeline to open a typeahead on view changes initiated from DOM
+        //$parsers kick-in on all the changes coming from the view as well as manually triggered by $setViewValue
+        modelCtrl.$parsers.unshift(function(inputValue) {
+          hasFocus = true;
 
-        if (evt.which === 40) {
-          scope.activeIdx = (scope.activeIdx + 1) % scope.matches.length;
-          scope.$digest();
+          if (minLength === 0 || inputValue && inputValue.length >= minLength) {
+            if (waitTime > 0) {
+              cancelPreviousTimeout();
+              scheduleSearchWithTimeout(inputValue);
+            } else {
+              getMatchesAsync(inputValue);
+            }
+          } else {
+            isLoadingSetter(originalScope, false);
+            cancelPreviousTimeout();
+            resetMatches();
+          }
 
-        } else if (evt.which === 38) {
-          scope.activeIdx = (scope.activeIdx > 0 ? scope.activeIdx : scope.matches.length) - 1;
-          scope.$digest();
+          if (isEditable) {
+            return inputValue;
+          } else {
+            if (!inputValue) {
+              // Reset in case user had typed something previously.
+              modelCtrl.$setValidity('editable', true);
+              return null;
+            } else {
+              modelCtrl.$setValidity('editable', false);
+              return undefined;
+            }
+          }
+        });
 
-        } else if (evt.which === 13 || evt.which === 9) {
-          scope.$apply(function () {
-            scope.select(scope.activeIdx);
+        modelCtrl.$formatters.push(function(modelValue) {
+          var candidateViewValue, emptyViewValue;
+          var locals = {};
+
+          // The validity may be set to false via $parsers (see above) if
+          // the model is restricted to selected values. If the model
+          // is set manually it is considered to be valid.
+          if (!isEditable) {
+            modelCtrl.$setValidity('editable', true);
+          }
+
+          if (inputFormatter) {
+            locals.$model = modelValue;
+            return inputFormatter(originalScope, locals);
+          } else {
+            //it might happen that we don't have enough info to properly render input value
+            //we need to check for this situation and simply return model value if we can't apply custom formatting
+            locals[parserResult.itemName] = modelValue;
+            candidateViewValue = parserResult.viewMapper(originalScope, locals);
+            locals[parserResult.itemName] = undefined;
+            emptyViewValue = parserResult.viewMapper(originalScope, locals);
+
+            return candidateViewValue!== emptyViewValue ? candidateViewValue : modelValue;
+          }
+        });
+
+        scope.select = function(activeIdx) {
+          //called from within the $digest() cycle
+          var locals = {};
+          var model, item;
+
+          selected = true;
+          locals[parserResult.itemName] = item = scope.matches[activeIdx].model;
+          model = parserResult.modelMapper(originalScope, locals);
+          $setModelValue(originalScope, model);
+          modelCtrl.$setValidity('editable', true);
+          modelCtrl.$setValidity('parse', true);
+
+          onSelectCallback(originalScope, {
+            $item: item,
+            $model: model,
+            $label: parserResult.viewMapper(originalScope, locals)
           });
 
-        } else if (evt.which === 27) {
-          evt.stopPropagation();
-
           resetMatches();
-          scope.$digest();
-        }
-      });
 
-      element.bind('blur', function (evt) {
-        hasFocus = false;
-      });
+          //return focus to the input element if a match was selected via a mouse click event
+          // use timeout to avoid $rootScope:inprog error
+          if (scope.$eval(attrs.typeaheadFocusOnSelect) !== false) {
+            $timeout(function() { element[0].focus(); }, 0, false);
+          }
+        };
 
-      // Keep reference to click handler to unbind it.
-      var dismissClickHandler = function (evt) {
-        if (element[0] !== evt.target) {
-          resetMatches();
-          scope.$digest();
-        }
-      };
+        //bind keyboard events: arrows up(38) / down(40), enter(13) and tab(9), esc(27)
+        element.bind('keydown', function(evt) {
+          //typeahead is open and an "interesting" key was pressed
+          if (scope.matches.length === 0 || HOT_KEYS.indexOf(evt.which) === -1) {
+            return;
+          }
 
-      $document.bind('click', dismissClickHandler);
+          // if there's nothing selected (i.e. focusFirst) and enter or tab is hit, clear the results
+          if (scope.activeIdx === -1 && (evt.which === 9 || evt.which === 13)) {
+            resetMatches();
+            scope.$digest();
+            return;
+          }
 
-      originalScope.$on('$destroy', function(){
-        $document.unbind('click', dismissClickHandler);
+          evt.preventDefault();
+
+          if (evt.which === 40) {
+            scope.activeIdx = (scope.activeIdx + 1) % scope.matches.length;
+            scope.$digest();
+
+          } else if (evt.which === 38) {
+            scope.activeIdx = (scope.activeIdx > 0 ? scope.activeIdx : scope.matches.length) - 1;
+            scope.$digest();
+
+          } else if (evt.which === 13 || evt.which === 9) {
+            scope.$apply(function () {
+              scope.select(scope.activeIdx);
+            });
+
+          } else if (evt.which === 27) {
+            evt.stopPropagation();
+
+            resetMatches();
+            scope.$digest();
+          }
+        });
+
+        element.bind('blur', function() {
+          if (isSelectOnBlur && scope.matches.length && scope.activeIdx !== -1 && !selected) {
+            selected = true;
+            scope.$apply(function() {
+              scope.select(scope.activeIdx);
+            });
+          }
+          hasFocus = false;
+          selected = false;
+        });
+
+        // Keep reference to click handler to unbind it.
+        var dismissClickHandler = function(evt) {
+          // Issue #3973
+          // Firefox treats right click as a click on document
+          if (element[0] !== evt.target && evt.which !== 3 && scope.matches.length !== 0) {
+            resetMatches();
+            if (!$rootScope.$$phase) {
+              scope.$digest();
+            }
+          }
+        };
+
+        $document.bind('click', dismissClickHandler);
+
+        originalScope.$on('$destroy', function() {
+          $document.unbind('click', dismissClickHandler);
+          if (appendToBody) {
+            $popup.remove();
+          }
+          // Prevent jQuery cache memory leak
+          popUpEl.remove();
+        });
+
+        var $popup = $compile(popUpEl)(scope);
+
         if (appendToBody) {
-          $popup.remove();
+          $document.find('body').append($popup);
+        } else {
+          element.after($popup);
         }
-      });
-
-      var $popup = $compile(popUpEl)(scope);
-      if (appendToBody) {
-        $document.find('body').append($popup);
-      } else {
-        element.after($popup);
       }
-    }
-  };
+    };
 
-}])
+  }])
 
-  .directive('typeaheadPopup', function () {
+  .directive('typeaheadPopup', function() {
     return {
-      restrict:'EA',
-      scope:{
-        matches:'=',
-        query:'=',
-        active:'=',
-        position:'=',
-        select:'&'
+      restrict: 'EA',
+      scope: {
+        matches: '=',
+        query: '=',
+        active: '=',
+        position: '&',
+        moveInProgress: '=',
+        select: '&'
       },
-      replace:true,
-      templateUrl:'template/typeahead/typeahead-popup.html',
-      link:function (scope, element, attrs) {
-
+      replace: true,
+      templateUrl: function(element, attrs) {
+        return attrs.popupTemplateUrl || 'template/typeahead/typeahead-popup.html';
+      },
+      link: function(scope, element, attrs) {
         scope.templateUrl = attrs.templateUrl;
 
-        scope.isOpen = function () {
+        scope.isOpen = function() {
           return scope.matches.length > 0;
         };
 
-        scope.isActive = function (matchIdx) {
+        scope.isActive = function(matchIdx) {
           return scope.active == matchIdx;
         };
 
-        scope.selectActive = function (matchIdx) {
+        scope.selectActive = function(matchIdx) {
           scope.active = matchIdx;
         };
 
-        scope.selectMatch = function (activeIdx) {
+        scope.selectMatch = function(activeIdx) {
           scope.select({activeIdx:activeIdx});
         };
       }
     };
   })
 
-  .directive('typeaheadMatch', ['$http', '$templateCache', '$compile', '$parse', function ($http, $templateCache, $compile, $parse) {
+  .directive('typeaheadMatch', ['$templateRequest', '$compile', '$parse', function($templateRequest, $compile, $parse) {
     return {
-      restrict:'EA',
-      scope:{
-        index:'=',
-        match:'=',
-        query:'='
+      restrict: 'EA',
+      scope: {
+        index: '=',
+        match: '=',
+        query: '='
       },
-      link:function (scope, element, attrs) {
+      link:function(scope, element, attrs) {
         var tplUrl = $parse(attrs.templateUrl)(scope.$parent) || 'template/typeahead/typeahead-match.html';
-        $http.get(tplUrl, {cache: $templateCache}).success(function(tplContent){
-           element.replaceWith($compile(tplContent.trim())(scope));
+        $templateRequest(tplUrl).then(function(tplContent) {
+          $compile(tplContent.trim())(scope, function(clonedElement) {
+            element.replaceWith(clonedElement);
+          });
         });
       }
     };
   }])
 
-  .filter('typeaheadHighlight', function() {
+  .filter('typeaheadHighlight', ['$sce', '$injector', '$log', function($sce, $injector, $log) {
+    var isSanitizePresent;
+    isSanitizePresent = $injector.has('$sanitize');
 
     function escapeRegexp(queryToEscape) {
+      // Regex: capture the whole query string and replace it with the string that will be used to match
+      // the results, for example if the capture is "a" the result will be \a
       return queryToEscape.replace(/([.?*+^$[\]\\(){}|-])/g, '\\$1');
     }
 
+    function containsHtml(matchItem) {
+      return /<.*>/g.test(matchItem);
+    }
+
     return function(matchItem, query) {
-      return query ? ('' + matchItem).replace(new RegExp(escapeRegexp(query), 'gi'), '<strong>$&</strong>') : matchItem;
+      if (!isSanitizePresent && containsHtml(matchItem)) {
+        $log.warn('Unsafe use of typeahead please use ngSanitize'); // Warn the user about the danger
+      }
+      matchItem = query? ('' + matchItem).replace(new RegExp(escapeRegexp(query), 'gi'), '<strong>$&</strong>') : matchItem; // Replaces the capture string with a the same string inside of a "strong" tag
+      if (!isSanitizePresent) {
+        matchItem = $sce.trustAsHtml(matchItem); // If $sanitize is not present we pack the string in a $sce object for the ng-bind-html directive
+      }
+      return matchItem;
     };
-  });
+  }]);
 
 angular.module("template/accordion/accordion-group.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/accordion/accordion-group.html",
-    "<div class=\"panel panel-default\">\n" +
-    "  <div class=\"panel-heading\">\n" +
+    "<div class=\"panel {{panelClass || 'panel-default'}}\">\n" +
+    "  <div class=\"panel-heading\" ng-keypress=\"toggleOpen($event)\">\n" +
     "    <h4 class=\"panel-title\">\n" +
-    "      <a href class=\"accordion-toggle\" ng-click=\"toggleOpen()\" accordion-transclude=\"heading\"><span ng-class=\"{'text-muted': isDisabled}\">{{heading}}</span></a>\n" +
+    "      <a href tabindex=\"0\" class=\"accordion-toggle\" ng-click=\"toggleOpen()\" accordion-transclude=\"heading\"><span ng-class=\"{'text-muted': isDisabled}\">{{heading}}</span></a>\n" +
     "    </h4>\n" +
     "  </div>\n" +
-    "  <div class=\"panel-collapse\" collapse=\"!isOpen\">\n" +
+    "  <div class=\"panel-collapse collapse\" collapse=\"!isOpen\">\n" +
     "	  <div class=\"panel-body\" ng-transclude></div>\n" +
     "  </div>\n" +
     "</div>\n" +
@@ -89492,8 +75786,8 @@ angular.module("template/accordion/accordion.html", []).run(["$templateCache", f
 
 angular.module("template/alert/alert.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/alert/alert.html",
-    "<div class=\"alert\" ng-class=\"['alert-' + (type || 'warning'), closeable ? 'alert-dismissable' : null]\" role=\"alert\">\n" +
-    "    <button ng-show=\"closeable\" type=\"button\" class=\"close\" ng-click=\"close()\">\n" +
+    "<div class=\"alert\" ng-class=\"['alert-' + (type || 'warning'), closeable ? 'alert-dismissible' : null]\" role=\"alert\">\n" +
+    "    <button ng-show=\"closeable\" type=\"button\" class=\"close\" ng-click=\"close($event)\">\n" +
     "        <span aria-hidden=\"true\">&times;</span>\n" +
     "        <span class=\"sr-only\">Close</span>\n" +
     "    </button>\n" +
@@ -89506,7 +75800,7 @@ angular.module("template/carousel/carousel.html", []).run(["$templateCache", fun
   $templateCache.put("template/carousel/carousel.html",
     "<div ng-mouseenter=\"pause()\" ng-mouseleave=\"play()\" class=\"carousel\" ng-swipe-right=\"prev()\" ng-swipe-left=\"next()\">\n" +
     "    <ol class=\"carousel-indicators\" ng-show=\"slides.length > 1\">\n" +
-    "        <li ng-repeat=\"slide in slides track by $index\" ng-class=\"{active: isActive(slide)}\" ng-click=\"select(slide)\"></li>\n" +
+    "        <li ng-repeat=\"slide in slides | orderBy:indexOfSlide track by $index\" ng-class=\"{active: isActive(slide)}\" ng-click=\"select(slide)\"></li>\n" +
     "    </ol>\n" +
     "    <div class=\"carousel-inner\" ng-transclude></div>\n" +
     "    <a class=\"left carousel-control\" ng-click=\"prev()\" ng-show=\"slides.length > 1\"><span class=\"glyphicon glyphicon-chevron-left\"></span></a>\n" +
@@ -89518,11 +75812,7 @@ angular.module("template/carousel/carousel.html", []).run(["$templateCache", fun
 angular.module("template/carousel/slide.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/carousel/slide.html",
     "<div ng-class=\"{\n" +
-    "    'active': leaving || (active && !entering),\n" +
-    "    'prev': (next || active) && direction=='prev',\n" +
-    "    'next': (next || active) && direction=='next',\n" +
-    "    'right': direction=='prev',\n" +
-    "    'left': direction=='next'\n" +
+    "    'active': active\n" +
     "  }\" class=\"item text-center\" ng-transclude></div>\n" +
     "");
 }]);
@@ -89538,23 +75828,23 @@ angular.module("template/datepicker/datepicker.html", []).run(["$templateCache",
 
 angular.module("template/datepicker/day.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/datepicker/day.html",
-    "<table role=\"grid\" aria-labelledby=\"{{uniqueId}}-title\" aria-activedescendant=\"{{activeDateId}}\">\n" +
+    "<table role=\"grid\" aria-labelledby=\"{{::uniqueId}}-title\" aria-activedescendant=\"{{activeDateId}}\">\n" +
     "  <thead>\n" +
     "    <tr>\n" +
     "      <th><button type=\"button\" class=\"btn btn-default btn-sm pull-left\" ng-click=\"move(-1)\" tabindex=\"-1\"><i class=\"glyphicon glyphicon-chevron-left\"></i></button></th>\n" +
-    "      <th colspan=\"{{5 + showWeeks}}\"><button id=\"{{uniqueId}}-title\" role=\"heading\" aria-live=\"assertive\" aria-atomic=\"true\" type=\"button\" class=\"btn btn-default btn-sm\" ng-click=\"toggleMode()\" tabindex=\"-1\" style=\"width:100%;\"><strong>{{title}}</strong></button></th>\n" +
+    "      <th colspan=\"{{::5 + showWeeks}}\"><button id=\"{{::uniqueId}}-title\" role=\"heading\" aria-live=\"assertive\" aria-atomic=\"true\" type=\"button\" class=\"btn btn-default btn-sm\" ng-click=\"toggleMode()\" ng-disabled=\"datepickerMode === maxMode\" tabindex=\"-1\" style=\"width:100%;\"><strong>{{title}}</strong></button></th>\n" +
     "      <th><button type=\"button\" class=\"btn btn-default btn-sm pull-right\" ng-click=\"move(1)\" tabindex=\"-1\"><i class=\"glyphicon glyphicon-chevron-right\"></i></button></th>\n" +
     "    </tr>\n" +
     "    <tr>\n" +
-    "      <th ng-show=\"showWeeks\" class=\"text-center\"></th>\n" +
-    "      <th ng-repeat=\"label in labels track by $index\" class=\"text-center\"><small aria-label=\"{{label.full}}\">{{label.abbr}}</small></th>\n" +
+    "      <th ng-if=\"showWeeks\" class=\"text-center\"></th>\n" +
+    "      <th ng-repeat=\"label in ::labels track by $index\" class=\"text-center\"><small aria-label=\"{{::label.full}}\">{{::label.abbr}}</small></th>\n" +
     "    </tr>\n" +
     "  </thead>\n" +
     "  <tbody>\n" +
     "    <tr ng-repeat=\"row in rows track by $index\">\n" +
-    "      <td ng-show=\"showWeeks\" class=\"text-center h6\"><em>{{ weekNumbers[$index] }}</em></td>\n" +
-    "      <td ng-repeat=\"dt in row track by dt.date\" class=\"text-center\" role=\"gridcell\" id=\"{{dt.uid}}\" aria-disabled=\"{{!!dt.disabled}}\">\n" +
-    "        <button type=\"button\" style=\"width:100%;\" class=\"btn btn-default btn-sm\" ng-class=\"{'btn-info': dt.selected, active: isActive(dt)}\" ng-click=\"select(dt.date)\" ng-disabled=\"dt.disabled\" tabindex=\"-1\"><span ng-class=\"{'text-muted': dt.secondary, 'text-info': dt.current}\">{{dt.label}}</span></button>\n" +
+    "      <td ng-if=\"showWeeks\" class=\"text-center h6\"><em>{{ weekNumbers[$index] }}</em></td>\n" +
+    "      <td ng-repeat=\"dt in row track by dt.date\" class=\"text-center\" role=\"gridcell\" id=\"{{::dt.uid}}\" ng-class=\"::dt.customClass\">\n" +
+    "        <button type=\"button\" style=\"min-width:100%;\" class=\"btn btn-default btn-sm\" ng-class=\"{'btn-info': dt.selected, active: isActive(dt)}\" ng-click=\"select(dt.date)\" ng-disabled=\"dt.disabled\" tabindex=\"-1\"><span ng-class=\"::{'text-muted': dt.secondary, 'text-info': dt.current}\">{{::dt.label}}</span></button>\n" +
     "      </td>\n" +
     "    </tr>\n" +
     "  </tbody>\n" +
@@ -89564,18 +75854,18 @@ angular.module("template/datepicker/day.html", []).run(["$templateCache", functi
 
 angular.module("template/datepicker/month.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/datepicker/month.html",
-    "<table role=\"grid\" aria-labelledby=\"{{uniqueId}}-title\" aria-activedescendant=\"{{activeDateId}}\">\n" +
+    "<table role=\"grid\" aria-labelledby=\"{{::uniqueId}}-title\" aria-activedescendant=\"{{activeDateId}}\">\n" +
     "  <thead>\n" +
     "    <tr>\n" +
     "      <th><button type=\"button\" class=\"btn btn-default btn-sm pull-left\" ng-click=\"move(-1)\" tabindex=\"-1\"><i class=\"glyphicon glyphicon-chevron-left\"></i></button></th>\n" +
-    "      <th><button id=\"{{uniqueId}}-title\" role=\"heading\" aria-live=\"assertive\" aria-atomic=\"true\" type=\"button\" class=\"btn btn-default btn-sm\" ng-click=\"toggleMode()\" tabindex=\"-1\" style=\"width:100%;\"><strong>{{title}}</strong></button></th>\n" +
+    "      <th><button id=\"{{::uniqueId}}-title\" role=\"heading\" aria-live=\"assertive\" aria-atomic=\"true\" type=\"button\" class=\"btn btn-default btn-sm\" ng-click=\"toggleMode()\" ng-disabled=\"datepickerMode === maxMode\" tabindex=\"-1\" style=\"width:100%;\"><strong>{{title}}</strong></button></th>\n" +
     "      <th><button type=\"button\" class=\"btn btn-default btn-sm pull-right\" ng-click=\"move(1)\" tabindex=\"-1\"><i class=\"glyphicon glyphicon-chevron-right\"></i></button></th>\n" +
     "    </tr>\n" +
     "  </thead>\n" +
     "  <tbody>\n" +
     "    <tr ng-repeat=\"row in rows track by $index\">\n" +
-    "      <td ng-repeat=\"dt in row track by dt.date\" class=\"text-center\" role=\"gridcell\" id=\"{{dt.uid}}\" aria-disabled=\"{{!!dt.disabled}}\">\n" +
-    "        <button type=\"button\" style=\"width:100%;\" class=\"btn btn-default\" ng-class=\"{'btn-info': dt.selected, active: isActive(dt)}\" ng-click=\"select(dt.date)\" ng-disabled=\"dt.disabled\" tabindex=\"-1\"><span ng-class=\"{'text-info': dt.current}\">{{dt.label}}</span></button>\n" +
+    "      <td ng-repeat=\"dt in row track by dt.date\" class=\"text-center\" role=\"gridcell\" id=\"{{::dt.uid}}\" ng-class=\"::dt.customClass\">\n" +
+    "        <button type=\"button\" style=\"min-width:100%;\" class=\"btn btn-default\" ng-class=\"{'btn-info': dt.selected, active: isActive(dt)}\" ng-click=\"select(dt.date)\" ng-disabled=\"dt.disabled\" tabindex=\"-1\"><span ng-class=\"::{'text-info': dt.current}\">{{::dt.label}}</span></button>\n" +
     "      </td>\n" +
     "    </tr>\n" +
     "  </tbody>\n" +
@@ -89585,11 +75875,11 @@ angular.module("template/datepicker/month.html", []).run(["$templateCache", func
 
 angular.module("template/datepicker/popup.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/datepicker/popup.html",
-    "<ul class=\"dropdown-menu\" ng-style=\"{display: (isOpen && 'block') || 'none', top: position.top+'px', left: position.left+'px'}\" ng-keydown=\"keydown($event)\">\n" +
+    "<ul class=\"dropdown-menu\" ng-if=\"isOpen\" style=\"display: block\" ng-style=\"{top: position.top+'px', left: position.left+'px'}\" ng-keydown=\"keydown($event)\" ng-click=\"$event.stopPropagation()\">\n" +
     "	<li ng-transclude></li>\n" +
     "	<li ng-if=\"showButtonBar\" style=\"padding:10px 9px 2px\">\n" +
     "		<span class=\"btn-group pull-left\">\n" +
-    "			<button type=\"button\" class=\"btn btn-sm btn-info\" ng-click=\"select('today')\">{{ getText('current') }}</button>\n" +
+    "			<button type=\"button\" class=\"btn btn-sm btn-info\" ng-click=\"select('today')\" ng-disabled=\"isDisabled('today')\">{{ getText('current') }}</button>\n" +
     "			<button type=\"button\" class=\"btn btn-sm btn-danger\" ng-click=\"select(null)\">{{ getText('clear') }}</button>\n" +
     "		</span>\n" +
     "		<button type=\"button\" class=\"btn btn-sm btn-success pull-right\" ng-click=\"close()\">{{ getText('close') }}</button>\n" +
@@ -89600,18 +75890,18 @@ angular.module("template/datepicker/popup.html", []).run(["$templateCache", func
 
 angular.module("template/datepicker/year.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/datepicker/year.html",
-    "<table role=\"grid\" aria-labelledby=\"{{uniqueId}}-title\" aria-activedescendant=\"{{activeDateId}}\">\n" +
+    "<table role=\"grid\" aria-labelledby=\"{{::uniqueId}}-title\" aria-activedescendant=\"{{activeDateId}}\">\n" +
     "  <thead>\n" +
     "    <tr>\n" +
     "      <th><button type=\"button\" class=\"btn btn-default btn-sm pull-left\" ng-click=\"move(-1)\" tabindex=\"-1\"><i class=\"glyphicon glyphicon-chevron-left\"></i></button></th>\n" +
-    "      <th colspan=\"3\"><button id=\"{{uniqueId}}-title\" role=\"heading\" aria-live=\"assertive\" aria-atomic=\"true\" type=\"button\" class=\"btn btn-default btn-sm\" ng-click=\"toggleMode()\" tabindex=\"-1\" style=\"width:100%;\"><strong>{{title}}</strong></button></th>\n" +
+    "      <th colspan=\"3\"><button id=\"{{::uniqueId}}-title\" role=\"heading\" aria-live=\"assertive\" aria-atomic=\"true\" type=\"button\" class=\"btn btn-default btn-sm\" ng-click=\"toggleMode()\" ng-disabled=\"datepickerMode === maxMode\" tabindex=\"-1\" style=\"width:100%;\"><strong>{{title}}</strong></button></th>\n" +
     "      <th><button type=\"button\" class=\"btn btn-default btn-sm pull-right\" ng-click=\"move(1)\" tabindex=\"-1\"><i class=\"glyphicon glyphicon-chevron-right\"></i></button></th>\n" +
     "    </tr>\n" +
     "  </thead>\n" +
     "  <tbody>\n" +
     "    <tr ng-repeat=\"row in rows track by $index\">\n" +
-    "      <td ng-repeat=\"dt in row track by dt.date\" class=\"text-center\" role=\"gridcell\" id=\"{{dt.uid}}\" aria-disabled=\"{{!!dt.disabled}}\">\n" +
-    "        <button type=\"button\" style=\"width:100%;\" class=\"btn btn-default\" ng-class=\"{'btn-info': dt.selected, active: isActive(dt)}\" ng-click=\"select(dt.date)\" ng-disabled=\"dt.disabled\" tabindex=\"-1\"><span ng-class=\"{'text-info': dt.current}\">{{dt.label}}</span></button>\n" +
+    "      <td ng-repeat=\"dt in row track by dt.date\" class=\"text-center\" role=\"gridcell\" id=\"{{::dt.uid}}\">\n" +
+    "        <button type=\"button\" style=\"min-width:100%;\" class=\"btn btn-default\" ng-class=\"{'btn-info': dt.selected, active: isActive(dt)}\" ng-click=\"select(dt.date)\" ng-disabled=\"dt.disabled\" tabindex=\"-1\"><span ng-class=\"::{'text-info': dt.current}\">{{::dt.label}}</span></button>\n" +
     "      </td>\n" +
     "    </tr>\n" +
     "  </tbody>\n" +
@@ -89621,8 +75911,9 @@ angular.module("template/datepicker/year.html", []).run(["$templateCache", funct
 
 angular.module("template/modal/backdrop.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/modal/backdrop.html",
-    "<div class=\"modal-backdrop fade {{ backdropClass }}\"\n" +
-    "     ng-class=\"{in: animate}\"\n" +
+    "<div class=\"modal-backdrop\"\n" +
+    "     modal-animation-class=\"fade\"\n" +
+    "     modal-in-class=\"in\"\n" +
     "     ng-style=\"{'z-index': 1040 + (index && 1 || 0) + index*10}\"\n" +
     "></div>\n" +
     "");
@@ -89630,33 +75921,54 @@ angular.module("template/modal/backdrop.html", []).run(["$templateCache", functi
 
 angular.module("template/modal/window.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/modal/window.html",
-    "<div tabindex=\"-1\" role=\"dialog\" class=\"modal fade\" ng-class=\"{in: animate}\" ng-style=\"{'z-index': 1050 + index*10, display: 'block'}\" ng-click=\"close($event)\">\n" +
-    "    <div class=\"modal-dialog\" ng-class=\"{'modal-sm': size == 'sm', 'modal-lg': size == 'lg'}\"><div class=\"modal-content\" modal-transclude></div></div>\n" +
-    "</div>");
+    "<div modal-render=\"{{$isRendered}}\" tabindex=\"-1\" role=\"dialog\" class=\"modal\"\n" +
+    "    modal-animation-class=\"fade\"\n" +
+    "    modal-in-class=\"in\"\n" +
+    "	ng-style=\"{'z-index': 1050 + index*10, display: 'block'}\" ng-click=\"close($event)\">\n" +
+    "    <div class=\"modal-dialog\" ng-class=\"size ? 'modal-' + size : ''\"><div class=\"modal-content\" modal-transclude></div></div>\n" +
+    "</div>\n" +
+    "");
 }]);
 
 angular.module("template/pagination/pager.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/pagination/pager.html",
     "<ul class=\"pager\">\n" +
-    "  <li ng-class=\"{disabled: noPrevious(), previous: align}\"><a href ng-click=\"selectPage(page - 1)\">{{getText('previous')}}</a></li>\n" +
-    "  <li ng-class=\"{disabled: noNext(), next: align}\"><a href ng-click=\"selectPage(page + 1)\">{{getText('next')}}</a></li>\n" +
-    "</ul>");
+    "  <li ng-class=\"{disabled: noPrevious()||ngDisabled, previous: align}\"><a href ng-click=\"selectPage(page - 1, $event)\">{{::getText('previous')}}</a></li>\n" +
+    "  <li ng-class=\"{disabled: noNext()||ngDisabled, next: align}\"><a href ng-click=\"selectPage(page + 1, $event)\">{{::getText('next')}}</a></li>\n" +
+    "</ul>\n" +
+    "");
 }]);
 
 angular.module("template/pagination/pagination.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/pagination/pagination.html",
     "<ul class=\"pagination\">\n" +
-    "  <li ng-if=\"boundaryLinks\" ng-class=\"{disabled: noPrevious()}\"><a href ng-click=\"selectPage(1)\">{{getText('first')}}</a></li>\n" +
-    "  <li ng-if=\"directionLinks\" ng-class=\"{disabled: noPrevious()}\"><a href ng-click=\"selectPage(page - 1)\">{{getText('previous')}}</a></li>\n" +
-    "  <li ng-repeat=\"page in pages track by $index\" ng-class=\"{active: page.active}\"><a href ng-click=\"selectPage(page.number)\">{{page.text}}</a></li>\n" +
-    "  <li ng-if=\"directionLinks\" ng-class=\"{disabled: noNext()}\"><a href ng-click=\"selectPage(page + 1)\">{{getText('next')}}</a></li>\n" +
-    "  <li ng-if=\"boundaryLinks\" ng-class=\"{disabled: noNext()}\"><a href ng-click=\"selectPage(totalPages)\">{{getText('last')}}</a></li>\n" +
-    "</ul>");
+    "  <li ng-if=\"::boundaryLinks\" ng-class=\"{disabled: noPrevious()||ngDisabled}\" class=\"pagination-first\"><a href ng-click=\"selectPage(1, $event)\">{{::getText('first')}}</a></li>\n" +
+    "  <li ng-if=\"::directionLinks\" ng-class=\"{disabled: noPrevious()||ngDisabled}\" class=\"pagination-prev\"><a href ng-click=\"selectPage(page - 1, $event)\">{{::getText('previous')}}</a></li>\n" +
+    "  <li ng-repeat=\"page in pages track by $index\" ng-class=\"{active: page.active,disabled: ngDisabled&&!page.active}\" class=\"pagination-page\"><a href ng-click=\"selectPage(page.number, $event)\">{{page.text}}</a></li>\n" +
+    "  <li ng-if=\"::directionLinks\" ng-class=\"{disabled: noNext()||ngDisabled}\" class=\"pagination-next\"><a href ng-click=\"selectPage(page + 1, $event)\">{{::getText('next')}}</a></li>\n" +
+    "  <li ng-if=\"::boundaryLinks\" ng-class=\"{disabled: noNext()||ngDisabled}\" class=\"pagination-last\"><a href ng-click=\"selectPage(totalPages, $event)\">{{::getText('last')}}</a></li>\n" +
+    "</ul>\n" +
+    "");
+}]);
+
+angular.module("template/tooltip/tooltip-html-popup.html", []).run(["$templateCache", function($templateCache) {
+  $templateCache.put("template/tooltip/tooltip-html-popup.html",
+    "<div class=\"tooltip\"\n" +
+    "  tooltip-animation-class=\"fade\"\n" +
+    "  tooltip-classes\n" +
+    "  ng-class=\"{ in: isOpen() }\">\n" +
+    "  <div class=\"tooltip-arrow\"></div>\n" +
+    "  <div class=\"tooltip-inner\" ng-bind-html=\"contentExp()\"></div>\n" +
+    "</div>\n" +
+    "");
 }]);
 
 angular.module("template/tooltip/tooltip-html-unsafe-popup.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/tooltip/tooltip-html-unsafe-popup.html",
-    "<div class=\"tooltip {{placement}}\" ng-class=\"{ in: isOpen(), fade: animation() }\">\n" +
+    "<div class=\"tooltip\"\n" +
+    "  tooltip-animation-class=\"fade\"\n" +
+    "  tooltip-classes\n" +
+    "  ng-class=\"{ in: isOpen() }\">\n" +
     "  <div class=\"tooltip-arrow\"></div>\n" +
     "  <div class=\"tooltip-inner\" bind-html-unsafe=\"content\"></div>\n" +
     "</div>\n" +
@@ -89665,20 +75977,74 @@ angular.module("template/tooltip/tooltip-html-unsafe-popup.html", []).run(["$tem
 
 angular.module("template/tooltip/tooltip-popup.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/tooltip/tooltip-popup.html",
-    "<div class=\"tooltip {{placement}}\" ng-class=\"{ in: isOpen(), fade: animation() }\">\n" +
+    "<div class=\"tooltip\"\n" +
+    "  tooltip-animation-class=\"fade\"\n" +
+    "  tooltip-classes\n" +
+    "  ng-class=\"{ in: isOpen() }\">\n" +
     "  <div class=\"tooltip-arrow\"></div>\n" +
     "  <div class=\"tooltip-inner\" ng-bind=\"content\"></div>\n" +
     "</div>\n" +
     "");
 }]);
 
-angular.module("template/popover/popover.html", []).run(["$templateCache", function($templateCache) {
-  $templateCache.put("template/popover/popover.html",
-    "<div class=\"popover {{placement}}\" ng-class=\"{ in: isOpen(), fade: animation() }\">\n" +
+angular.module("template/tooltip/tooltip-template-popup.html", []).run(["$templateCache", function($templateCache) {
+  $templateCache.put("template/tooltip/tooltip-template-popup.html",
+    "<div class=\"tooltip\"\n" +
+    "  tooltip-animation-class=\"fade\"\n" +
+    "  tooltip-classes\n" +
+    "  ng-class=\"{ in: isOpen() }\">\n" +
+    "  <div class=\"tooltip-arrow\"></div>\n" +
+    "  <div class=\"tooltip-inner\"\n" +
+    "    tooltip-template-transclude=\"contentExp()\"\n" +
+    "    tooltip-template-transclude-scope=\"originScope()\"></div>\n" +
+    "</div>\n" +
+    "");
+}]);
+
+angular.module("template/popover/popover-html.html", []).run(["$templateCache", function($templateCache) {
+  $templateCache.put("template/popover/popover-html.html",
+    "<div class=\"popover\"\n" +
+    "  tooltip-animation-class=\"fade\"\n" +
+    "  tooltip-classes\n" +
+    "  ng-class=\"{ in: isOpen() }\">\n" +
     "  <div class=\"arrow\"></div>\n" +
     "\n" +
     "  <div class=\"popover-inner\">\n" +
-    "      <h3 class=\"popover-title\" ng-bind=\"title\" ng-show=\"title\"></h3>\n" +
+    "      <h3 class=\"popover-title\" ng-bind=\"title\" ng-if=\"title\"></h3>\n" +
+    "      <div class=\"popover-content\" ng-bind-html=\"contentExp()\"></div>\n" +
+    "  </div>\n" +
+    "</div>\n" +
+    "");
+}]);
+
+angular.module("template/popover/popover-template.html", []).run(["$templateCache", function($templateCache) {
+  $templateCache.put("template/popover/popover-template.html",
+    "<div class=\"popover\"\n" +
+    "  tooltip-animation-class=\"fade\"\n" +
+    "  tooltip-classes\n" +
+    "  ng-class=\"{ in: isOpen() }\">\n" +
+    "  <div class=\"arrow\"></div>\n" +
+    "\n" +
+    "  <div class=\"popover-inner\">\n" +
+    "      <h3 class=\"popover-title\" ng-bind=\"title\" ng-if=\"title\"></h3>\n" +
+    "      <div class=\"popover-content\"\n" +
+    "        tooltip-template-transclude=\"contentExp()\"\n" +
+    "        tooltip-template-transclude-scope=\"originScope()\"></div>\n" +
+    "  </div>\n" +
+    "</div>\n" +
+    "");
+}]);
+
+angular.module("template/popover/popover.html", []).run(["$templateCache", function($templateCache) {
+  $templateCache.put("template/popover/popover.html",
+    "<div class=\"popover\"\n" +
+    "  tooltip-animation-class=\"fade\"\n" +
+    "  tooltip-classes\n" +
+    "  ng-class=\"{ in: isOpen() }\">\n" +
+    "  <div class=\"arrow\"></div>\n" +
+    "\n" +
+    "  <div class=\"popover-inner\">\n" +
+    "      <h3 class=\"popover-title\" ng-bind=\"title\" ng-if=\"title\"></h3>\n" +
     "      <div class=\"popover-content\" ng-bind=\"content\"></div>\n" +
     "  </div>\n" +
     "</div>\n" +
@@ -89687,7 +76053,8 @@ angular.module("template/popover/popover.html", []).run(["$templateCache", funct
 
 angular.module("template/progressbar/bar.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/progressbar/bar.html",
-    "<div class=\"progress-bar\" ng-class=\"type && 'progress-bar-' + type\" role=\"progressbar\" aria-valuenow=\"{{value}}\" aria-valuemin=\"0\" aria-valuemax=\"{{max}}\" ng-style=\"{width: percent + '%'}\" aria-valuetext=\"{{percent | number:0}}%\" ng-transclude></div>");
+    "<div class=\"progress-bar\" ng-class=\"type && 'progress-bar-' + type\" role=\"progressbar\" aria-valuenow=\"{{value}}\" aria-valuemin=\"0\" aria-valuemax=\"{{max}}\" ng-style=\"{width: (percent < 100 ? percent : 100) + '%'}\" aria-valuetext=\"{{percent | number:0}}%\" style=\"min-width: 0;\" ng-transclude></div>\n" +
+    "");
 }]);
 
 angular.module("template/progressbar/progress.html", []).run(["$templateCache", function($templateCache) {
@@ -89698,17 +76065,18 @@ angular.module("template/progressbar/progress.html", []).run(["$templateCache", 
 angular.module("template/progressbar/progressbar.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/progressbar/progressbar.html",
     "<div class=\"progress\">\n" +
-    "  <div class=\"progress-bar\" ng-class=\"type && 'progress-bar-' + type\" role=\"progressbar\" aria-valuenow=\"{{value}}\" aria-valuemin=\"0\" aria-valuemax=\"{{max}}\" ng-style=\"{width: percent + '%'}\" aria-valuetext=\"{{percent | number:0}}%\" ng-transclude></div>\n" +
-    "</div>");
+    "  <div class=\"progress-bar\" ng-class=\"type && 'progress-bar-' + type\" role=\"progressbar\" aria-valuenow=\"{{value}}\" aria-valuemin=\"0\" aria-valuemax=\"{{max}}\" ng-style=\"{width: (percent < 100 ? percent : 100) + '%'}\" aria-valuetext=\"{{percent | number:0}}%\" style=\"min-width: 0;\" ng-transclude></div>\n" +
+    "</div>\n" +
+    "");
 }]);
 
 angular.module("template/rating/rating.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/rating/rating.html",
     "<span ng-mouseleave=\"reset()\" ng-keydown=\"onKeydown($event)\" tabindex=\"0\" role=\"slider\" aria-valuemin=\"0\" aria-valuemax=\"{{range.length}}\" aria-valuenow=\"{{value}}\">\n" +
-    "    <i ng-repeat=\"r in range track by $index\" ng-mouseenter=\"enter($index + 1)\" ng-click=\"rate($index + 1)\" class=\"glyphicon\" ng-class=\"$index < value && (r.stateOn || 'glyphicon-star') || (r.stateOff || 'glyphicon-star-empty')\">\n" +
-    "        <span class=\"sr-only\">({{ $index < value ? '*' : ' ' }})</span>\n" +
-    "    </i>\n" +
-    "</span>");
+    "    <span ng-repeat-start=\"r in range track by $index\" class=\"sr-only\">({{ $index < value ? '*' : ' ' }})</span>\n" +
+    "    <i ng-repeat-end ng-mouseenter=\"enter($index + 1)\" ng-click=\"rate($index + 1)\" class=\"glyphicon\" ng-class=\"$index < value && (r.stateOn || 'glyphicon-star') || (r.stateOff || 'glyphicon-star-empty')\" ng-attr-title=\"{{r.title}}\" ></i>\n" +
+    "</span>\n" +
+    "");
 }]);
 
 angular.module("template/tabs/tab.html", []).run(["$templateCache", function($templateCache) {
@@ -89737,52 +76105,53 @@ angular.module("template/tabs/tabset.html", []).run(["$templateCache", function(
 angular.module("template/timepicker/timepicker.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/timepicker/timepicker.html",
     "<table>\n" +
-    "	<tbody>\n" +
-    "		<tr class=\"text-center\">\n" +
-    "			<td><a ng-click=\"incrementHours()\" class=\"btn btn-link\"><span class=\"glyphicon glyphicon-chevron-up\"></span></a></td>\n" +
-    "			<td>&nbsp;</td>\n" +
-    "			<td><a ng-click=\"incrementMinutes()\" class=\"btn btn-link\"><span class=\"glyphicon glyphicon-chevron-up\"></span></a></td>\n" +
-    "			<td ng-show=\"showMeridian\"></td>\n" +
-    "		</tr>\n" +
-    "		<tr>\n" +
-    "			<td style=\"width:50px;\" class=\"form-group\" ng-class=\"{'has-error': invalidHours}\">\n" +
-    "				<input type=\"text\" ng-model=\"hours\" ng-change=\"updateHours()\" class=\"form-control text-center\" ng-mousewheel=\"incrementHours()\" ng-readonly=\"readonlyInput\" maxlength=\"2\">\n" +
-    "			</td>\n" +
-    "			<td>:</td>\n" +
-    "			<td style=\"width:50px;\" class=\"form-group\" ng-class=\"{'has-error': invalidMinutes}\">\n" +
-    "				<input type=\"text\" ng-model=\"minutes\" ng-change=\"updateMinutes()\" class=\"form-control text-center\" ng-readonly=\"readonlyInput\" maxlength=\"2\">\n" +
-    "			</td>\n" +
-    "			<td ng-show=\"showMeridian\"><button type=\"button\" class=\"btn btn-default text-center\" ng-click=\"toggleMeridian()\">{{meridian}}</button></td>\n" +
-    "		</tr>\n" +
-    "		<tr class=\"text-center\">\n" +
-    "			<td><a ng-click=\"decrementHours()\" class=\"btn btn-link\"><span class=\"glyphicon glyphicon-chevron-down\"></span></a></td>\n" +
-    "			<td>&nbsp;</td>\n" +
-    "			<td><a ng-click=\"decrementMinutes()\" class=\"btn btn-link\"><span class=\"glyphicon glyphicon-chevron-down\"></span></a></td>\n" +
-    "			<td ng-show=\"showMeridian\"></td>\n" +
-    "		</tr>\n" +
-    "	</tbody>\n" +
+    "  <tbody>\n" +
+    "    <tr class=\"text-center\" ng-show=\"::showSpinners\">\n" +
+    "      <td><a ng-click=\"incrementHours()\" ng-class=\"{disabled: noIncrementHours()}\" class=\"btn btn-link\"><span class=\"glyphicon glyphicon-chevron-up\"></span></a></td>\n" +
+    "      <td>&nbsp;</td>\n" +
+    "      <td><a ng-click=\"incrementMinutes()\" ng-class=\"{disabled: noIncrementMinutes()}\" class=\"btn btn-link\"><span class=\"glyphicon glyphicon-chevron-up\"></span></a></td>\n" +
+    "      <td ng-show=\"showMeridian\"></td>\n" +
+    "    </tr>\n" +
+    "    <tr>\n" +
+    "      <td class=\"form-group\" ng-class=\"{'has-error': invalidHours}\">\n" +
+    "        <input style=\"width:50px;\" type=\"text\" ng-model=\"hours\" ng-change=\"updateHours()\" class=\"form-control text-center\" ng-readonly=\"::readonlyInput\" maxlength=\"2\">\n" +
+    "      </td>\n" +
+    "      <td>:</td>\n" +
+    "      <td class=\"form-group\" ng-class=\"{'has-error': invalidMinutes}\">\n" +
+    "        <input style=\"width:50px;\" type=\"text\" ng-model=\"minutes\" ng-change=\"updateMinutes()\" class=\"form-control text-center\" ng-readonly=\"::readonlyInput\" maxlength=\"2\">\n" +
+    "      </td>\n" +
+    "      <td ng-show=\"showMeridian\"><button type=\"button\" ng-class=\"{disabled: noToggleMeridian()}\" class=\"btn btn-default text-center\" ng-click=\"toggleMeridian()\">{{meridian}}</button></td>\n" +
+    "    </tr>\n" +
+    "    <tr class=\"text-center\" ng-show=\"::showSpinners\">\n" +
+    "      <td><a ng-click=\"decrementHours()\" ng-class=\"{disabled: noDecrementHours()}\" class=\"btn btn-link\"><span class=\"glyphicon glyphicon-chevron-down\"></span></a></td>\n" +
+    "      <td>&nbsp;</td>\n" +
+    "      <td><a ng-click=\"decrementMinutes()\" ng-class=\"{disabled: noDecrementMinutes()}\" class=\"btn btn-link\"><span class=\"glyphicon glyphicon-chevron-down\"></span></a></td>\n" +
+    "      <td ng-show=\"showMeridian\"></td>\n" +
+    "    </tr>\n" +
+    "  </tbody>\n" +
     "</table>\n" +
     "");
 }]);
 
 angular.module("template/typeahead/typeahead-match.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/typeahead/typeahead-match.html",
-    "<a tabindex=\"-1\" bind-html-unsafe=\"match.label | typeaheadHighlight:query\"></a>");
+    "<a href tabindex=\"-1\" ng-bind-html=\"match.label | typeaheadHighlight:query\"></a>\n" +
+    "");
 }]);
 
 angular.module("template/typeahead/typeahead-popup.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("template/typeahead/typeahead-popup.html",
-    "<ul class=\"dropdown-menu\" ng-show=\"isOpen()\" ng-style=\"{top: position.top+'px', left: position.left+'px'}\" style=\"display: block;\" role=\"listbox\" aria-hidden=\"{{!isOpen()}}\">\n" +
-    "    <li ng-repeat=\"match in matches track by $index\" ng-class=\"{active: isActive($index) }\" ng-mouseenter=\"selectActive($index)\" ng-click=\"selectMatch($index)\" role=\"option\" id=\"{{match.id}}\">\n" +
+    "<ul class=\"dropdown-menu\" ng-show=\"isOpen() && !moveInProgress\" ng-style=\"{top: position().top+'px', left: position().left+'px'}\" style=\"display: block;\" role=\"listbox\" aria-hidden=\"{{!isOpen()}}\">\n" +
+    "    <li ng-repeat=\"match in matches track by $index\" ng-class=\"{active: isActive($index) }\" ng-mouseenter=\"selectActive($index)\" ng-click=\"selectMatch($index)\" role=\"option\" id=\"{{::match.id}}\">\n" +
     "        <div typeahead-match index=\"$index\" match=\"match\" query=\"query\" template-url=\"templateUrl\"></div>\n" +
     "    </li>\n" +
     "</ul>\n" +
     "");
 }]);
-
+!angular.$$csp() && angular.element(document).find('head').prepend('<style type="text/css">.ng-animate.item:not(.left):not(.right){-webkit-transition:0s ease-in-out left;transition:0s ease-in-out left}</style>');
 /**
  * State-based routing for AngularJS
- * @version v0.2.13
+ * @version v0.2.15
  * @link http://angular-ui.github.com/
  * @license MIT License, http://www.opensource.org/licenses/MIT
  */
@@ -89850,7 +76219,7 @@ function objectKeys(object) {
   }
   var result = [];
 
-  angular.forEach(object, function(val, key) {
+  forEach(object, function(val, key) {
     result.push(key);
   });
   return result;
@@ -90462,7 +76831,7 @@ var $$UMFP; // reference to $UrlMatcherFactoryProvider
  * of search parameters. Multiple search parameter names are separated by '&'. Search parameters
  * do not influence whether or not a URL is matched, but their values are passed through into
  * the matched parameters returned by {@link ui.router.util.type:UrlMatcher#methods_exec exec}.
- * 
+ *
  * Path parameter placeholders can be specified using simple colon/catch-all syntax or curly brace
  * syntax, which optionally allows a regular expression for the parameter to be specified:
  *
@@ -90473,13 +76842,13 @@ var $$UMFP; // reference to $UrlMatcherFactoryProvider
  *   regexp itself contain curly braces, they must be in matched pairs or escaped with a backslash.
  *
  * Parameter names may contain only word characters (latin letters, digits, and underscore) and
- * must be unique within the pattern (across both path and search parameters). For colon 
+ * must be unique within the pattern (across both path and search parameters). For colon
  * placeholders or curly placeholders without an explicit regexp, a path parameter matches any
  * number of characters other than '/'. For catch-all placeholders the path parameter matches
  * any number of characters.
- * 
+ *
  * Examples:
- * 
+ *
  * * `'/hello/'` - Matches only if the path is exactly '/hello/'. There is no special treatment for
  *   trailing slashes, and patterns have to match the entire path, not just a prefix.
  * * `'/user/:id'` - Matches '/user/bob' or '/user/1234!!!' or even '/user/' but not '/user' or
@@ -90512,7 +76881,7 @@ var $$UMFP; // reference to $UrlMatcherFactoryProvider
  *
  * @property {string} sourceSearch  The search portion of the source property
  *
- * @property {string} regex  The constructed regex that will be used to match against the url when 
+ * @property {string} regex  The constructed regex that will be used to match against the url when
  *   it is time to determine which url will match.
  *
  * @returns {Object}  New `UrlMatcher` object
@@ -90550,13 +76919,13 @@ function UrlMatcher(pattern, config, parentMatcher) {
     return params[id];
   }
 
-  function quoteRegExp(string, pattern, squash) {
+  function quoteRegExp(string, pattern, squash, optional) {
     var surroundPattern = ['',''], result = string.replace(/[\\\[\]\^$*+?.()|{}]/g, "\\$&");
     if (!pattern) return result;
     switch(squash) {
-      case false: surroundPattern = ['(', ')'];   break;
+      case false: surroundPattern = ['(', ')' + (optional ? "?" : "")]; break;
       case true:  surroundPattern = ['?(', ')?']; break;
-      default:    surroundPattern = ['(' + squash + "|", ')?'];  break;
+      default:    surroundPattern = ['(' + squash + "|", ')?']; break;
     }
     return result + surroundPattern[0] + pattern + surroundPattern[1];
   }
@@ -90571,7 +76940,7 @@ function UrlMatcher(pattern, config, parentMatcher) {
     cfg         = config.params[id];
     segment     = pattern.substring(last, m.index);
     regexp      = isSearch ? m[4] : m[4] || (m[1] == '*' ? '.*' : null);
-    type        = $$UMFP.type(regexp || "string") || inherit($$UMFP.type("string"), { pattern: new RegExp(regexp) });
+    type        = $$UMFP.type(regexp || "string") || inherit($$UMFP.type("string"), { pattern: new RegExp(regexp, config.caseInsensitive ? 'i' : undefined) });
     return {
       id: id, regexp: regexp, segment: segment, type: type, cfg: cfg
     };
@@ -90583,7 +76952,7 @@ function UrlMatcher(pattern, config, parentMatcher) {
     if (p.segment.indexOf('?') >= 0) break; // we're into the search part
 
     param = addParameter(p.id, p.type, p.cfg, "path");
-    compiled += quoteRegExp(p.segment, param.type.pattern.source, param.squash);
+    compiled += quoteRegExp(p.segment, param.type.pattern.source, param.squash, param.isOptional);
     segments.push(p.segment);
     last = placeholder.lastIndex;
   }
@@ -90694,7 +77063,7 @@ UrlMatcher.prototype.exec = function (path, searchParams) {
 
   function decodePathArray(string) {
     function reverseString(str) { return str.split("").reverse().join(""); }
-    function unquoteDashes(str) { return str.replace(/\\-/, "-"); }
+    function unquoteDashes(str) { return str.replace(/\\-/g, "-"); }
 
     var split = reverseString(string).split(/-(?!\\)/);
     var allReversed = map(split, reverseString);
@@ -90727,7 +77096,7 @@ UrlMatcher.prototype.exec = function (path, searchParams) {
  *
  * @description
  * Returns the names of all path and search parameters of this pattern in an unspecified order.
- * 
+ *
  * @returns {Array.<string>}  An array of parameter names. Must be treated as read-only. If the
  *    pattern has no parameters, an empty array is returned.
  */
@@ -90932,6 +77301,11 @@ Type.prototype.pattern = /.*/;
 
 Type.prototype.toString = function() { return "{Type:" + this.name + "}"; };
 
+/** Given an encoded string, or a decoded object, returns a decoded object */
+Type.prototype.$normalize = function(val) {
+  return this.is(val) ? val : this.decode(val);
+};
+
 /*
  * Wraps an existing custom Type as an array of Type, depending on 'mode'.
  * e.g.:
@@ -90945,7 +77319,6 @@ Type.prototype.toString = function() { return "{Type:" + this.name + "}"; };
 Type.prototype.$asArray = function(mode, isSearch) {
   if (!mode) return this;
   if (mode === "auto" && !isSearch) throw new Error("'auto' array mode is for query parameters only");
-  return new ArrayType(this, mode);
 
   function ArrayType(type, mode) {
     function bindTo(type, callbackName) {
@@ -90994,8 +77367,12 @@ Type.prototype.$asArray = function(mode, isSearch) {
     this.is     = arrayHandler(bindTo(type, 'is'), true);
     this.equals = arrayEqualsHandler(bindTo(type, 'equals'));
     this.pattern = type.pattern;
+    this.$normalize = arrayHandler(bindTo(type, '$normalize'));
+    this.name = type.name;
     this.$arrayMode = mode;
   }
+
+  return new ArrayType(this, mode);
 };
 
 
@@ -91015,15 +77392,14 @@ function $UrlMatcherFactory() {
 
   function valToString(val) { return val != null ? val.toString().replace(/\//g, "%2F") : val; }
   function valFromString(val) { return val != null ? val.toString().replace(/%2F/g, "/") : val; }
-//  TODO: in 1.0, make string .is() return false if value is undefined by default.
-//  function regexpMatches(val) { /*jshint validthis:true */ return isDefined(val) && this.pattern.test(val); }
-  function regexpMatches(val) { /*jshint validthis:true */ return this.pattern.test(val); }
 
   var $types = {}, enqueue = true, typeQueue = [], injector, defaultTypes = {
     string: {
       encode: valToString,
       decode: valFromString,
-      is: regexpMatches,
+      // TODO: in 1.0, make string .is() return false if value is undefined/null by default.
+      // In 0.2.x, string params are optional by default for backwards compat
+      is: function(val) { return val == null || !isDefined(val) || typeof val === "string"; },
       pattern: /[^/]*/
     },
     int: {
@@ -91067,7 +77443,6 @@ function $UrlMatcherFactory() {
     any: { // does not encode/decode
       encode: angular.identity,
       decode: angular.identity,
-      is: angular.identity,
       equals: angular.equals,
       pattern: /.*/
     }
@@ -91397,7 +77772,10 @@ function $UrlMatcherFactory() {
      */
     function $$getDefaultValue() {
       if (!injector) throw new Error("Injectable functions cannot be called at configuration time");
-      return injector.invoke(config.$$fn);
+      var defaultValue = injector.invoke(config.$$fn);
+      if (defaultValue !== null && defaultValue !== undefined && !self.type.is(defaultValue))
+        throw new Error("Default value (" + defaultValue + ") for parameter '" + self.id + "' is not an instance of Type (" + self.type.name + ")");
+      return defaultValue;
     }
 
     /**
@@ -91411,7 +77789,7 @@ function $UrlMatcherFactory() {
         return replacement.length ? replacement[0] : value;
       }
       value = $replace(value);
-      return isDefined(value) ? self.type.decode(value) : $$getDefaultValue();
+      return !isDefined(value) ? $$getDefaultValue() : self.type.$normalize(value);
     }
 
     function toString() { return "{Param:" + id + " " + type + " squash: '" + squash + "' optional: " + isOptional + "}"; }
@@ -91467,15 +77845,20 @@ function $UrlMatcherFactory() {
       return equal;
     },
     $$validates: function $$validate(paramValues) {
-      var result = true, isOptional, val, param, self = this;
-
-      forEach(this.$$keys(), function(key) {
-        param = self[key];
-        val = paramValues[key];
-        isOptional = !val && param.isOptional;
-        result = result && (isOptional || !!param.type.is(val));
-      });
-      return result;
+      var keys = this.$$keys(), i, param, rawVal, normalized, encoded;
+      for (i = 0; i < keys.length; i++) {
+        param = this[keys[i]];
+        rawVal = paramValues[keys[i]];
+        if ((rawVal === undefined || rawVal === null) && param.isOptional)
+          break; // There was no parameter value, but the param is optional
+        normalized = param.type.$normalize(rawVal);
+        if (!param.type.is(normalized))
+          return false; // The value was not of the correct Type, and could not be decoded to the correct Type
+        encoded = param.type.encode(normalized);
+        if (angular.isString(encoded) && !param.type.pattern.exec(encoded))
+          return false; // The value was of the correct type, but when encoded, did not match the Type's regexp
+      }
+      return true;
     },
     $$parent: undefined
   };
@@ -91768,7 +78151,8 @@ function $UrlRouterProvider(   $locationProvider,   $urlMatcherFactory) {
       if (evt && evt.defaultPrevented) return;
       var ignoreUpdate = lastPushedUrl && $location.url() === lastPushedUrl;
       lastPushedUrl = undefined;
-      if (ignoreUpdate) return true;
+      // TODO: Re-implement this in 1.0 for https://github.com/angular-ui/ui-router/issues/1573
+      //if (ignoreUpdate) return true;
 
       function check(rule) {
         var handled = rule($injector, $location);
@@ -91840,7 +78224,14 @@ function $UrlRouterProvider(   $locationProvider,   $urlMatcherFactory) {
       },
 
       push: function(urlMatcher, params, options) {
-        $location.url(urlMatcher.format(params || {}));
+         var url = urlMatcher.format(params || {});
+
+        // Handle the special hash param, if needed
+        if (url !== null && params && params['#']) {
+            url += '#' + params['#'];
+        }
+
+        $location.url(url);
         lastPushedUrl = options && options.$$avoidResync ? $location.url() : undefined;
         if (options && options.replace) $location.replace();
       },
@@ -91884,6 +78275,12 @@ function $UrlRouterProvider(   $locationProvider,   $urlMatcherFactory) {
         if (!isHtml5 && url !== null) {
           url = "#" + $locationProvider.hashPrefix() + url;
         }
+
+        // Handle special hash param, if needed
+        if (url !== null && params && params['#']) {
+          url += '#' + params['#'];
+        }
+
         url = appendBasePath(url, isHtml5, options.absolute);
 
         if (!options.absolute || !url) {
@@ -92118,6 +78515,13 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory) {
     var globSegments = glob.split('.'),
         segments = $state.$current.name.split('.');
 
+    //match single stars
+    for (var i = 0, l = globSegments.length; i < l; i++) {
+      if (globSegments[i] === '*') {
+        segments[i] = '*';
+      }
+    }
+
     //match greedy starts
     if (globSegments[0] === '**') {
        segments = segments.slice(indexOf(segments, globSegments[1]));
@@ -92131,13 +78535,6 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory) {
 
     if (globSegments.length != segments.length) {
       return false;
-    }
-
-    //match single stars
-    for (var i = 0, l = globSegments.length; i < l; i++) {
-      if (globSegments[i] === '*') {
-        segments[i] = '*';
-      }
     }
 
     return segments.join('') === globSegments.join('');
@@ -92348,6 +78745,13 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory) {
    *   published to scope under the controllerAs name.
    * <pre>controllerAs: "myCtrl"</pre>
    *
+   * @param {string|object=} stateConfig.parent
+   * <a id='parent'></a>
+   * Optionally specifies the parent state of this state.
+   *
+   * <pre>parent: 'parentState'</pre>
+   * <pre>parent: parentState // JS variable</pre>
+   *
    * @param {object=} stateConfig.resolve
    * <a id='resolve'></a>
    *
@@ -92379,6 +78783,9 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory) {
    *   transitioned to, the `$stateParams` service will be populated with any 
    *   parameters that were passed.
    *
+   *   (See {@link ui.router.util.type:UrlMatcher UrlMatcher} `UrlMatcher`} for
+   *   more details on acceptable patterns )
+   *
    * examples:
    * <pre>url: "/home"
    * url: "/users/:userid"
@@ -92386,8 +78793,9 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory) {
    * url: "/books/{categoryid:int}"
    * url: "/books/{publishername:string}/{categoryid:int}"
    * url: "/messages?before&after"
-   * url: "/messages?{before:date}&{after:date}"</pre>
+   * url: "/messages?{before:date}&{after:date}"
    * url: "/messages/:mailboxid?{before:date}&{after:date}"
+   * </pre>
    *
    * @param {object=} stateConfig.views
    * <a id='views'></a>
@@ -92691,8 +79099,8 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory) {
      * @methodOf ui.router.state.$state
      *
      * @description
-     * A method that force reloads the current state. All resolves are re-resolved, events are not re-fired, 
-     * and controllers reinstantiated (bug with controllers reinstantiating right now, fixing soon).
+     * A method that force reloads the current state. All resolves are re-resolved,
+     * controllers reinstantiated, and events re-fired.
      *
      * @example
      * <pre>
@@ -92712,11 +79120,33 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory) {
      * });
      * </pre>
      *
+     * @param {string=|object=} state - A state name or a state object, which is the root of the resolves to be re-resolved.
+     * @example
+     * <pre>
+     * //assuming app application consists of 3 states: 'contacts', 'contacts.detail', 'contacts.detail.item' 
+     * //and current state is 'contacts.detail.item'
+     * var app angular.module('app', ['ui.router']);
+     *
+     * app.controller('ctrl', function ($scope, $state) {
+     *   $scope.reload = function(){
+     *     //will reload 'contact.detail' and 'contact.detail.item' states
+     *     $state.reload('contact.detail');
+     *   }
+     * });
+     * </pre>
+     *
+     * `reload()` is just an alias for:
+     * <pre>
+     * $state.transitionTo($state.current, $stateParams, { 
+     *   reload: true, inherit: false, notify: true
+     * });
+     * </pre>
+
      * @returns {promise} A promise representing the state of the new transition. See
      * {@link ui.router.state.$state#methods_go $state.go}.
      */
-    $state.reload = function reload() {
-      return $state.transitionTo($state.current, $stateParams, { reload: true, inherit: false, notify: true });
+    $state.reload = function reload(state) {
+      return $state.transitionTo($state.current, $stateParams, { reload: state || true, inherit: false, notify: true});
     };
 
     /**
@@ -92820,9 +79250,11 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory) {
      * - **`relative`** - {object=}, When transitioning with relative path (e.g '^'), 
      *    defines which state to be relative from.
      * - **`notify`** - {boolean=true}, If `true` will broadcast $stateChangeStart and $stateChangeSuccess events.
-     * - **`reload`** (v0.2.5) - {boolean=false}, If `true` will force transition even if the state or params 
+     * - **`reload`** (v0.2.5) - {boolean=false|string=|object=}, If `true` will force transition even if the state or params 
      *    have not changed, aka a reload of the same state. It differs from reloadOnSearch because you'd
      *    use this when you want to force a reload when *everything* is the same, including search params.
+     *    if String, then will reload the state with the name given in reload, and any children.
+     *    if Object, then a stateObj is expected, will reload the state found in stateObj, and any children.
      *
      * @returns {promise} A promise representing the state of the new transition. See
      * {@link ui.router.state.$state#methods_go $state.go}.
@@ -92835,6 +79267,9 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory) {
 
       var from = $state.$current, fromParams = $state.params, fromPath = from.path;
       var evt, toState = findState(to, options.relative);
+
+      // Store the hash param for later (since it will be stripped out by various methods)
+      var hash = toParams['#'];
 
       if (!isDefined(toState)) {
         var redirect = { to: to, toParams: toParams, options: options };
@@ -92874,6 +79309,21 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory) {
           keep++;
           state = toPath[keep];
         }
+      } else if (isString(options.reload) || isObject(options.reload)) {
+        if (isObject(options.reload) && !options.reload.name) {
+          throw new Error('Invalid reload state object');
+        }
+        
+        var reloadState = options.reload === true ? fromPath[0] : findState(options.reload);
+        if (options.reload && !reloadState) {
+          throw new Error("No such reload state '" + (isString(options.reload) ? options.reload : options.reload.name) + "'");
+        }
+
+        while (state && state === fromPath[keep] && state !== reloadState) {
+          locals = toLocals[keep] = state.locals;
+          keep++;
+          state = toPath[keep];
+        }
       }
 
       // If we're going to the same state and all locals are kept, we've got nothing to do.
@@ -92881,8 +79331,16 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory) {
       // TODO: We may not want to bump 'transition' if we're called from a location change
       // that we've initiated ourselves, because we might accidentally abort a legitimate
       // transition initiated from code?
-      if (shouldTriggerReload(to, from, locals, options)) {
-        if (to.self.reloadOnSearch !== false) $urlRouter.update();
+      if (shouldSkipReload(to, toParams, from, fromParams, locals, options)) {
+        if (hash) toParams['#'] = hash;
+        $state.params = toParams;
+        copy($state.params, $stateParams);
+        if (options.location && to.navigable && to.navigable.url) {
+          $urlRouter.push(to.navigable.url, toParams, {
+            $$avoidResync: true, replace: options.location === 'replace'
+          });
+          $urlRouter.update(true);
+        }
         $state.transition = null;
         return $q.when($state.current);
       }
@@ -92920,6 +79378,7 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory) {
          * </pre>
          */
         if ($rootScope.$broadcast('$stateChangeStart', to.self, toParams, from.self, fromParams).defaultPrevented) {
+          $rootScope.$broadcast('$stateChangeCancel', to.self, toParams, from.self, fromParams);
           $urlRouter.update();
           return TransitionPrevented;
         }
@@ -92965,6 +79424,9 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory) {
             $injector.invoke(entering.self.onEnter, entering.self, entering.locals.globals);
           }
         }
+
+        // Re-add the saved hash before we start returning things
+        if (hash) toParams['#'] = hash;
 
         // Run it again, to catch any transitions in callbacks
         if ($state.transition !== transition) return TransitionSuperseded;
@@ -93191,7 +79653,7 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory) {
       if (!nav || nav.url === undefined || nav.url === null) {
         return null;
       }
-      return $urlRouter.href(nav.url, filterByKeys(state.params.$$keys(), params || {}), {
+      return $urlRouter.href(nav.url, filterByKeys(state.params.$$keys().concat('#'), params || {}), {
         absolute: options.absolute
       });
     };
@@ -93233,30 +79695,38 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory) {
       })];
       if (inherited) promises.push(inherited);
 
-      // Resolve template and dependencies for all views.
-      forEach(state.views, function (view, name) {
-        var injectables = (view.resolve && view.resolve !== state.resolve ? view.resolve : {});
-        injectables.$template = [ function () {
-          return $view.load(name, { view: view, locals: locals, params: $stateParams, notify: options.notify }) || '';
-        }];
+      function resolveViews() {
+        var viewsPromises = [];
 
-        promises.push($resolve.resolve(injectables, locals, dst.resolve, state).then(function (result) {
-          // References to the controller (only instantiated at link time)
-          if (isFunction(view.controllerProvider) || isArray(view.controllerProvider)) {
-            var injectLocals = angular.extend({}, injectables, locals);
-            result.$$controller = $injector.invoke(view.controllerProvider, null, injectLocals);
-          } else {
-            result.$$controller = view.controller;
-          }
-          // Provide access to the state itself for internal use
-          result.$$state = state;
-          result.$$controllerAs = view.controllerAs;
-          dst[name] = result;
-        }));
-      });
+        // Resolve template and dependencies for all views.
+        forEach(state.views, function (view, name) {
+          var injectables = (view.resolve && view.resolve !== state.resolve ? view.resolve : {});
+          injectables.$template = [ function () {
+            return $view.load(name, { view: view, locals: dst.globals, params: $stateParams, notify: options.notify }) || '';
+          }];
+
+          viewsPromises.push($resolve.resolve(injectables, dst.globals, dst.resolve, state).then(function (result) {
+            // References to the controller (only instantiated at link time)
+            if (isFunction(view.controllerProvider) || isArray(view.controllerProvider)) {
+              var injectLocals = angular.extend({}, injectables, dst.globals);
+              result.$$controller = $injector.invoke(view.controllerProvider, null, injectLocals);
+            } else {
+              result.$$controller = view.controller;
+            }
+            // Provide access to the state itself for internal use
+            result.$$state = state;
+            result.$$controllerAs = view.controllerAs;
+            dst[name] = result;
+          }));
+        });
+
+        return $q.all(viewsPromises).then(function(){
+          return dst.globals;
+        });
+      }
 
       // Wait for all the promises and then return the activation object
-      return $q.all(promises).then(function (values) {
+      return $q.all(promises).then(resolveViews).then(function (values) {
         return dst;
       });
     }
@@ -93264,8 +79734,27 @@ function $StateProvider(   $urlRouterProvider,   $urlMatcherFactory) {
     return $state;
   }
 
-  function shouldTriggerReload(to, from, locals, options) {
-    if (to === from && ((locals === from.locals && !options.reload) || (to.self.reloadOnSearch === false))) {
+  function shouldSkipReload(to, toParams, from, fromParams, locals, options) {
+    // Return true if there are no differences in non-search (path/object) params, false if there are differences
+    function nonSearchParamsEqual(fromAndToState, fromParams, toParams) {
+      // Identify whether all the parameters that differ between `fromParams` and `toParams` were search params.
+      function notSearchParam(key) {
+        return fromAndToState.params[key].location != "search";
+      }
+      var nonQueryParamKeys = fromAndToState.params.$$keys().filter(notSearchParam);
+      var nonQueryParams = pick.apply({}, [fromAndToState.params].concat(nonQueryParamKeys));
+      var nonQueryParamSet = new $$UMFP.ParamSet(nonQueryParams);
+      return nonQueryParamSet.$$equals(fromParams, toParams);
+    }
+
+    // If reload was not explicitly requested
+    // and we're transitioning to the same state we're already in
+    // and    the locals didn't change
+    //     or they changed in a way that doesn't merit reloading
+    //        (reloadOnParams:false, or reloadOnSearch.false and only search params changed)
+    // Then return true.
+    if (!options.reload && to === from &&
+      (locals === from.locals || (to.self.reloadOnSearch === false && nonSearchParamsEqual(from, fromParams, toParams)))) {
       return true;
     }
   }
@@ -93391,7 +79880,7 @@ function $ViewScrollProvider() {
     }
 
     return function ($element) {
-      $timeout(function () {
+      return $timeout(function () {
         $element[0].scrollIntoView();
       }, 0, false);
     };
@@ -93676,6 +80165,7 @@ function $ViewDirectiveFill (  $compile,   $controller,   $state,   $interpolate
 
         if (locals.$$controller) {
           locals.$scope = scope;
+          locals.$element = $element;
           var controller = $controller(locals.$$controller, locals);
           if (locals.$$controllerAs) {
             scope[locals.$$controllerAs] = controller;
@@ -93783,7 +80273,7 @@ function stateContext(el) {
  */
 $StateRefDirective.$inject = ['$state', '$timeout'];
 function $StateRefDirective($state, $timeout) {
-  var allowedOptions = ['location', 'inherit', 'reload'];
+  var allowedOptions = ['location', 'inherit', 'reload', 'absolute'];
 
   return {
     restrict: 'A',
@@ -93791,9 +80281,12 @@ function $StateRefDirective($state, $timeout) {
     link: function(scope, element, attrs, uiSrefActive) {
       var ref = parseStateRef(attrs.uiSref, $state.current.name);
       var params = null, url = null, base = stateContext(element) || $state.$current;
-      var newHref = null, isAnchor = element.prop("tagName") === "A";
+      // SVGAElement does not use the href attribute, but rather the 'xlinkHref' attribute.
+      var hrefKind = Object.prototype.toString.call(element.prop('href')) === '[object SVGAnimatedString]' ?
+                 'xlink:href' : 'href';
+      var newHref = null, isAnchor = element.prop("tagName").toUpperCase() === "A";
       var isForm = element[0].nodeName === "FORM";
-      var attr = isForm ? "action" : "href", nav = true;
+      var attr = isForm ? "action" : hrefKind, nav = true;
 
       var options = { relative: base, inherit: true };
       var optionsOverride = scope.$eval(attrs.uiSrefOpts) || {};
@@ -93812,7 +80305,7 @@ function $StateRefDirective($state, $timeout) {
 
         var activeDirective = uiSrefActive[1] || uiSrefActive[0];
         if (activeDirective) {
-          activeDirective.$$setStateInfo(ref.state, params);
+          activeDirective.$$addStateInfo(ref.state, params);
         }
         if (newHref === null) {
           nav = false;
@@ -93931,7 +80424,7 @@ function $StateRefActiveDirective($state, $stateParams, $interpolate) {
   return  {
     restrict: "A",
     controller: ['$scope', '$element', '$attrs', function ($scope, $element, $attrs) {
-      var state, params, activeClass;
+      var states = [], activeClass;
 
       // There probably isn't much point in $observing this
       // uiSrefActive and uiSrefActiveEq share the same directive object with some
@@ -93939,9 +80432,14 @@ function $StateRefActiveDirective($state, $stateParams, $interpolate) {
       activeClass = $interpolate($attrs.uiSrefActiveEq || $attrs.uiSrefActive || '', false)($scope);
 
       // Allow uiSref to communicate with uiSrefActive[Equals]
-      this.$$setStateInfo = function (newState, newParams) {
-        state = $state.get(newState, stateContext($element));
-        params = newParams;
+      this.$$addStateInfo = function (newState, newParams) {
+        var state = $state.get(newState, stateContext($element));
+
+        states.push({
+          state: state || { name: newState },
+          params: newParams
+        });
+
         update();
       };
 
@@ -93949,18 +80447,27 @@ function $StateRefActiveDirective($state, $stateParams, $interpolate) {
 
       // Update route state
       function update() {
-        if (isMatch()) {
+        if (anyMatch()) {
           $element.addClass(activeClass);
         } else {
           $element.removeClass(activeClass);
         }
       }
 
-      function isMatch() {
+      function anyMatch() {
+        for (var i = 0; i < states.length; i++) {
+          if (isMatch(states[i].state, states[i].params)) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      function isMatch(state, params) {
         if (typeof $attrs.uiSrefActiveEq !== 'undefined') {
-          return state && $state.is(state.name, params);
+          return $state.is(state.name, params);
         } else {
-          return state && $state.includes(state.name, params);
+          return $state.includes(state.name, params);
         }
       }
     }]
@@ -114058,28 +100565,43 @@ var debuggerModule=angular.module("ozpIwc.debugger",[
 
 
 debuggerModule.factory("iwcClient",function() {
-    return new ozpIwc.ClientParticipant({name: "debuggerClient"});
+    var path = window.location.href.replace(window.location.hash,"");
+    var domain = ozpIwc.util.parseQueryParams().peerUrl || path.substr(0,path.lastIndexOf('/'));
+
+    var dbg = new ozpIwc.Debugger({
+        peerUrl: domain
+    });
+
+    return dbg;
 });
         
         
 debuggerModule.controller("debuggerController",["$scope","iwcClient",function(scope,client) {
     scope.ozpIwc = ozpIwc;
-    scope.apiRootUrl = ozpIwc.apiRootUrl;
     scope.tab = 'general';
-    client.connect().then(function(){
-        scope.address = client.address;
+    scope.loading = true;
+
+    client.getConfig().then(function(config){
+        scope.$evalAsync(function(){
+            scope.apiRootUrl = config.apiRootUrl;
+            scope.address = client.address;
+
+            scope.loading = false;
+        });
     });
+
 }]);
 debuggerModule.service("apiSettingService",function(){
     this.apis={
         'data.api' : {
-            'address': "data.api",
+            'address': "data.api"
         },
         'intents.api': {
             'address': "intents.api",
             'actions': [{
                 action: "invoke",
-                contentTypes: ['application/vnd.ozp-iwc-intent-definition-v1+json',
+                contentTypes: [
+                    'application/vnd.ozp-iwc-intent-definition-v1+json',
                     'application/vnd.ozp-iwc-intent-handler-v1+json']
             },{
                 action: "broadcast",
@@ -114091,7 +100613,10 @@ debuggerModule.service("apiSettingService",function(){
             'address': "system.api",
             'actions': [{
                 action: "launch",
-                contentTypes: ['application/vnd.ozp-application-v1+json']
+                contentTypes: [
+                    'application/vnd.ozp-application-v1+json',
+                    'application/vnd.ozp-iwc-application+json;version=2'
+                ]
             }]
         },
         'names.api': {
@@ -114148,19 +100673,26 @@ debuggerModule.controller("ApiDisplayCtrl",["$scope", "$attrs", "iwcClient","api
             displayName: "actions",
             headerCellTemplate: 'templates/headerTemplate.tpl.html',
             cellTemplate: 'templates/resourceTemplate.tpl.html',
-            width: "8%"
+            width: "5%"
 
         },{
             field:'resource',
             displayName:'Resource',
             //cellTemplate: 'templates/resourceTemplate.tpl.html',
             filter: containsFilterGen(),
-            width: "12%"
+            width: "7%"
         },{
             field:'contentType',
             displayName:'Content Type',
             filter: containsFilterGen(),
-            width: "15%"
+            width: "7%"
+        },{
+            field:'lifespan',
+            displayName:'Lifespan',
+            cellTemplate: statusTemplate,
+            cellClass: 'grid-pre',
+            filter: containsFilterGen(),
+            width: "7%"
         },{
             field:'entity',
             displayName:'Entity',
@@ -114174,14 +100706,14 @@ debuggerModule.controller("ApiDisplayCtrl",["$scope", "$attrs", "iwcClient","api
             cellTemplate: statusTemplate,
             cellClass: 'grid-pre',
             filter: containsFilterJSONGen(),
-            width: "15%"
+            width: "10%"
         },{
             field:'collection',
             displayName:'collection',
             cellTemplate: statusTemplate,
             cellClass: 'grid-pre',
             filter: containsFilterJSONGen(),
-            width: "15%"
+            width: "10%"
 
         }];
     scope.gridOptions = {
@@ -114737,13 +101269,13 @@ debuggerModule.directive('visTimeline', function() {
 
                 if(properties.items.length > 0){
 
-                    var electionMsg = $scope.$parent.selectedElection.packets[properties.items[0]];
+                    var electionMsg = $scope.$parent.selectedElection.electionPackets[properties.items[0]];
                     if(electionMsg){
                         $scope.$apply(function() {
                             $scope.$parent.packetContents = electionMsg;
                         });
                     } else{
-                        var storageEvent = $scope.$parent.selectedElection.storageEvents[properties.items[0]];
+                        var storageEvent = $scope.$parent.selectedElection.busPackets[properties.items[0]];
                         $scope.$apply(function() {
                             $scope.$parent.packetContents = storageEvent;
                         });
@@ -114782,63 +101314,57 @@ debuggerModule.directive('visTimeline', function() {
 
 /* global debuggerModule */
 
-debuggerModule.controller('ElectionCtrl',['$scope',function($scope){
-    $scope.enableOrNot = false;
-    $scope.recvToggle = false;
-    $scope.ELECTION_TIME = ozpIwc.ELECTION_TIMEOUT;
+debuggerModule.controller('ElectionCtrl', ['$scope', 'iwcClient', function (scope, client) {
+    scope.logging = false;
+    scope.blockBtns = false;
+    scope.recvToggle = false;
+    scope.ELECTION_TIME = ozpIwc.config.consensusTimeout;
 
-    function isNewestPacket(packet,api){
-        { return api.lastElectionTS < packet.time; }
+    function isNewestPacket(packet, api) {
+        {
+            return api.lastElectionTS < packet.time;
+        }
     }
-    function outOfElectionWindow(packet,api){
-        { return api.lastElectionTS +  $scope.ELECTION_TIME < Date.now(); }
 
-    }
-
-    $scope.graphData= {
+    scope.graphData = {
         value: 'locks.api',
         title: 'locks Api',
         elections: new vis.DataSet(),
         electionGroups: new vis.DataSet(),
-        packets: {},
-        storageEvents: {},
+        electionPackets: {},
+        busPackets: {},
         lastElectionTS: -Number.MAX_VALUE
     };
 
-    $scope.selectedElection = $scope.graphData;
+    scope.selectedElection = scope.graphData;
 
-    $scope.clear = function(){
-        $scope.graphData.elections = new vis.DataSet();
-        $scope.graphData.electionGroups = new vis.DataSet();
-        $scope.graphData.packets = {};
-        $scope.graphData.storageEvents = {};
+    scope.clear = function () {
+        scope.graphData.elections.clear();
+        scope.graphData.electionGroups.clear();
+        scope.graphData.electionPackets = {};
+        scope.graphData.busPackets = {};
     };
 
-    function genTimelineData(packet){
+    function genTimelineData(packet) {
         var state = (packet.action === "election" && typeof(packet.entity.state) !== 'undefined' && Object.keys(packet.entity.state).length > 0);
         var timelineData = {
             id: packet.time,
             content: 'Election',
             start: new Date(packet.debuggerTime),
-            end: new Date(packet.time + $scope.ELECTION_TIME),
+            end: new Date(packet.time + scope.ELECTION_TIME),
             group: packet.src,
             subgroup: "actual"
         };
 
-        if (packet.entity.priority === -Number.MAX_VALUE){
+        if (packet.entity.priority === -Number.MAX_VALUE) {
             timelineData.style = "background-color: gray";
             timelineData.content += '<label> Quitting </label> ';
         }
 
-        switch(packet.action){
-            case "leaderQuery":
+        switch (packet.action) {
+            case "query":
                 timelineData.style = "background-color: purple";
                 timelineData.content = "<label>Leader Query</label>";
-                break;
-            case "leaderResponse":
-                timelineData.style = "background-color: purple";
-                timelineData.content = "<label>Leader Response</label>";
-                timelineData.end = null;
                 break;
             case "victory":
                 timelineData.style = "background-color: green";
@@ -114846,41 +101372,30 @@ debuggerModule.controller('ElectionCtrl',['$scope',function($scope){
                 break;
         }
 
-        if(state){
+        if (state) {
             timelineData.style = "background-color: orange";
             timelineData.content += '</br><label> Contains State </label>';
         }
-        if(packet.src === packet.entity.previousLeader){
+        if (packet.src === packet.entity.previousLeader) {
             timelineData.content += '</br><label> Was Leader </label>';
 
         }
         return timelineData;
     }
 
-    function genTimelineOOS(packet){
+    function genTimelineOOS(packet) {
         return {
             id: packet.time,
             content: ' Out of Sync',
             start: new Date(packet.debuggerTime),
-            end: new Date(packet.time + $scope.ELECTION_TIME),
+            end: new Date(packet.time + scope.ELECTION_TIME),
             group: packet.src,
             style: "background-color: yellow",
             subgroup: "actual"
         };
     }
-    function genTimelineDrop(packet){
-        return {
-            id: packet.time,
-            content: ' Out of Election Window',
-            start: new Date(packet.debuggerTime),
-            end: new Date(packet.time + $scope.ELECTION_TIME),
-            group: packet.src,
-            style: "background-color: red",
-            subgroup: "actual"
-        };
-    }
 
-    function updateApiTimeline(packet,api){
+    function updateApiTimeline(packet, api) {
         var timelineGroup = {
             id: packet.src,
             content: packet.src
@@ -114894,89 +101409,94 @@ debuggerModule.controller('ElectionCtrl',['$scope',function($scope){
 
         api.electionGroups.update(timelineGroup);
 
-        if(isNewestPacket(packet,api)) {
-            //api.elections.add(genTimelineDelta(packet));
+        if (isNewestPacket(packet, api)) {
             api.elections.add(genTimelineData(packet));
-        } else if(outOfElectionWindow(packet,api)){
-            //api.elections.add(genTimelineDelta(packet));
-            api.elections.add(genTimelineDrop(packet));
+            //} else if(outOfElectionWindow(packet,api)){
+            //    api.elections.add(genTimelineDrop(packet));
         } else {
-            //api.elections.add(genTimelineDelta(packet));
             api.elections.add(genTimelineOOS(packet));
         }
-        if(packet.action === 'victory'){
+        if (packet.action === 'victory') {
             api.lastElectionTS = packet.time;
         }
-        api.packets[packetData.id] = packetData.data;
+        api.electionPackets[packetData.id] = packetData.data;
     }
 
     function logPacket(msg) {
-        if($scope.enableOrNot === "disabled") {
+        if (!scope.logging) {
             return;
         }
-        var packet = msg.packet.data;
+        var packet = msg.data;
         packet.debuggerTime = Date.now();
-        var actions = ['election','victory','leaderQuery','leaderResponse'];
-        if(actions.indexOf(packet.action) < 0) {
+        var actions = ['election', 'victory', 'query'];
+        if (actions.indexOf(packet.action) < 0) {
+            if (scope.recvToggle) {
+                plotNonElection(packet);
+            }
             return;
         }
 
-        if(packet.dst === "locks.api.election" || packet.src === "locks.api.election") {
-            $scope.$apply(function() {
-                updateApiTimeline(packet,$scope.graphData);
+        if (packet.dst === "locks.api.consensus" || packet.src === "locks.api.consensus") {
+            scope.$apply(function () {
+                updateApiTimeline(packet, scope.graphData);
             });
         }
     }
 
-    var storeEvt =  function(event){
-        if(event.newValue && $scope.recvToggle && $scope.enableOrNot){
-            var date = Date.now();
-            var id = date +'_'+ Math.floor(Math.random() * 10000);
-            var packet = JSON.parse(event.newValue);
-            $scope.graphData.electionGroups.update({
-                id: 'storageEvent',
-                content: 'storageEvent'
-            });
-            $scope.graphData.elections.add({
-                id: id,
-                content: packet.data.action || packet.data.response,
-                style: (packet.data.action) ? "" : "background-color: yellow",
-                start: date,
-                group: 'storageEvent'
-            });
-            $scope.graphData.storageEvents[id] =packet;
-        }
-    };
+    scope.evtListener = null;
 
-    $scope.evtListener = null;
+    function plotNonElection(packet) {
+        var date = Date.now();
+        var id = date + '_' + Math.floor(Math.random() * 10000);
+        scope.graphData.electionGroups.update({
+            id: 'busPacket',
+            content: 'Non-Election Packet'
+        });
+        scope.graphData.elections.add({
+            id: id,
+            content: packet.action || packet.response,
+            style: (packet.action) ? "" : "background-color: yellow",
+            start: date,
+            group: 'busPacket'
+        });
+        scope.graphData.busPackets[id] = packet;
+    }
 
-    $scope.toggle = function(){
-        $scope.enableOrNot = !$scope.enableOrNot;
-        if ($scope.enableOrNot){
-            $scope.evtListener = ozpIwc.util.addEventListener("storage",storeEvt);
+    scope.logToggle = function(){
+        scope.blockBtns = true;
+        scope.logging = !scope.logging;
+        var promise;
+        if(scope.logging){
+            promise = client.logTraffic(logPacket).then(function(msgId){
+                scope.logId = msgId;
+            });
         } else {
-            ozpIwc.util.removeEventListener("storage",$scope.evtListener);
+            promise = client.cancelLogTraffic(scope.logId);
         }
-        ozpIwc.defaultPeer.on("receive",logPacket);
-        ozpIwc.defaultPeer.on("send",logPacket);
+
+        promise.then(function(){
+            scope.$apply(function(){
+                scope.blockBtns = false;
+            });
+        });
     };
 }]);
 
-debuggerModule.directive( "elections", [function() {
+debuggerModule.directive("elections", [function () {
     return {
         restrict: 'E',
         templateUrl: 'templates/elections.tpl.html'
     };
 }]);
 
-debuggerModule.directive( "electionsContent", [function() {
+debuggerModule.directive("electionsContent", [function () {
     return {
         restrict: 'E',
         templateUrl: 'templates/electionsContent.tpl.html'
     };
 }]);
 
-debuggerModule.directive( "electionsToolbar", [function() {
+debuggerModule.directive("electionsToolbar", [function () {
     return {
         restrict: 'E',
         templateUrl: 'templates/electionsToolbar.tpl.html'
@@ -114984,71 +101504,64 @@ debuggerModule.directive( "electionsToolbar", [function() {
 }]);
 
 /* global debuggerModule */
-debuggerModule.controller('GeneralCtrl',['$scope', '$state', 'iwcClient',function(scope, state, client){
+debuggerModule.controller('GeneralCtrl', ['$scope', '$state', 'iwcClient', function (scope, state, client) {
     scope.ozpIwc = ozpIwc;
-    scope.apis=[
-        {'name': "Data API", 'obj': ozpIwc.dataApi},
-        {'name': "Intents API", 'obj': ozpIwc.intentsApi},
-        {'name': "System API", 'obj': ozpIwc.systemApi},
-        {'name': "Names API", 'obj': ozpIwc.namesApi}
-    ];
 
-    scope.endpointClicked = function(endpoint) {
+    scope.endpointClicked = function (endpoint) {
         state.go('hal-browser', {url: endpoint});
     };
     scope.endpointTabulated = [];
-    client.connect().then(function() {
-        scope.apis.forEach(function(api){
-            api.endpoints = [];
-            api.obj.endpoints.forEach(function(ep){
-                var endpoint = ozpIwc.endpoint(ep.link);
-                scope.$apply(function() {
-                    scope.endpointTabulated.push({
-                        'name': api.name,
-                        'rel': endpoint.name,
-                        'path': endpoint.baseUrl
-                    });
+    scope.config = {};
+
+    client.connect().then(function () {
+        client.getConfig().then(function(config){
+            scope.config = config;
+        });
+        client.getApiEndpoints().then(function (apis) {
+            apis.forEach(function (resp) {
+                scope.$apply(function () {
+                    scope.endpointTabulated.push(resp);
                 });
             });
-        });
-        return client.api('system.api').get('/user');
-    }).then(function(data){
-        scope.$apply(function() {
-            scope.systemUser = data.entity;
-        });
-        return client.api('system.api').get('/system');
-    }).then(function(data){
-        scope.$apply(function(){
-            scope.systemBuild = data.entity;
+            return client.api('system.api').get('/user');
+        }).then(function (data) {
+            scope.$apply(function () {
+                scope.systemUser = data.entity;
+            });
+            return client.api('system.api').get('/system');
+        }).then(function (data) {
+            scope.$apply(function () {
+                scope.systemBuild = data.entity;
+            });
         });
     });
 }]);
 
-debuggerModule.directive( "general", [function() {
+debuggerModule.directive("general", [function () {
     return {
         restrict: 'E',
         templateUrl: 'templates/general.tpl.html'
     };
 }]);
-debuggerModule.directive( "genEndpoints", [function() {
+debuggerModule.directive("genEndpoints", [function () {
     return {
         restrict: 'E',
         templateUrl: 'templates/genEndpoints.tpl.html'
     };
 }]);
-debuggerModule.directive( "genBuild", [function() {
+debuggerModule.directive("genBuild", [function () {
     return {
         restrict: 'E',
         templateUrl: 'templates/genBuild.tpl.html'
     };
 }]);
-debuggerModule.directive( "genUser", [function() {
+debuggerModule.directive("genUser", [function () {
     return {
         restrict: 'E',
         templateUrl: 'templates/genUser.tpl.html'
     };
 }]);
-debuggerModule.directive( "genAbout", [function() {
+debuggerModule.directive("genAbout", [function () {
     return {
         restrict: 'E',
         templateUrl: 'templates/genAbout.tpl.html'
@@ -115059,50 +101572,50 @@ debuggerModule.directive( "genAbout", [function() {
  scope.$on('$stateChangeSuccess',
       function(event, toState, toParams) {
         if (toState.name.indexOf('hal-browser') > -1) {
-          scope.iframeSrc = 'hal-browser/browser.html#' + toParams.url;
+          scope.iframeSrc = 'hal-browser/browser.html#' + decodeURIComponent(toParams.url);
         }
       });
 }]);
 /* global debuggerModule */
-debuggerModule.controller("metricsController",['$scope','$interval','$filter',function(scope,$interval,$filter) {
+debuggerModule.controller("metricsController", ['$scope', '$interval', '$filter', 'iwcClient', function (scope, $interval, $filter, client) {
     var filter = $filter('filter');
-    scope.updateFrequency=1000;
-    scope.metricWindow=60000;
-    scope.updateActive=false;
-    scope.metrics=[];
+    scope.updateFrequency = 1000;
+    scope.metricWindow = 60000;
+    scope.updateActive = false;
+    scope.metrics = [];
     scope.metricsActive = 0;
-    var metricsByName={};
+    var metricsByName = {};
 
-    scope.selectAllFilteredItems = function (state){
-        var filtered = filter(scope.metrics, {'name': scope.viewFilter });
+    scope.selectAllFilteredItems = function (state) {
+        var filtered = filter(scope.metrics, {'name': scope.viewFilter});
 
-        angular.forEach(filtered, function(item) {
+        angular.forEach(filtered, function (item) {
             item.visible = state;
         });
     };
 
-    var ensureGroup=function(name) {
+    var ensureGroup = function (name) {
 //        if(scope.groupVisibility[name]===undefined) {
 //            scope.groupVisibility[name]=(name.match("participants.*receivedPackets.rate1m")!==null);
 //        }
-        if(metricsByName[name]===undefined) {
-            var metricDef={
+        if (metricsByName[name] === undefined) {
+            var metricDef = {
                 name: name,
                 visible: false
             };
             scope.metrics.push(metricDef);
-            metricsByName[name]=metricDef;
+            metricsByName[name] = metricDef;
         }
 
     };
 
-    var updateWanted = function(name) {
+    var updateWanted = function (name) {
         return metricsByName[name].visible;
     };
 
-    var pushDataPoint=function(dataPoints,name,time,value) {
+    var pushDataPoint = function (dataPoints, name, time, value) {
         ensureGroup(name);
-        if(updateWanted(name)) {
+        if (updateWanted(name)) {
             dataPoints.push({
                 group: name,
                 x: time,
@@ -115110,32 +101623,36 @@ debuggerModule.controller("metricsController",['$scope','$interval','$filter',fu
             });
         }
     };
-    scope.refresh=function(){
-        var dataPoints=[];
-        var nowDate=new Date();
-        ozpIwc.metrics.allMetrics().forEach(function(m) {
-            var value=m.get();
-            if(typeof value==="object") {
-                for(var k in value) {
-                    pushDataPoint(dataPoints,m.name+"."+k,nowDate,value[k]);
+    scope.refresh = function () {
+        var dataPoints = [];
+        var nowDate = new Date();
+        client.getMetrics().then(function (metrics) {
+            metrics.forEach(function (m) {
+                if (typeof m.value === "object") {
+                    for (var k in m.value) {
+                        pushDataPoint(dataPoints, m.name + "." + k, nowDate, m.value[k]);
+                    }
+                } else {
+                    pushDataPoint(dataPoints, m.name, nowDate, m.value);
                 }
-            } else {
-                pushDataPoint(dataPoints,m.name,nowDate,value);
-            }
+            });
+            scope.$apply();
+            scope.$broadcast('timeSeriesData', dataPoints);
+            scope.metricsActive = dataPoints.length;
         });
-        scope.$broadcast('timeSeriesData',dataPoints);
-        scope.metricsActive = dataPoints.length;
     };
 
-    scope.refresh();
+    client.connect().then(function(){
+        scope.refresh();
+    });
 
-    var timer=null;
-    var updateTimer=function() {
-        if(timer) {
+    var timer = null;
+    var updateTimer = function () {
+        if (timer) {
             $interval.cancel(timer);
         }
-        if(scope.updateActive) {
-            timer=$interval(scope.refresh,scope.updateFrequency);
+        if (scope.updateActive) {
+            timer = $interval(scope.refresh, scope.updateFrequency);
         }
     };
 
@@ -115144,28 +101661,28 @@ debuggerModule.controller("metricsController",['$scope','$interval','$filter',fu
     scope.$watch('updateFrequency', updateTimer);
 }]);
 
-debuggerModule.directive( "metrics", [function() {
+debuggerModule.directive("metrics", [function () {
     return {
         restrict: 'E',
         templateUrl: 'templates/metrics.tpl.html'
     };
 }]);
 
-debuggerModule.directive( "metricsToolbar", [function() {
+debuggerModule.directive("metricsToolbar", [function () {
     return {
         restrict: 'E',
         templateUrl: 'templates/metricsToolbar.tpl.html'
     };
 }]);
 
-debuggerModule.directive( "metricsContent", [function() {
+debuggerModule.directive("metricsContent", [function () {
     return {
         restrict: 'E',
         templateUrl: 'templates/metricsContent.tpl.html'
     };
 }]);
 
-debuggerModule.directive( "metricsDetail", [function() {
+debuggerModule.directive("metricsDetail", [function () {
     return {
         restrict: 'E',
         templateUrl: 'templates/metricsDetail.tpl.html'
@@ -115173,178 +101690,197 @@ debuggerModule.directive( "metricsDetail", [function() {
 }]);
 
 /* global debuggerModule */
-debuggerModule.controller("packetLogController",["$scope", "$filter",function(scope,$filter) {
-    scope.logging=false;
-    scope.viewFilter="";
-    scope.viewFilterValidation="";
-    scope.packets=[];
+debuggerModule.controller("packetLogController", ["$scope", "$filter", "iwcClient", function (scope, $filter, client) {
+    scope.logging = false;
+    scope.blockBtns = false;
+    scope.viewFilter = "";
+    scope.viewFilterValidation = "";
+    scope.packets = [];
     scope.maxShown = 50;
-    scope.filteredPackets=[];
-    scope.filterError="";
-    scope.selectedPacket=null;
-    var filterFunction=function() {
+    scope.filteredPackets = [];
+    scope.filterError = "";
+    scope.selectedPacket = null;
+    var filterFunction = function () {
         return true;
     };
-    
+
     /* jshint evil:true */
-    var createFilterFunction=function(filter) {
-        if(!filter) { filter="true";}
-        var f=new Function("srcPeer","sequence","data","return ("+filter+");");
+    var createFilterFunction = function (filter) {
+        if (!filter) {
+            filter = "true";
+        }
+        var f = new Function("srcPeer", "sequence", "data", "return (" + filter + ");");
         try {
-            f("123456",123,{});
+            f("123456", 123, {});
             return f;
-        }catch (e) {
-            if(e instanceof TypeError) {
+        } catch (e) {
+            if (e instanceof TypeError) {
                 // likely an data field that is null/undefined, so let it slide
                 return f;
             } else {
                 throw e;
             }
-        }        
-    };
-
-    scope.updateFilteredPackets = function(packets) {
-      scope.filteredPackets = packets.filter(scope.logicalFilter);
-    };
-
-    scope.updateFilter=function(filter){
-        try {
-            scope.filterError="";
-            scope.viewFilterValidation="hasSuccess";
-            filterFunction=createFilterFunction(filter);
-            scope.updateFilteredPackets(scope.packets);
-        } catch (e) {
-            scope.filterError=e.message;
-            scope.viewFilterValidation="has-error";
         }
     };
 
-    scope.clear = function(){
+    scope.updateFilteredPackets = function (packets) {
+        scope.filteredPackets = packets.filter(scope.logicalFilter);
+    };
+
+    scope.updateFilter = function (filter) {
+        try {
+            scope.filterError = "";
+            scope.viewFilterValidation = "hasSuccess";
+            filterFunction = createFilterFunction(filter);
+            scope.updateFilteredPackets(scope.packets);
+        } catch (e) {
+            scope.filterError = e.message;
+            scope.viewFilterValidation = "has-error";
+        }
+    };
+
+    scope.clear = function () {
         scope.packets = [];
         scope.updateFilteredPackets(scope.packets);
         scope.selectedPacket = null;
     };
-    
-    scope.$watch("viewFilter",function() {
+
+    scope.$watch("viewFilter", function () {
         try {
-            scope.filterError="";
-            scope.viewFilterValidation="hasSuccess";
+            scope.filterError = "";
+            scope.viewFilterValidation = "hasSuccess";
             createFilterFunction(scope.viewFilter);
         } catch (e) {
-            console.log("Filter error ",e);
-            scope.filterError=e.message;
-            scope.viewFilterValidation="has-error";
-        }      
+            console.log("Filter error ", e);
+            scope.filterError = e.message;
+            scope.viewFilterValidation = "has-error";
+        }
     });
 
-    scope.$watch("maxShown",function(){
-        arrayLimiter(scope.packets,scope.maxShown);
+    scope.$watch("maxShown", function () {
+        arrayLimiter(scope.packets, scope.maxShown);
         scope.updateFilteredPackets(scope.packets);
     });
 
-    scope.logicalFilter=function(p) {
-            try {
-                return filterFunction(p.srcPeer,p.sequence,p.data);
-            }catch(e) {
-                return false;
-            }
+    scope.logicalFilter = function (p) {
+        try {
+            return filterFunction(p.srcPeer, p.sequence, p.data);
+        } catch (e) {
+            return false;
+        }
     };
 
 
-    var arrayLimiter = function(array,limiter){
+    var arrayLimiter = function (array, limiter) {
         var amtOver = array.length - limiter;
-        if (amtOver > 0){
-            array.splice(0,amtOver);
+        if (amtOver > 0) {
+            array.splice(0, amtOver);
         }
         return array;
     };
 
-    var logPacket=function(msg) {        
-        if(!scope.logging) {
+    var logPacket = function (msg) {
+        if (!scope.logging) {
             return;
         }
 
-        var packet=msg.packet;
-        scope.$apply(function() {
-            scope.packets.push(packet);
-            arrayLimiter(scope.packets,scope.maxShown);
+        scope.$apply(function () {
+            scope.packets.push(msg);
+            arrayLimiter(scope.packets, scope.maxShown);
             scope.updateFilteredPackets(scope.packets);
         });
     };
 
-    var columnDefs =  [{
-        field:'data.time',
-        displayName:'Time'
-    },{
-        field:'srcPeer',
-        displayName:'Src Peer'
-    },{
-        field:'sequence',
-        displayName:'Sequence'
-    },{
-        field:'data.dst',
-        displayName:'Destination'
-    },{
-        field:'data.src',
-        displayName:'Source'
-    },{
-        field:'data.msgId',
-        displayName:'Message ID'
-    },{
-        field:'data.replyTo',
-        displayName:'Reply To'
-    },{
-        field:'data.action',
-        displayName:'Action'
-    },{
-        field:'data.response',
-        displayName:'Response'
-    },{
-        field:'data.resource',
-        displayName:'Resource'
-    },{
-        field:'data.contentType',
-        displayName:'Content Type'
+    var columnDefs = [{
+        field: 'data.time',
+        displayName: 'Time'
+    }, {
+        field: 'srcPeer',
+        displayName: 'Src Peer'
+    }, {
+        field: 'sequence',
+        displayName: 'Sequence'
+    }, {
+        field: 'data.dst',
+        displayName: 'Destination'
+    }, {
+        field: 'data.src',
+        displayName: 'Source'
+    }, {
+        field: 'data.msgId',
+        displayName: 'Message ID'
+    }, {
+        field: 'data.replyTo',
+        displayName: 'Reply To'
+    }, {
+        field: 'data.action',
+        displayName: 'Action'
+    }, {
+        field: 'data.response',
+        displayName: 'Response'
+    }, {
+        field: 'data.resource',
+        displayName: 'Resource'
+    }, {
+        field: 'data.contentType',
+        displayName: 'Content Type'
     }];
 
     scope.gridOptions = {
-        data : 'filteredPackets',
+        data: 'filteredPackets',
         columnDefs: columnDefs,
         rowHeight: 24,
         enableRowSelection: true,
         enableRowHeaderSelection: false,
         multiSelect: false,
-        onRegisterApi: function( gridApi ) {
+        onRegisterApi: function (gridApi) {
             scope.gridApi = gridApi;
             scope.gridApi.core.handleWindowResize();
-            scope.gridApi.selection.on.rowSelectionChanged(scope,function(row){
-                if(row.isSelected){
+            scope.gridApi.selection.on.rowSelectionChanged(scope, function (row) {
+                if (row.isSelected) {
                     scope.selectedPacket = row.entity;
                 }
 
             });
         }
     };
-    ozpIwc.defaultPeer.on("receive",logPacket);
-    ozpIwc.defaultPeer.on("send",logPacket);
 
+    scope.logToggle = function(){
+        scope.blockBtns = true;
+        scope.logging = !scope.logging;
+
+        var promise;
+        if(scope.logging){
+            promise = client.logTraffic(logPacket).then(function(msgId){
+                scope.logId = msgId;
+            });
+        } else {
+            promise = client.cancelLogTraffic(scope.logId);
+        }
+
+        promise.then(function(){
+            scope.$apply(function(){
+                scope.blockBtns = false;
+            });
+        });
+    };
 }]);
 
-debuggerModule.directive( "trafficSnooper", [function() {
+debuggerModule.directive("trafficSnooper", [function () {
     return {
         restrict: 'E',
         templateUrl: 'templates/trafficSnooper.tpl.html'
     };
 }]);
 
-debuggerModule.directive( "trafficSnooperToolbar", [function() {
+debuggerModule.directive("trafficSnooperToolbar", [function () {
     return {
         restrict: 'E',
         templateUrl: 'templates/trafficSnooperToolbar.tpl.html'
     };
 }]);
 
-debuggerModule.directive( "trafficSnooperContent", [function() {
+debuggerModule.directive("trafficSnooperContent", [function () {
     return {
         restrict: 'E',
         templateUrl: 'templates/trafficSnooperContent.tpl.html'

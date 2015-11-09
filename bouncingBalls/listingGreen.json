@@ -1,0 +1,16 @@
+{
+  "description": "A green bouncing ball. Watch it bounce and  bounce and bounce with other bouncing balls.",
+  "descriptionShort": "A green bouncing ball.",
+  "title": "Green Bouncing Ball",
+  "icons": {
+    "small": "bouncingBalls/greenBall16.png",
+    "large": "bouncingBalls/greenBall32.png"
+  },
+  "launchUrls":{
+    "default": "bouncingBalls/index.html?color=green"
+  },
+  "uiHints":{
+    "width": null,
+    "height": null
+  }
+}

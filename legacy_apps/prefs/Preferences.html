@@ -1,17 +1,17 @@
 <html>
     <head>
-        <link href="../../../css/desktop.css" rel="stylesheet" type="text/css">
+        <link href="css/desktop.css" rel="stylesheet" type="text/css">
         <link href="../../../css/blueExt.css" rel="stylesheet" type="text/css">
-        <link href="../../../css/widgetContents.css" rel="stylesheet" type="text/css">
+        <link href="../../legacy_resources/css/widgetContents.css" rel="stylesheet" type="text/css">
 
         <!--  Eventing  -->
-        <script type="text/javascript" src="../js/owf-widget-min.js"></script>
+        <script type="text/javascript" src="../../legacy_resources/js/owf-widget-min.js"></script>
 
         <script type="text/javascript">
              //The location is assumed to be at /<context>/js/eventing/rpc_relay.uncompressed.html if it is not
              //uncomment the line below and set the path correctly
-            //OWF.relayFile = Ozone.util.contextPath() + '/js/eventing/rpc_relay.uncompressed.html';
-            owfdojo.config.dojoBlankHtmlUrl = '../js/dojo-1.5.0-windowname-only/dojo/resources/blank.html';
+             OWF.relayFile = '../../legacy_resources/js/eventing/rpc_relay.uncompressed.html';
+            owfdojo.config.dojoBlankHtmlUrl = '../../legacy_resources/js/dojo-1.5.0-windowname-only/dojo/resources/blank.html';
             function prefsInit() {
                 OWF.Preferences.getUserPreference({namespace:'owf.sample.preferences',
                                                         name:'test-preference-value',

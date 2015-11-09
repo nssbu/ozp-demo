@@ -2,15 +2,7 @@
 <html>
 <head>
     <title>Choose an Intent</title>
-    <script type="text/javascript">
-        var ozpIwc = ozpIwc || {};
-        ozpIwc.apiRootUrl="api";
-        ozpIwc.basicAuthUsername=null;
-        ozpIwc.basicAuthPassword=null;
-        ozpIwc.runApis=false;
-        ozpIwc.acceptPostMessageParticipants=false;
-    </script>
-    <script type="text/javascript" src="js/ozpIwc-bus.js"></script>
+    <script type="text/javascript" src="js/ozpIwc-client.js"></script>
     <style>
         body{
             margin: 0;
@@ -26,13 +18,21 @@
             top: 0;
             z-index: 20;
         }
-        #handlerList {
+        #lists{
             width: 100%;
             background-color: #DBDBDB;
             position: fixed;
             top: 45px;
             bottom:40px;
             overflow:auto;
+        }
+        #handlers {
+            width: 100%;
+            height: 50%
+        }
+        #launchers {
+            width: 100%;
+            height: 50%;
         }
         #footerBar {
             height: 40px;
@@ -49,13 +49,15 @@
         }
         .entry {
             cursor: pointer;
-            height: 100px;
-            width: 150px;
+            height: 80px;
+            width: 80px;
             display: block;
             float:left;
             border: 1px solid rgba(182, 182, 182, 0.5);
             margin-left: -1px;
             margin-top: -1px;
+            overflow:hidden;
+            font-size: 14px;
         }
         .entry:hover {
             background-color: #F5F5F5;
@@ -73,7 +75,7 @@
             width: 32px;
             display: block;
             position: relative;
-            left: 60px;
+            left: 24px;
             top: 10px;
         }
         .text {
@@ -109,7 +111,17 @@
   </head>
   <body>
       <div id="titleBar"></div>
-      <div id="handlerList"></div>
+      <div id="lists">
+          <div id="handlers">
+              <span id="handlerTitle"></span>
+              <div id="handlerList"></div>
+          </div>
+
+          <div id="launchers">
+            <span id="launcherTitle"></span>
+            <div id="launcherList"></div>
+          </div>
+      </div>
       <div id="footerBar">
           <div id="cancelButton" class="footButton">
               <p>Cancel</p>
@@ -123,20 +135,62 @@
       </div>
 
       <script type="text/javascript">
-        var participant=new ozpIwc.ClientParticipant({'name':"intentsChooser"});
-        ozpIwc.defaultRouter.registerParticipant(participant);
 
         var cancelButton, onceButton, alwaysButton,selection;
+        var m=/ozpIwc.intentSelection=([^&#]+)/.exec(window.name);
+
+        if(!m) {
+            //Fallback for IE
+            m=/ozpIwc.intentSelection=([^&#]+)/.exec(window.location.search);
+        }
+
+        if(!m){
+            failure("This page is intended to be launch only by the Ozone Platform intents API.");
+        }
+        var loc=ozpIwc.util.parseOzpUrl(m[1]);
+        loc.action = "watch";
+        var client =new ozpIwc.Client({ peerUrl: window.location.origin });
+
+
+        client.send(loc,onHandlerChange).then(function(reply) {
+            var action,type;
+            if(reply.entity && reply.entity.intent) {
+                action = reply.entity.intent.action;
+                type = reply.entity.intent.type;
+            }
+            showTitle(action,type);
+            showFooter(reply);
+            getHandlers(reply.collection).then(showHandlers);
+        },failure);
+
+
+        function getHandlers(array){
+            var promises = [];
+            for(var i in array){
+                promises.push(client.intents().get(array[i]));
+            }
+            return Promise.all(promises);
+        }
+
+        function onHandlerChange(reply,done){
+            if(reply.entity.deleted){
+                done();
+                window.close();
+            }
+            var collection = reply.entity.newCollection || [];
+            getHandlers(collection).then(showHandlers);
+        }
+
         function failure(msg) {
             document.getElementById("handlerList").textContent=msg;
         }
 
         function handleSelection(handler,intentInvocation){
-            participant.intents().set(intentInvocation.resource,{
+            client.intents().set(intentInvocation.resource,{
                 contentType: intentInvocation.contentType,
                 entity: {
                 'state': "delivering",
-                    'handlerChosen' : {
+                    'handler' : {
                         'resource':handler.resource,
                         'reason': "userSelected"
                     }
@@ -181,6 +235,9 @@
             onceButton.style.visibility = "hidden";
             //alwaysButton.style.visibility = "hidden"; //@TODO: enable when persistence implemented
             document.getElementById("handlerList").innerHTML = "";
+            document.getElementById("launcherList").innerHTML = "";
+            document.getElementById("launcherTitle").innerHTML = "";
+            document.getElementById("handlerTitle").innerHTML = "";
 
             handlers.forEach(function(h) {
                 var handler = h;
@@ -209,7 +266,13 @@
                     addHighlight(selection);
                 });
 
-                document.getElementById("handlerList").appendChild(entry);
+                if(h.entity.invokeIntent && h.entity.invokeIntent.action === "launch"){
+                    document.getElementById("launcherTitle").innerHTML = "Open application to run:";
+                    document.getElementById("launcherList").appendChild(entry);
+                } else {
+                    document.getElementById("handlerTitle").innerHTML = "Run in open application:";
+                    document.getElementById("handlerList").appendChild(entry);
+                }
             });
         }
 
@@ -221,7 +284,7 @@
 
             cancelButton = document.getElementById("cancelButton");
             cancelButton.addEventListener("click",function(evt) {
-                participant.intents().set(intentInvocation.resource,{
+                client.intents().set(intentInvocation.resource,{
                     contentType: intentInvocation.contentType,
                     entity: {
                         reply:{
@@ -241,47 +304,6 @@
                 handleSelection(selection,intentInvocation);
             });
         }
-
-        var m=/ozpIwc.intentSelection=([^&#]+)/.exec(window.name);
-
-        if(!m) {
-            //Fallback for IE
-            m=/ozpIwc.intentSelection=([^&#]+)/.exec(window.location.search);
-        }
-
-        if(!m){
-            failure("This page is intended to be launch only by the Ozone Platform intents API.");
-        }
-        var loc=ozpIwc.util.parseOzpUrl(m[1]);
-        loc.action = "watch";
-
-        var getHandlers = function(array){
-            var promises = [];
-            for(var i in array){
-                promises.push(participant.intents().get(array[i]));
-            }
-            return Promise.all(promises);
-        };
-
-        var onHandlerChange = function(reply,done){
-            if(reply.entity.deleted){
-                done();
-                window.close();
-            }
-            var collection = reply.entity.newCollection || [];
-            getHandlers(collection).then(showHandlers);
-        };
-
-        participant.send(loc,onHandlerChange).then(function(reply) {
-            var action,type;
-            if(reply.entity.intent) {
-                action = reply.entity.intent.action;
-                type = reply.entity.intent.type;
-            }
-            showTitle(action,type);
-            showFooter(reply);
-            getHandlers(reply.collection).then(showHandlers);
-        },failure);
     </script>
   </body>
 </html>
