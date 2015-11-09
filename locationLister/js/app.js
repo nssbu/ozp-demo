@@ -64,7 +64,7 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwcCo
  * IWC Non-Recurring Actions
  */
     $scope.getListings = function(){
-        return $scope.client.data().bulkGet('/locationLister/listings').then(function(reply) {
+        return $scope.client.api('data.api').bulkGet('/locationLister/listings').then(function(reply) {
             if (Array.isArray(reply.entity) && reply.entity.length > 0) {
                 reply.entity.forEach(function (listing) {
                     if($scope.isValidListing(listing.entity)) {
@@ -78,9 +78,8 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwcCo
 
     $scope.addListing = function(listing){
         listing = listing || {};
-
         return $scope.locationModal(listing).then(function (output) {
-            return $scope.client.data().set('/locationLister/listings/'+output.listing.title, {entity:  output.listing}).then(function(){
+            return $scope.client.api('data.api').addChild('/locationLister/listings', {entity:  output.listing}).then(function(){
                 console.log(arguments)
             }).catch(function(e){
                 console.log(e);
@@ -88,37 +87,14 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwcCo
         });
     };
 
-    /**
-     * Invokes a map action of the json/coord type:
-     * {
-     *   title: <String>,
-     *   latitude: <Number>,
-     *   longitude: <Number>,
-     *   [description]: <String>
-     *
-     * }
-     * @param {Object} jsonCoord
-     * @returns {*}
-     */
-    $scope.invokeMap = function(jsonCoord) {
-        return $scope.client.intents().invoke("/json/coord/map", {entity: jsonCoord})['catch'](function(er){
+    $scope.invokeMap = function(listingResource) {
+        return $scope.client.api('intents.api').invoke("/json/coord/map", {entity: listingResource})['catch'](function(er){
             $log.debug(er);
         });
     };
-    /**
-     * Invokes a map action of the json/coord type:
-     * {
-     *   title: <String>,
-     *   latitude: <Number>,
-     *   longitude: <Number>,
-     *   [description]: <String>
-     *
-     * }
-     * @param {Object} jsonCoord
-     * @returns {*}
-     */
-    $scope.invokeAnalyze = function(jsonCoord) {
-        return $scope.client.intents().invoke("/json/coord/analyze", {entity: jsonCoord})['catch'](function(er){
+
+    $scope.invokeAnalyze = function(coords) {
+        return $scope.client.api('intents.api').invoke("/json/coord/analyze", {entity: coords})['catch'](function(er){
             $log.debug(er);
         });
     };
@@ -128,21 +104,21 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwcCo
             var id = $scope.currentLocationId;
 
             $scope.locationModal($scope.currentLocation).then(function (output) {
-                $scope.client.data().set(id,{entity: output.listing});
+                $scope.client.api('data.api').set(id,{entity: output.listing});
             });
         }
 
     };
 
     $scope.deleteSelectedLocation = function() {
-        return $scope.client.data().delete($scope.currentLocationId);
+        return $scope.client.api('data.api').delete($scope.currentLocationId);
     };
 
 /**
  * IWC Recurring Actions
  */
     $scope.regulateMapping = function(){
-         $scope.client.intents().watch("/json/coord/map",function(event){
+         $scope.client.api('intents.api').watch("/json/coord/map",function(event){
             $scope.mapHandlers = event.entity.newCollection;
             $scope.$apply();
          }).then(function(response) {
@@ -154,7 +130,7 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwcCo
     };
 
     $scope.regulateAnalyzing = function(){
-        $scope.client.intents().watch("/json/coord/analyze",function(event){
+        $scope.client.api('intents.api').watch("/json/coord/analyze",function(event){
             $scope.analyzeHandlers = event.entity.newCollection;
             $scope.$apply();
         }).then(function(response){

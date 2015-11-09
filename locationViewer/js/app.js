@@ -9,27 +9,6 @@ $(document).ready(function() {
     //Create the IWC Client
     //Once the IWC client is connected configure it to map features.
     var client=new ozpIwc.Client({peerUrl: window.OzoneConfig.iwcUrl});
-
-
-    /**
-     * Returns true if the content matches that of the json/coord type:
-     * {
-     *   id: <Number|String>,
-     *   latitude: <Number>,
-     *   longitude: <Number>,
-     *   [description]: <String>,
-     *   [title]: <String>
-     *
-     * }
-     * @method validContent
-     * @param object
-     */
-    var validContent = function(object){
-        return (typeof object.latitude === "number" &&
-                typeof object.longitude === "number" &&
-                (typeof object.longitude === "number" ||typeof object.id === "string"));
-
-    };
     client.connect().then(function(){
 
         var intents = client.intents();
@@ -39,8 +18,9 @@ $(document).ready(function() {
             // This intent is expected to receive a data.api resource name to be used.
             var resource = event.entity;
 
-            if(validContent(resource)){
-
+            // Gather the resource
+            data.get(resource).then(function(resp){
+                // If this resource isn't already mapped
                 if(!map.locationData[resource]){
                     // Attempt to add the resource to the map as a marker
                     var id = map.addMarker(resp.entity,resource);

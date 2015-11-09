@@ -36,7 +36,6 @@ locationAnalyzer.controller('MainController', function($scope, $log, iwcConnecte
             'Distance from North Pole': $scope.getDistance(90,0),
             'Distance from South Pole': $scope.getDistance(-90,0)
         };
-        $scope.updateData();
     };
 
     $scope.getHemisphere = function(){
@@ -120,30 +119,6 @@ locationAnalyzer.controller('MainController', function($scope, $log, iwcConnecte
         });
     };
 
-    $scope.updateData = function(){
-        if($scope.dataApiRes) {
-            var formatted = {
-                title: "Analyzer data point.",
-                coords: {
-                    lat: $scope.lat,
-                    long: $scope.long
-                }
-            };
-            return $scope.client.data().set($scope.dataApiRes, {entity: formatted});
-        } else {
-            return Promise.resolve();
-        }
-    };
-
-    $scope.createDataResource = function(){
-        return $scope.client.data().set('/locationAnalyzer', {lifespan: "bound"}).then(function() {
-            return $scope.client.data().addChild("/locationAnalyzer", {lifespan: "bound"})
-        }).then(function (res) {
-            $scope.dataApiRes = res.entity.resource;
-        })['catch'](function(err){
-            console.log(err);
-        });
-    };
 
     $scope.registerAnalyzing = function(){
         var analyzingIntent = function(event){
@@ -196,5 +171,5 @@ locationAnalyzer.controller('MainController', function($scope, $log, iwcConnecte
         'Distance from South Pole': $scope.getDistance(-90,0)
     };
 
-    $scope.createDataResource().then($scope.registerAnalyzing).then($scope.regulateSaves);
+    $scope.registerAnalyzing().then($scope.regulateSaves);
 });
