@@ -32,9 +32,9 @@ locationAnalyzer.controller('MainController', function($scope, $log, iwcConnecte
             'Hemisphere': $scope.getHemisphere(),
             'Latitude': $scope.lat,
             'Longitude': $scope.long,
-            'Distance from Equator': $scope.getDistance(0,0),
-            'Distance from North Pole': $scope.getDistance(90,0),
-            'Distance from South Pole': $scope.getDistance(-90,0)
+            'Equator': $scope.getDistance(0,0),
+            'North Pole': $scope.getDistance(90,0),
+            'South Pole': $scope.getDistance(-90,0)
         };
     };
 
@@ -166,9 +166,9 @@ locationAnalyzer.controller('MainController', function($scope, $log, iwcConnecte
         'Hemisphere': $scope.getHemisphere(),
         'Latitude': $scope.lat,
         'Longitude': $scope.long,
-        'Distance from Equator': $scope.getDistance(0,0),
-        'Distance from North Pole': $scope.getDistance(90,0),
-        'Distance from South Pole': $scope.getDistance(-90,0)
+        'Equator': $scope.getDistance(0,0),
+        'North Pole': $scope.getDistance(90,0),
+        'South Pole': $scope.getDistance(-90,0)
     };
 
     $scope.registerAnalyzing().then($scope.regulateSaves);
