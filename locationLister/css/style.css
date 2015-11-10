@@ -61,3 +61,10 @@ footer {
 a.list-group-item:focus, a.list-group-item:hover {
     background: #EAEAEA;
 }
+
+.modal-header-compact {
+    padding: 0px 6px 2px 6px;
+}
+.modal-footer-compact {
+    padding: 6px;
+}
