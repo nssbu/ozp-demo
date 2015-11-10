@@ -30,8 +30,7 @@ $(document).ready(function(){
 		var elapsed=(ozpIwc.util.now()-client.startTime)/1000;
 
 		$('#averageLatencies').text(
-			"Pkt/sec [sent: " + (client.sentPackets/elapsed).toFixed(1) + ", " +
-			"received: " + (client.receivedPackets/elapsed).toFixed(1) + "]"
+			"I/O: Pkt/sec [ " + (client.receivedPackets/elapsed).toFixed(1) + " / " +  (client.sentPackets/elapsed).toFixed(1) + " ]"
 		);
 	},500);
 });
@@ -40,10 +39,27 @@ var client=new ozpIwc.Client({peerUrl: window.OzoneConfig.iwcUrl});
 client.connect().then(function(){
 	// setup
 	var viewPort=$('#viewport');
-    var fps=20;
+    var fps= 20;
     $('#myAddress').text(client.address);
     $('#fps').text(""+fps);
-	//=================================================================
+
+
+    //=================================================================
+    // Set up framerate modification watching
+    var onFpsChange = function(response){
+        fps = response.entity.newValue || fps;
+    };
+
+    client.data().watch('/balls/framerate',fps).then(function(resp){
+        if(resp.entity) {
+            fps = resp.entity;
+        } else {
+            client.data().set("/balls/framerate",{entity: fps});
+        }
+        $('#fps').text(""+fps);
+    });
+
+    //=================================================================
 	// cleanup when we are done
 	window.addEventListener("beforeunload",function() {
 		for(var i=0;i<bouncing.ourBalls.length;++i) {

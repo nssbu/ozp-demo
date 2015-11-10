@@ -161,7 +161,7 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwcCo
             });
         };
 
-        return $scope.client.data().watch('/locationLister/listings',onChange).then(function(response){
+        return $scope.client.data().watch('/locationLister/listings',{},onChange).then(function(response){
             console.log(response);
             onChange({
                 entity: {
