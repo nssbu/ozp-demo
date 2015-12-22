@@ -16,7 +16,10 @@ ozpIwc.api.intents.Api = (function (api, IntentsApi, log) {
     IntentsApi.useDefaultRoute(["bulkGet", "list"]);
     IntentsApi.useDefaultRoute(["watch", "unwatch", "delete"], "/inFlightIntent/{id}");
     IntentsApi.useDefaultRoute(["get", "delete", "watch", "unwatch"], "/{major}/{minor}/{action}/{handlerId}");
-    IntentsApi.useDefaultRoute(["delete", "watch", "unwatch", "get"], "/{major}/{minor}/{action}");
+    IntentsApi.useDefaultRoute(["get", "delete", "watch", "unwatch"], "/{major}/{minor}/{action}");
+    IntentsApi.useDefaultRoute(["watch", "unwatch", "get"], "/");
+    IntentsApi.useDefaultRoute(["watch", "unwatch", "get"], "/{major}");
+    IntentsApi.useDefaultRoute(["watch", "unwatch", "get"], "/{major}/{minor}");
 
 //---------------------------------------------------------
 // Filters
@@ -181,7 +184,7 @@ ozpIwc.api.intents.Api = (function (api, IntentsApi, log) {
         }
 
         return {
-            response: "ok",
+            response: "pending",
             entity: {
                 handlers: context.node.collection
             }
@@ -200,7 +203,8 @@ ozpIwc.api.intents.Api = (function (api, IntentsApi, log) {
             packet,
             pathParams.major + "/" + pathParams.minor,
             pathParams.action,
-            context.node
+            context.node,
+            undefined
         );
     });
 

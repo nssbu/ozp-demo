@@ -499,6 +499,7 @@ module.exports = function(grunt) {
                     'git tag -a "release/<%= pkg.version %>" -m "chore(release): <%= pkg.version %>"',
                     'git push origin <% pkg.version %> --tags',
                     'grunt update-gh-pages',
+                    'git checkout dist',
                     'git checkout master'
                 ].join('&&')
             },
@@ -620,7 +621,7 @@ module.exports = function(grunt) {
         ['build','karma:unit','bump:major','readpkg', 'shell:releaseGit']
     );
     grunt.registerTask('update-gh-pages',
-        ['build', 'gitbook', 'gh-pages']
+        ['build', 'copy:ghPages', 'gitbook', 'gh-pages']
     );
     grunt.registerTask('default',
         ['dist']

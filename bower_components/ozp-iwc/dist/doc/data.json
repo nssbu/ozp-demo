@@ -2,7 +2,7 @@
     "project": {
         "name": "ozpIwc",
         "description": "",
-        "version": "1.1.11",
+        "version": "1.1.17",
         "url": ""
     },
     "files": {
@@ -75,18 +75,20 @@
             "name": "src/js/bus/api/error/errors.js",
             "modules": {},
             "classes": {
-                "BadActionError": 1,
-                "BadResourceError": 1,
-                "BadRequestError": 1,
-                "BadContentError": 1,
-                "BadStateError": 1,
-                "NoActionError": 1,
-                "NoResourceError": 1,
-                "NoMatchError": 1,
-                "NoPermissionError": 1
+                "ozpIwc.api.error.BadActionError": 1,
+                "ozpIwc.api.error.BadResourceError": 1,
+                "ozpIwc.api.error.BadRequestError": 1,
+                "ozpIwc.api.error.BadContentError": 1,
+                "ozpIwc.api.error.BadStateError": 1,
+                "ozpIwc.api.error.NoActionError": 1,
+                "ozpIwc.api.error.NoResourceError": 1,
+                "ozpIwc.api.error.NoMatchError": 1,
+                "ozpIwc.api.error.NoPermissionError": 1
             },
             "fors": {},
-            "namespaces": {}
+            "namespaces": {
+                "ozpIwc.api.error": 1
+            }
         },
         "src/js/bus/api/filter/base.js": {
             "name": "src/js/bus/api/filter/base.js",
@@ -1149,15 +1151,15 @@
                 "ozpIwc.api.base.Node": 1,
                 "ozpIwc.api.Endpoint": 1,
                 "ozpIwc.api.error.BaseError": 1,
-                "BadActionError": 1,
-                "BadResourceError": 1,
-                "BadRequestError": 1,
-                "BadContentError": 1,
-                "BadStateError": 1,
-                "NoActionError": 1,
-                "NoResourceError": 1,
-                "NoMatchError": 1,
-                "NoPermissionError": 1,
+                "ozpIwc.api.error.BadActionError": 1,
+                "ozpIwc.api.error.BadResourceError": 1,
+                "ozpIwc.api.error.BadRequestError": 1,
+                "ozpIwc.api.error.BadContentError": 1,
+                "ozpIwc.api.error.BadStateError": 1,
+                "ozpIwc.api.error.NoActionError": 1,
+                "ozpIwc.api.error.NoResourceError": 1,
+                "ozpIwc.api.error.NoMatchError": 1,
+                "ozpIwc.api.error.NoPermissionError": 1,
                 "ozpIwc.api.filter.Function": 1,
                 "ozpIwc.api.filter.base": 1,
                 "ozpIwc.api.filter.standard": 1,
@@ -1221,15 +1223,15 @@
             "elements": {},
             "classes": {
                 "ozpIwc.api.error.BaseError": 1,
-                "BadActionError": 1,
-                "BadResourceError": 1,
-                "BadRequestError": 1,
-                "BadContentError": 1,
-                "BadStateError": 1,
-                "NoActionError": 1,
-                "NoResourceError": 1,
-                "NoMatchError": 1,
-                "NoPermissionError": 1
+                "ozpIwc.api.error.BadActionError": 1,
+                "ozpIwc.api.error.BadResourceError": 1,
+                "ozpIwc.api.error.BadRequestError": 1,
+                "ozpIwc.api.error.BadContentError": 1,
+                "ozpIwc.api.error.BadStateError": 1,
+                "ozpIwc.api.error.NoActionError": 1,
+                "ozpIwc.api.error.NoResourceError": 1,
+                "ozpIwc.api.error.NoMatchError": 1,
+                "ozpIwc.api.error.NoPermissionError": 1
             },
             "fors": {},
             "is_submodule": 1,
@@ -1239,7 +1241,7 @@
             "module": "ozpIwc.api",
             "namespace": "",
             "file": "src/js/bus/api/error/errors.js",
-            "line": 75,
+            "line": 83,
             "description": "A base class for IWC error objects."
         },
         "ozpIwc.api.filter": {
@@ -1938,9 +1940,9 @@
                 }
             ]
         },
-        "BadActionError": {
-            "name": "BadActionError",
-            "shortname": "BadActionError",
+        "ozpIwc.api.error.BadActionError": {
+            "name": "ozpIwc.api.error.BadActionError",
+            "shortname": "ozpIwc.api.error.BadActionError",
             "classitems": [],
             "plugins": [],
             "extensions": [],
@@ -1948,15 +1950,15 @@
             "extension_for": [],
             "module": "ozpIwc.api",
             "submodule": "ozpIwc.api.error",
-            "namespace": "",
+            "namespace": "ozpIwc.api.error",
             "file": "src/js/bus/api/error/errors.js",
             "line": 10,
             "description": "Thrown when an invalid action is called on an api.",
             "extends": "ozpIwc.api.error.BaseError"
         },
-        "BadResourceError": {
-            "name": "BadResourceError",
-            "shortname": "BadResourceError",
+        "ozpIwc.api.error.BadResourceError": {
+            "name": "ozpIwc.api.error.BadResourceError",
+            "shortname": "ozpIwc.api.error.BadResourceError",
             "classitems": [],
             "plugins": [],
             "extensions": [],
@@ -1964,15 +1966,15 @@
             "extension_for": [],
             "module": "ozpIwc.api",
             "submodule": "ozpIwc.api.error",
-            "namespace": "",
+            "namespace": "ozpIwc.api.error",
             "file": "src/js/bus/api/error/errors.js",
-            "line": 18,
+            "line": 19,
             "description": "Thrown when an invalid resource is called on an api.",
             "extends": "ozpIwc.api.error.BaseError"
         },
-        "BadRequestError": {
-            "name": "BadRequestError",
-            "shortname": "BadRequestError",
+        "ozpIwc.api.error.BadRequestError": {
+            "name": "ozpIwc.api.error.BadRequestError",
+            "shortname": "ozpIwc.api.error.BadRequestError",
             "classitems": [],
             "plugins": [],
             "extensions": [],
@@ -1980,15 +1982,15 @@
             "extension_for": [],
             "module": "ozpIwc.api",
             "submodule": "ozpIwc.api.error",
-            "namespace": "",
+            "namespace": "ozpIwc.api.error",
             "file": "src/js/bus/api/error/errors.js",
-            "line": 26,
+            "line": 28,
             "description": "Thrown when an invalid request is made against an api.",
             "extends": "ozpIwc.api.error.BaseError"
         },
-        "BadContentError": {
-            "name": "BadContentError",
-            "shortname": "BadContentError",
+        "ozpIwc.api.error.BadContentError": {
+            "name": "ozpIwc.api.error.BadContentError",
+            "shortname": "ozpIwc.api.error.BadContentError",
             "classitems": [],
             "plugins": [],
             "extensions": [],
@@ -1996,15 +1998,15 @@
             "extension_for": [],
             "module": "ozpIwc.api",
             "submodule": "ozpIwc.api.error",
-            "namespace": "",
+            "namespace": "ozpIwc.api.error",
             "file": "src/js/bus/api/error/errors.js",
-            "line": 34,
+            "line": 37,
             "description": "Thrown when an invalid contentType is used in a request against an api.",
             "extends": "ozpIwc.api.error.BaseError"
         },
-        "BadStateError": {
-            "name": "BadStateError",
-            "shortname": "BadStateError",
+        "ozpIwc.api.error.BadStateError": {
+            "name": "ozpIwc.api.error.BadStateError",
+            "shortname": "ozpIwc.api.error.BadStateError",
             "classitems": [],
             "plugins": [],
             "extensions": [],
@@ -2012,15 +2014,15 @@
             "extension_for": [],
             "module": "ozpIwc.api",
             "submodule": "ozpIwc.api.error",
-            "namespace": "",
+            "namespace": "ozpIwc.api.error",
             "file": "src/js/bus/api/error/errors.js",
-            "line": 42,
+            "line": 46,
             "description": "Thrown when the action or entity is not valid for the resource's state.",
             "extends": "ozpIwc.api.error.BaseError"
         },
-        "NoActionError": {
-            "name": "NoActionError",
-            "shortname": "NoActionError",
+        "ozpIwc.api.error.NoActionError": {
+            "name": "ozpIwc.api.error.NoActionError",
+            "shortname": "ozpIwc.api.error.NoActionError",
             "classitems": [],
             "plugins": [],
             "extensions": [],
@@ -2028,15 +2030,15 @@
             "extension_for": [],
             "module": "ozpIwc.api",
             "submodule": "ozpIwc.api.error",
-            "namespace": "",
+            "namespace": "ozpIwc.api.error",
             "file": "src/js/bus/api/error/errors.js",
-            "line": 50,
+            "line": 55,
             "description": "Thrown when no action is given in a request against an api.",
             "extends": "ozpIwc.api.error.BaseError"
         },
-        "NoResourceError": {
-            "name": "NoResourceError",
-            "shortname": "NoResourceError",
+        "ozpIwc.api.error.NoResourceError": {
+            "name": "ozpIwc.api.error.NoResourceError",
+            "shortname": "ozpIwc.api.error.NoResourceError",
             "classitems": [],
             "plugins": [],
             "extensions": [],
@@ -2044,16 +2046,16 @@
             "extension_for": [],
             "module": "ozpIwc.api",
             "submodule": "ozpIwc.api.error",
-            "namespace": "",
+            "namespace": "ozpIwc.api.error",
             "file": "src/js/bus/api/error/errors.js",
-            "line": 58,
+            "line": 64,
             "description": "Thrown when no resource is given in a request against an api.",
             "extends": "ozpIwc.api.error.BaseError",
             "static": 1
         },
-        "NoMatchError": {
-            "name": "NoMatchError",
-            "shortname": "NoMatchError",
+        "ozpIwc.api.error.NoMatchError": {
+            "name": "ozpIwc.api.error.NoMatchError",
+            "shortname": "ozpIwc.api.error.NoMatchError",
             "classitems": [],
             "plugins": [],
             "extensions": [],
@@ -2061,15 +2063,15 @@
             "extension_for": [],
             "module": "ozpIwc.api",
             "submodule": "ozpIwc.api.error",
-            "namespace": "",
+            "namespace": "ozpIwc.api.error",
             "file": "src/js/bus/api/error/errors.js",
-            "line": 67,
+            "line": 74,
             "description": "Thrown if an api request packets ifTag exists but does not match the node's version property.",
             "extends": "ozpIwc.api.error.BaseError"
         },
-        "NoPermissionError": {
-            "name": "NoPermissionError",
-            "shortname": "NoPermissionError",
+        "ozpIwc.api.error.NoPermissionError": {
+            "name": "ozpIwc.api.error.NoPermissionError",
+            "shortname": "ozpIwc.api.error.NoPermissionError",
             "classitems": [],
             "plugins": [],
             "extensions": [],
@@ -2077,9 +2079,9 @@
             "extension_for": [],
             "module": "ozpIwc.api",
             "submodule": "ozpIwc.api.error",
-            "namespace": "",
+            "namespace": "ozpIwc.api.error",
             "file": "src/js/bus/api/error/errors.js",
-            "line": 75,
+            "line": 83,
             "description": "Thrown when an api request is not permitted.",
             "extends": "ozpIwc.api.error.BaseError"
         },
@@ -5535,7 +5537,7 @@
         },
         {
             "file": "src/js/bus/api/base/routes.js",
-            "line": 91,
+            "line": 105,
             "description": "A list of all of the default actions.",
             "itemtype": "property",
             "name": "allActions",
@@ -6300,7 +6302,7 @@
         },
         {
             "file": "src/js/bus/api/locks/api.js",
-            "line": 92,
+            "line": 99,
             "description": "For Api call handling, the Locks Api uses a clientParticipant.",
             "itemtype": "method",
             "name": "participantConfiguration",
@@ -6321,7 +6323,7 @@
         },
         {
             "file": "src/js/bus/api/locks/api.js",
-            "line": 118,
+            "line": 125,
             "description": "If the Locks Api object has not been initialized, it will initialize with the data passed in to the handleLogs\nfunction.",
             "itemtype": "method",
             "name": "handleLogs",
@@ -6341,7 +6343,7 @@
         },
         {
             "file": "src/js/bus/api/locks/api.js",
-            "line": 136,
+            "line": 143,
             "description": "When the Consensus Module changes state, the Locks Api behaves differently. It's participant will only send\noutbound messages if it is the \"Coordinator\".",
             "itemtype": "method",
             "name": "handleConsensusState",
@@ -6361,7 +6363,7 @@
         },
         {
             "file": "src/js/bus/api/locks/api.js",
-            "line": 161,
+            "line": 168,
             "description": "Transitions the Lock Api's leader state to leader if its state currently is \"loading\". Broadcasts leader ready\nevent.",
             "itemtype": "method",
             "name": "transitionToLeader",
@@ -6372,7 +6374,7 @@
         },
         {
             "file": "src/js/bus/api/locks/api.js",
-            "line": 176,
+            "line": 183,
             "description": "Unlocks All queued locks for the given address in the Locks Api.",
             "todo": [
                 ": Right now cycles through Every node",
@@ -6394,7 +6396,7 @@
         },
         {
             "file": "src/js/bus/api/locks/api.js",
-            "line": 193,
+            "line": 200,
             "description": "Iterates over all node's and cleans out any rouge locks queue'd for no-longer/non-existent addresses.",
             "itemtype": "method",
             "name": "cleanup",
@@ -6405,7 +6407,7 @@
         },
         {
             "file": "src/js/bus/api/locks/api.js",
-            "line": 223,
+            "line": 230,
             "description": "Override the default node type to be a Locks Api Value.",
             "override": "",
             "itemtype": "method",
@@ -6428,7 +6430,7 @@
         },
         {
             "file": "src/js/bus/api/locks/api.js",
-            "line": 236,
+            "line": 243,
             "description": "Shuts down the api, issuing a deathscream and releasing the lock, if possible.",
             "itemtype": "method",
             "name": "shutdown",
@@ -6442,7 +6444,7 @@
         },
         {
             "file": "src/js/bus/api/locks/api.js",
-            "line": 331,
+            "line": 338,
             "description": "Notifies the owner of the node's lock/unlock.",
             "itemtype": "method",
             "name": "updateLock",
@@ -6979,6 +6981,31 @@
         {
             "file": "src/js/bus/api/services/intents/api.js",
             "line": 94,
+            "description": "Notifies the invoker when the state of the in flight intent changes.",
+            "itemtype": "method",
+            "name": "updateInvoker",
+            "static": 1,
+            "access": "private",
+            "tagname": "",
+            "params": [
+                {
+                    "name": "api",
+                    "description": "",
+                    "type": "ozpIwc.api.intents.Api"
+                },
+                {
+                    "name": "node",
+                    "description": ""
+                }
+            ],
+            "class": "ozpIwc.api.intents.Api",
+            "module": "ozpIwc.api",
+            "submodule": "ozpIwc.api.intents",
+            "namespace": "ozpIwc.api.intents"
+        },
+        {
+            "file": "src/js/bus/api/services/intents/api.js",
+            "line": 118,
             "description": "A handler for invoke calls. Creates an inFlight-intent node and kicks off the inflight state machine.",
             "itemtype": "method",
             "name": "invokeIntentHandler",
@@ -7020,7 +7047,7 @@
         },
         {
             "file": "src/js/bus/api/services/intents/api.js",
-            "line": 130,
+            "line": 147,
             "description": "Handles the current state of the state machine.\nIf \"choosing\", the intent chooser will open.\nIf \"delivering\", the api will send the intent to the chosen handler\nIf \"complete\", the api will send the intent handler's reply back to the invoker and mark the inflight intent as\ndeleted.",
             "params": [
                 {
@@ -7040,7 +7067,7 @@
         },
         {
             "file": "src/js/bus/api/services/intents/api.js",
-            "line": 155,
+            "line": 176,
             "description": "A handler for the \"choosing\" state of an in-flight intent node.",
             "itemtype": "method",
             "name": "handleChoosing",
@@ -7061,7 +7088,7 @@
         },
         {
             "file": "src/js/bus/api/services/intents/api.js",
-            "line": 267,
+            "line": 291,
             "description": "A handler for the \"delivering\" state of an in-flight intent node.\nSends a packet to the chosen handler.",
             "todo": [
                 "should resolve on response from the handler that transitions the node to \"running\"."
@@ -7082,10 +7109,28 @@
         },
         {
             "file": "src/js/bus/api/services/intents/api.js",
-            "line": 288,
+            "line": 313,
             "description": "A handler for the \"complete\" state of an in-flight intent node.\nSends notification to the invoker that the intent was handled & deletes the in-flight intent node as it is no\nlonger needed.",
             "itemtype": "method",
             "name": "handleComplete",
+            "params": [
+                {
+                    "name": "node",
+                    "description": "",
+                    "type": "ozpIwc.api.base.Node"
+                }
+            ],
+            "class": "ozpIwc.api.intents.Api",
+            "module": "ozpIwc.api",
+            "submodule": "ozpIwc.api.intents",
+            "namespace": "ozpIwc.api.intents"
+        },
+        {
+            "file": "src/js/bus/api/services/intents/api.js",
+            "line": 335,
+            "description": "A handler for the \"error\" state of an in-flight intent node.\nSends notification to the invoker that the intent was handled & deletes the in-flight intent node as it is no\nlonger needed.",
+            "itemtype": "method",
+            "name": "handleError",
             "params": [
                 {
                     "name": "node",
@@ -7149,7 +7194,7 @@
         },
         {
             "file": "src/js/bus/api/services/intents/fsm.js",
-            "line": 102,
+            "line": 106,
             "description": "The delivering state.\nThe node is in a delivering state when it's registered handler is called to operate on the\nintent data. The register handler will respond with \"running\" to signify it has received the request.",
             "itemtype": "method",
             "name": "delivering",
@@ -7171,7 +7216,7 @@
         },
         {
             "file": "src/js/bus/api/services/intents/fsm.js",
-            "line": 121,
+            "line": 125,
             "description": "The running state.\nThe node is in a running state when the registered handler has received the request data. The\nnode will transition to the \"complete\" state upon receiving a response from the handler's operation.",
             "todo": [
                 "currently running/complete are sent at once and no data is returned. When these states are sent the intent\n    is handled."
@@ -7196,7 +7241,7 @@
         },
         {
             "file": "src/js/bus/api/services/intents/fsm.js",
-            "line": 142,
+            "line": 146,
             "description": "The choosing state.\nThe node is in a choosing state when:\n (1) the intent chooser is opened.\n (2) the api is gathering the preference-stored designated handler.\n\nThe node will transition to delivering once the handler has been chosen.",
             "itemtype": "method",
             "name": "choosing",
@@ -7211,7 +7256,7 @@
         },
         {
             "file": "src/js/bus/api/services/intents/fsm.js",
-            "line": 159,
+            "line": 163,
             "description": "The Complete state.\nOnce the intent has been handled or canceled the node will transition to the complete state. From here the API\nwill mark the node for deletion as it is no longer needed.",
             "itemtype": "method",
             "name": "complete",
@@ -7233,7 +7278,7 @@
         },
         {
             "file": "src/js/bus/api/services/intents/fsm.js",
-            "line": 179,
+            "line": 183,
             "description": "A collection of state transitions for the Finite State machine. The first level of properties represent current\nstate and the second level represents states that can be transitioned to.",
             "itemtype": "property",
             "name": "stateTransitions",
@@ -7245,7 +7290,7 @@
         },
         {
             "file": "src/js/bus/api/services/intents/fsm.js",
-            "line": 211,
+            "line": 215,
             "description": "The transition utility function. This determines if the requested state change from the packet is valid, then\ncalls the state transition and returns the modified node for storage.",
             "itemtype": "method",
             "name": "transition",
@@ -7273,7 +7318,7 @@
         },
         {
             "file": "src/js/bus/api/services/intents/fsm.js",
-            "line": 246,
+            "line": 250,
             "description": "Triggers node's state event and returns the node.",
             "itemtype": "method",
             "name": "stateReturn",
@@ -7294,7 +7339,7 @@
         },
         {
             "file": "src/js/bus/api/services/intents/routes.js",
-            "line": 24,
+            "line": 27,
             "description": "A route filter for creating an intent definition (/{major}/{minor}/{action}) if it does not exist.",
             "itemtype": "method",
             "name": "registerDefinitionFilter",
@@ -7311,7 +7356,7 @@
         },
         {
             "file": "src/js/bus/api/services/intents/routes.js",
-            "line": 44,
+            "line": 47,
             "description": "A route filter for creating an intent definition node (/{major}/{minor}/{action}) if it does not exist, then\ncreates an intent handler node with the specified handlerId ({major}/{minor}/{action}/{handlerId})",
             "itemtype": "method",
             "name": "registerHandlerFilter",
@@ -7328,7 +7373,7 @@
         },
         {
             "file": "src/js/bus/api/services/intents/routes.js",
-            "line": 150,
+            "line": 153,
             "description": "A route for intent action invocations.\nWill launch direct for user input if multiple options.",
             "class": "ozpIwc.api.intents.Api",
             "module": "ozpIwc.api",
@@ -7336,7 +7381,7 @@
         },
         {
             "file": "src/js/bus/api/services/intents/routes.js",
-            "line": 216,
+            "line": 220,
             "description": "Registration handler when a handlerId is specified",
             "class": "ozpIwc.api.intents.Api",
             "module": "ozpIwc.api",
@@ -14510,7 +14555,7 @@
         },
         {
             "file": "src/js/common/apiPromiseMixin.js",
-            "line": 493,
+            "line": 503,
             "description": "Calls the specific api wrapper given an api name specified.\nIf the wrapper does not exist it is created.",
             "itemtype": "method",
             "name": "api",
@@ -14532,7 +14577,7 @@
         },
         {
             "file": "src/js/common/apiPromiseMixin.js",
-            "line": 504,
+            "line": 514,
             "description": "Updates the wrapper map for api use. Whenever functionality is added or removed from the apiMap the\nupdateApi must be called to reflect said changes on the wrapper map.",
             "itemtype": "method",
             "name": "updateApi",
@@ -14554,7 +14599,104 @@
         },
         {
             "file": "src/js/common/apiPromiseMixin.js",
-            "line": 514,
+            "line": 524,
+            "description": "Augmentation for Intents Api register. Automatically invokes a registration if the invoke was passed\ninto the application opening.",
+            "itemtype": "method",
+            "name": "intentRegisterAugment",
+            "access": "private",
+            "tagname": "",
+            "static": 1,
+            "params": [
+                {
+                    "name": "client",
+                    "description": ""
+                },
+                {
+                    "name": "message",
+                    "description": ""
+                }
+            ],
+            "class": "ozpIwc.util.ApiPromiseMixin",
+            "module": "ozpIwc",
+            "submodule": "ozpIwc.util",
+            "namespace": "ozpIwc.util"
+        },
+        {
+            "file": "src/js/common/apiPromiseMixin.js",
+            "line": 543,
+            "description": "Augmentation for Intents Api invoke. Wraps callback to remove the callback when reaching\nerror/complete state.",
+            "itemtype": "method",
+            "name": "intentRegisterAugment",
+            "access": "private",
+            "tagname": "",
+            "static": 1,
+            "params": [
+                {
+                    "name": "client",
+                    "description": ""
+                },
+                {
+                    "name": "message",
+                    "description": ""
+                }
+            ],
+            "class": "ozpIwc.util.ApiPromiseMixin",
+            "module": "ozpIwc",
+            "submodule": "ozpIwc.util",
+            "namespace": "ozpIwc.util"
+        },
+        {
+            "file": "src/js/common/apiPromiseMixin.js",
+            "line": 567,
+            "description": "Augmentation for Intents Api broadcast. Compiles the results of all intent handlers and then,\nreturns the responfixese in the promise resolution. Callback acts like invoke callback.",
+            "itemtype": "method",
+            "name": "intentRegisterAugment",
+            "access": "private",
+            "tagname": "",
+            "static": 1,
+            "params": [
+                {
+                    "name": "client",
+                    "description": ""
+                },
+                {
+                    "name": "message",
+                    "description": ""
+                }
+            ],
+            "class": "ozpIwc.util.ApiPromiseMixin",
+            "module": "ozpIwc",
+            "submodule": "ozpIwc.util",
+            "namespace": "ozpIwc.util"
+        },
+        {
+            "file": "src/js/common/apiPromiseMixin.js",
+            "line": 613,
+            "description": "Augmenters for Intent Api specific actions.",
+            "itemtype": "method",
+            "name": "intentAugment",
+            "access": "private",
+            "tagname": "",
+            "static": 1,
+            "params": [
+                {
+                    "name": "client",
+                    "description": ""
+                },
+                {
+                    "name": "message",
+                    "description": "",
+                    "type": "Object"
+                }
+            ],
+            "class": "ozpIwc.util.ApiPromiseMixin",
+            "module": "ozpIwc",
+            "submodule": "ozpIwc.util",
+            "namespace": "ozpIwc.util"
+        },
+        {
+            "file": "src/js/common/apiPromiseMixin.js",
+            "line": 636,
             "description": "Function generator. Generates API functions given a messageBuilder function.",
             "itemtype": "method",
             "name": "augment",
@@ -14579,7 +14721,7 @@
         },
         {
             "file": "src/js/common/apiPromiseMixin.js",
-            "line": 540,
+            "line": 655,
             "description": "Function generator. Generates API message formatting functions for a client-destination-action\npairing. These are generated for bulk sending capabilities, since the message needs to be formatted\nbut not transmitted until desired.",
             "itemtype": "method",
             "name": "messageBuilderAugment",
@@ -14608,7 +14750,7 @@
         },
         {
             "file": "src/js/common/apiPromiseMixin.js",
-            "line": 586,
+            "line": 701,
             "description": "All message formatting calls sits inside the API wrapper's messageBuilder object. These\ncalls will return a formatted message ready to be sent.\n(e.g: data().messageBuilder.set)",
             "class": "ozpIwc.util.ApiPromiseMixin",
             "module": "ozpIwc",
@@ -14617,7 +14759,7 @@
         },
         {
             "file": "src/js/common/apiPromiseMixin.js",
-            "line": 606,
+            "line": 721,
             "description": "All function calls are on the root level of the API wrapper. These calls will format messages and\nthen send them to the router.\n(e.g: data().set)",
             "class": "ozpIwc.util.ApiPromiseMixin",
             "module": "ozpIwc",
@@ -14626,7 +14768,7 @@
         },
         {
             "file": "src/js/common/apiPromiseMixin.js",
-            "line": 618,
+            "line": 733,
             "description": "Iterate over all mapped function calls and augment their message formatter and function call.",
             "class": "ozpIwc.util.ApiPromiseMixin",
             "module": "ozpIwc",
@@ -14635,7 +14777,7 @@
         },
         {
             "file": "src/js/common/apiPromiseMixin.js",
-            "line": 633,
+            "line": 748,
             "description": "Applies necessary properties to the packet to be transmitted through the router.",
             "itemtype": "method",
             "name": "fixPacket",
@@ -14657,7 +14799,7 @@
         },
         {
             "file": "src/js/common/apiPromiseMixin.js",
-            "line": 659,
+            "line": 774,
             "description": "Registers callbacks for API request callbacks and promises.",
             "itemtype": "property",
             "name": "packet",
@@ -14686,7 +14828,7 @@
         },
         {
             "file": "src/js/common/apiPromiseMixin.js",
-            "line": 714,
+            "line": 842,
             "description": "Sends a packet through the IWC.\nWill call the participants sendImpl function.",
             "itemtype": "method",
             "name": "send",
@@ -14719,7 +14861,7 @@
         },
         {
             "file": "src/js/common/apiPromiseMixin.js",
-            "line": 760,
+            "line": 888,
             "description": "Generic handler for a bus connection to handle any queued messages & launch data after its connected.",
             "itemtype": "method",
             "name": "afterConnected",
@@ -14734,7 +14876,7 @@
         },
         {
             "file": "src/js/common/apiPromiseMixin.js",
-            "line": 811,
+            "line": 939,
             "description": "Handles packets received with a destination of \"$bus.multicast\".\nIf the packet action isn't handled, the function will return falsy.",
             "itemtype": "method",
             "name": "handleBusPacket",
@@ -16713,7 +16855,7 @@
         },
         {
             "message": "unknown tag: override",
-            "line": " src/js/bus/api/locks/api.js:223"
+            "line": " src/js/bus/api/locks/api.js:230"
         },
         {
             "message": "unknown tag: override",
@@ -16913,15 +17055,15 @@
         },
         {
             "message": "Missing item type\nHandles the current state of the state machine.\nIf \"choosing\", the intent chooser will open.\nIf \"delivering\", the api will send the intent to the chosen handler\nIf \"complete\", the api will send the intent handler's reply back to the invoker and mark the inflight intent as\ndeleted.",
-            "line": " src/js/bus/api/services/intents/api.js:130"
+            "line": " src/js/bus/api/services/intents/api.js:147"
         },
         {
             "message": "Missing item type\nA route for intent action invocations.\nWill launch direct for user input if multiple options.",
-            "line": " src/js/bus/api/services/intents/routes.js:150"
+            "line": " src/js/bus/api/services/intents/routes.js:153"
         },
         {
             "message": "Missing item type\nRegistration handler when a handlerId is specified",
-            "line": " src/js/bus/api/services/intents/routes.js:216"
+            "line": " src/js/bus/api/services/intents/routes.js:220"
         },
         {
             "message": "Missing item type\nA static method for gathering the uri template of an endpoint name in the EndpointRegistry",
@@ -16969,15 +17111,15 @@
         },
         {
             "message": "Missing item type\nAll message formatting calls sits inside the API wrapper's messageBuilder object. These\ncalls will return a formatted message ready to be sent.\n(e.g: data().messageBuilder.set)",
-            "line": " src/js/common/apiPromiseMixin.js:586"
+            "line": " src/js/common/apiPromiseMixin.js:701"
         },
         {
             "message": "Missing item type\nAll function calls are on the root level of the API wrapper. These calls will format messages and\nthen send them to the router.\n(e.g: data().set)",
-            "line": " src/js/common/apiPromiseMixin.js:606"
+            "line": " src/js/common/apiPromiseMixin.js:721"
         },
         {
             "message": "Missing item type\nIterate over all mapped function calls and augment their message formatter and function call.",
-            "line": " src/js/common/apiPromiseMixin.js:618"
+            "line": " src/js/common/apiPromiseMixin.js:733"
         },
         {
             "message": "Missing item type\nThe default scope of the router.",

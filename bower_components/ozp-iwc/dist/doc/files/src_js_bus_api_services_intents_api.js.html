@@ -17,7 +17,7 @@
                 <h1><img src="../assets/css/logo.png" title="ozpIwc" width="117" height="52"></h1>
         </div>
         <div class="yui3-u-1-4 version">
-            <em>API Docs for: 1.1.11</em>
+            <em>API Docs for: 1.1.17</em>
         </div>
     </div>
     <div id="bd" class="yui3-g">
@@ -38,15 +38,6 @@
                 
                         <div id="api-tabview-panel">
                             <ul id="api-classes" class="apis classes">
-                                <li><a href="../classes/BadActionError.html">BadActionError</a></li>
-                                <li><a href="../classes/BadContentError.html">BadContentError</a></li>
-                                <li><a href="../classes/BadRequestError.html">BadRequestError</a></li>
-                                <li><a href="../classes/BadResourceError.html">BadResourceError</a></li>
-                                <li><a href="../classes/BadStateError.html">BadStateError</a></li>
-                                <li><a href="../classes/NoActionError.html">NoActionError</a></li>
-                                <li><a href="../classes/NoMatchError.html">NoMatchError</a></li>
-                                <li><a href="../classes/NoPermissionError.html">NoPermissionError</a></li>
-                                <li><a href="../classes/NoResourceError.html">NoResourceError</a></li>
                                 <li><a href="../classes/ozpIwc.alert.html">ozpIwc.alert</a></li>
                                 <li><a href="../classes/ozpIwc.api.html">ozpIwc.api</a></li>
                                 <li><a href="../classes/ozpIwc.api.base.Api.html">ozpIwc.api.base.Api</a></li>
@@ -56,7 +47,16 @@
                                 <li><a href="../classes/ozpIwc.api.data.node.Nodev2.html">ozpIwc.api.data.node.Nodev2</a></li>
                                 <li><a href="../classes/ozpIwc.api.Endpoint.html">ozpIwc.api.Endpoint</a></li>
                                 <li><a href="../classes/ozpIwc.api.EndpointRegistry.html">ozpIwc.api.EndpointRegistry</a></li>
+                                <li><a href="../classes/ozpIwc.api.error.BadActionError.html">ozpIwc.api.error.BadActionError</a></li>
+                                <li><a href="../classes/ozpIwc.api.error.BadContentError.html">ozpIwc.api.error.BadContentError</a></li>
+                                <li><a href="../classes/ozpIwc.api.error.BadRequestError.html">ozpIwc.api.error.BadRequestError</a></li>
+                                <li><a href="../classes/ozpIwc.api.error.BadResourceError.html">ozpIwc.api.error.BadResourceError</a></li>
+                                <li><a href="../classes/ozpIwc.api.error.BadStateError.html">ozpIwc.api.error.BadStateError</a></li>
                                 <li><a href="../classes/ozpIwc.api.error.BaseError.html">ozpIwc.api.error.BaseError</a></li>
+                                <li><a href="../classes/ozpIwc.api.error.NoActionError.html">ozpIwc.api.error.NoActionError</a></li>
+                                <li><a href="../classes/ozpIwc.api.error.NoMatchError.html">ozpIwc.api.error.NoMatchError</a></li>
+                                <li><a href="../classes/ozpIwc.api.error.NoPermissionError.html">ozpIwc.api.error.NoPermissionError</a></li>
+                                <li><a href="../classes/ozpIwc.api.error.NoResourceError.html">ozpIwc.api.error.NoResourceError</a></li>
                                 <li><a href="../classes/ozpIwc.api.filter.base.html">ozpIwc.api.filter.base</a></li>
                                 <li><a href="../classes/ozpIwc.api.filter.Function.html">ozpIwc.api.filter.Function</a></li>
                                 <li><a href="../classes/ozpIwc.api.filter.standard.html">ozpIwc.api.filter.standard</a></li>
@@ -290,6 +290,30 @@ ozpIwc.api.intents.Api = (function (api, log, ozpConfig, util) {
 // Intent Invocation Methods
 //---------------------------------------------------------
     /**
+     * Notifies the invoker when the state of the in flight intent changes.
+     * @method updateInvoker
+     * @static
+     * @private
+     * @param {ozpIwc.api.intents.Api} api
+     * @param node
+     */
+    var updateInvoker = function (api, node) {
+        var response = node.entity.reply || {};
+        return api.send({
+            dst: node.entity.invokePacket.src,
+            replyTo: node.entity.invokePacket.msgId,
+            response: &quot;update&quot;,
+            entity: {
+                request: node.entity.entity,
+                response: response.entity,
+                handler: node.entity.handler,
+                state: node.entity.state,
+                status: node.entity.status
+            }
+        });
+    };
+
+    /**
      * A handler for invoke calls. Creates an inFlight-intent node and kicks off the inflight state machine.
      *
      * @method invokeIntentHandler
@@ -301,7 +325,6 @@ ozpIwc.api.intents.Api = (function (api, log, ozpConfig, util) {
      * @return {Promise}
      */
     Api.prototype.invokeIntentHandler = function (packet, type, action, handlers, pattern) {
-        var self = this;
         var inflightNode = new api.intents.node.InFlightNode({
             resource: this.createKey(&quot;/inFlightIntent/&quot;),
             src: packet.src,
@@ -314,15 +337,9 @@ ozpIwc.api.intents.Api = (function (api, log, ozpConfig, util) {
 
         this.data[inflightNode.resource] = inflightNode;
         this.addCollector(inflightNode.resource);
-
+        updateInvoker(this, inflightNode);
         this.data[inflightNode.resource] = api.intents.FSM.transition(inflightNode);
-        return this.handleInflightIntentState(inflightNode).then(function () {
-            return {
-                entity: {
-                    inFlightIntent: self.data[inflightNode.resource].toPacket()
-                }
-            };
-        });
+        return this.handleInflightIntentState(inflightNode);
     };
 
     /**
@@ -344,7 +361,11 @@ ozpIwc.api.intents.Api = (function (api, log, ozpConfig, util) {
             case &quot;complete&quot;:
                 this.handleComplete(inflightNode);
                 break;
+            case &quot;error&quot;:
+                this.handleError(inflightNode);
+                break;
             default:
+                updateInvoker(this, inflightNode);
                 break;
         }
         return Promise.resolve(inflightNode);
@@ -372,9 +393,8 @@ ozpIwc.api.intents.Api = (function (api, log, ozpConfig, util) {
                     packet.entity.config.intentSelection = &quot;intents.api&quot; + node.resource;
                 }
 
-                return self.invokeIntentHandler(packet, &#x27;/inFlightIntent/chooser&#x27;, &#x27;choose&#x27;, [chooser], &#x27;/inFlightIntent/chooser/choose/&#x27;).then(function (packet) {
+                return self.invokeIntentHandler(packet, &#x27;/inFlightIntent/chooser&#x27;, &#x27;choose&#x27;, [chooser], &#x27;/inFlightIntent/chooser/choose/&#x27;).then(function (inFlightNode) {
                     //This is because we are manually using the packetRouter route.
-                    var inFlightNode = packet.entity.inFlightIntent;
                     inFlightNode.entity = inFlightNode.entity || {};
 
                     if (inFlightNode.entity.state === &quot;complete&quot;) {
@@ -441,9 +461,12 @@ ozpIwc.api.intents.Api = (function (api, log, ozpConfig, util) {
                         &quot; for the default intent chooser.&quot;);
                     node = api.intents.FSM.transition(node, {state: &quot;error&quot;});
                 }
+
+                return node;
             });
         };
         var self = this;
+        updateInvoker(this, node);
         return this.getPreference(node.entity.intent.type + &quot;/&quot; + node.entity.intent.action).then(function (handlerResource) {
             if (handlerResource in self.data) {
                 node = api.intents.FSM.transition(node, {
@@ -455,6 +478,7 @@ ozpIwc.api.intents.Api = (function (api, log, ozpConfig, util) {
                         }
                     }
                 });
+                updateInvoker(self, node);
                 return self.handleInflightIntentState(node);
             } else {
                 return showChooser();
@@ -479,6 +503,7 @@ ozpIwc.api.intents.Api = (function (api, log, ozpConfig, util) {
         packet.replyTo = handlerNode.entity.replyTo;
         packet.entity.inFlightIntent = node.toPacket();
         log.debug(this.logPrefix + &quot;delivering intent:&quot;, packet);
+        updateInvoker(this, node);
         // TODO: packet permissions
         return this.send(packet);
     };
@@ -498,8 +523,32 @@ ozpIwc.api.intents.Api = (function (api, log, ozpConfig, util) {
                 replyTo: node.entity.invokePacket.msgId,
                 contentType: node.entity.reply.contentType,
                 response: &quot;complete&quot;,
+                resource: node.entity.handler.resource,
                 entity: node.entity.reply.entity
             });
+            updateInvoker(this, node);
+        }
+        node.markAsDeleted();
+    };
+    /**
+     * A handler for the &quot;error&quot; state of an in-flight intent node.
+     * Sends notification to the invoker that the intent was handled &amp; deletes the in-flight intent node as it is no
+     * longer needed.
+     *
+     * @method handleError
+     * @param {ozpIwc.api.base.Node} node
+     */
+    Api.prototype.handleError = function (node) {
+        if (node.entity.invokePacket &amp;&amp; node.entity.invokePacket.src) {
+            this.send({
+                dst: node.entity.invokePacket.src,
+                replyTo: node.entity.invokePacket.msgId,
+                contentType: node.entity.reply.contentType,
+                response: &quot;noResult&quot;,
+                resource: node.entity.handler.resource,
+                entity: node.entity.reply.entity
+            });
+            updateInvoker(this, node);
         }
         node.markAsDeleted();
     };

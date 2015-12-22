@@ -17,7 +17,7 @@
                 <h1><img src="../assets/css/logo.png" title="ozpIwc" width="117" height="52"></h1>
         </div>
         <div class="yui3-u-1-4 version">
-            <em>API Docs for: 1.1.11</em>
+            <em>API Docs for: 1.1.17</em>
         </div>
     </div>
     <div id="bd" class="yui3-g">
@@ -38,15 +38,6 @@
                 
                         <div id="api-tabview-panel">
                             <ul id="api-classes" class="apis classes">
-                                <li><a href="../classes/BadActionError.html">BadActionError</a></li>
-                                <li><a href="../classes/BadContentError.html">BadContentError</a></li>
-                                <li><a href="../classes/BadRequestError.html">BadRequestError</a></li>
-                                <li><a href="../classes/BadResourceError.html">BadResourceError</a></li>
-                                <li><a href="../classes/BadStateError.html">BadStateError</a></li>
-                                <li><a href="../classes/NoActionError.html">NoActionError</a></li>
-                                <li><a href="../classes/NoMatchError.html">NoMatchError</a></li>
-                                <li><a href="../classes/NoPermissionError.html">NoPermissionError</a></li>
-                                <li><a href="../classes/NoResourceError.html">NoResourceError</a></li>
                                 <li><a href="../classes/ozpIwc.alert.html">ozpIwc.alert</a></li>
                                 <li><a href="../classes/ozpIwc.api.html">ozpIwc.api</a></li>
                                 <li><a href="../classes/ozpIwc.api.base.Api.html">ozpIwc.api.base.Api</a></li>
@@ -56,7 +47,16 @@
                                 <li><a href="../classes/ozpIwc.api.data.node.Nodev2.html">ozpIwc.api.data.node.Nodev2</a></li>
                                 <li><a href="../classes/ozpIwc.api.Endpoint.html">ozpIwc.api.Endpoint</a></li>
                                 <li><a href="../classes/ozpIwc.api.EndpointRegistry.html">ozpIwc.api.EndpointRegistry</a></li>
+                                <li><a href="../classes/ozpIwc.api.error.BadActionError.html">ozpIwc.api.error.BadActionError</a></li>
+                                <li><a href="../classes/ozpIwc.api.error.BadContentError.html">ozpIwc.api.error.BadContentError</a></li>
+                                <li><a href="../classes/ozpIwc.api.error.BadRequestError.html">ozpIwc.api.error.BadRequestError</a></li>
+                                <li><a href="../classes/ozpIwc.api.error.BadResourceError.html">ozpIwc.api.error.BadResourceError</a></li>
+                                <li><a href="../classes/ozpIwc.api.error.BadStateError.html">ozpIwc.api.error.BadStateError</a></li>
                                 <li><a href="../classes/ozpIwc.api.error.BaseError.html">ozpIwc.api.error.BaseError</a></li>
+                                <li><a href="../classes/ozpIwc.api.error.NoActionError.html">ozpIwc.api.error.NoActionError</a></li>
+                                <li><a href="../classes/ozpIwc.api.error.NoMatchError.html">ozpIwc.api.error.NoMatchError</a></li>
+                                <li><a href="../classes/ozpIwc.api.error.NoPermissionError.html">ozpIwc.api.error.NoPermissionError</a></li>
+                                <li><a href="../classes/ozpIwc.api.error.NoResourceError.html">ozpIwc.api.error.NoResourceError</a></li>
                                 <li><a href="../classes/ozpIwc.api.filter.base.html">ozpIwc.api.filter.base</a></li>
                                 <li><a href="../classes/ozpIwc.api.filter.Function.html">ozpIwc.api.filter.Function</a></li>
                                 <li><a href="../classes/ozpIwc.api.filter.standard.html">ozpIwc.api.filter.standard</a></li>
@@ -440,17 +440,17 @@ ozpIwc.util.ApiPromiseMixin = (function (apiMap, log, util) {
                 if (!handled &amp;&amp; packet.replyTo &amp;&amp; this.registeredCallbacks[packet.replyTo]) {
 
                     var registeredCancel = false;
+                    var self = this;
                     var registeredDone = function () {
                         registeredCancel = true;
+
+                        if (self.watchMsgMap[packet.replyTo] &amp;&amp; self.watchMsgMap[packet.replyTo].action === &quot;watch&quot;) {
+                            self.api(self.watchMsgMap[packet.replyTo].dst).unwatch(self.watchMsgMap[packet.replyTo].resource);
+                        }
+                        self.cancelRegisteredCallback(packet.replyTo);
                     };
 
                     handled = this.registeredCallbacks[packet.replyTo](packet, registeredDone);
-                    if (registeredCancel) {
-                        if (this.watchMsgMap[packet.replyTo] &amp;&amp; this.watchMsgMap[packet.replyTo].action === &quot;watch&quot;) {
-                            this.api(this.watchMsgMap[packet.replyTo].dst).unwatch(this.watchMsgMap[packet.replyTo].resource);
-                        }
-                        this.cancelRegisteredCallback(packet.replyTo);
-                    }
                 }
                 if (!handled) {
                     //Drop own packets
@@ -632,6 +632,10 @@ ozpIwc.util.ApiPromiseMixin = (function (apiMap, log, util) {
                 }
                 return promiseChain.then(function (inFlightIntentRes) {
                     res = inFlightIntentRes;
+                    if (res.entity.invokePacket.msgId === packet.msgId) {
+                        callback(packet);
+                        return Promise.reject(&quot;ownInvoke&quot;);
+                    }
                     return self.send({
                         dst: &quot;intents.api&quot;,
                         contentType: res.contentType,
@@ -642,6 +646,7 @@ ozpIwc.util.ApiPromiseMixin = (function (apiMap, log, util) {
                                 resource: packet.resource,
                                 address: self.address
                             },
+                            me: Date.now(),
                             state: &quot;running&quot;
                         }
                     });
@@ -669,7 +674,12 @@ ozpIwc.util.ApiPromiseMixin = (function (apiMap, log, util) {
                         }
                     });
                 })[&#x27;catch&#x27;](function (e) {
-                    log.error(&quot;Error in handling intent: &quot;, e, &quot; -- Reporting error on in-flight intent node:&quot;,
+                    if (e === &quot;ownInvoke&quot;) {
+                        //Filter out own invocations (this occurs when watching an invoke state).
+                        return;
+                    }
+
+                    console.error(&quot;Error in handling intent: &quot;, e, &quot; -- Reporting error on in-flight intent node:&quot;,
                         res.resource);
                     // Respond to the inflight resource
                     return self.send({
@@ -679,8 +689,8 @@ ozpIwc.util.ApiPromiseMixin = (function (apiMap, log, util) {
                         resource: res.resource,
                         entity: {
                             reply: {
-                                &#x27;entity&#x27;: e || {},
-                                &#x27;contentType&#x27;: res.entity.intent.type
+                                &#x27;entity&#x27;: e.toString() || {},
+                                &#x27;contentType&#x27;: &quot;text/plain&quot;
                             },
                             state: &quot;error&quot;
                         }
@@ -710,6 +720,118 @@ ozpIwc.util.ApiPromiseMixin = (function (apiMap, log, util) {
             updateApi: function (apiName) {
 
                 /**
+                 * Augmentation for Intents Api register. Automatically invokes a registration if the invoke was passed
+                 * into the application opening.
+                 * @method intentRegisterAugment
+                 * @private
+                 * @static
+                 * @param client
+                 * @param message
+                 */
+                var intentRegisterAugment = function (client, message) {
+                    for (var i in client.launchedIntents) {
+                        var loadedResource = &#x27;/&#x27; + client.launchedIntents[i].entity.intent.type + &#x27;/&#x27; + client.launchedIntents[i].entity.intent.action;
+                        if (message.packet.resource === loadedResource) {
+                            client.intentInvocationHandling(message.packet, client.launchedIntents[i], message.callback);
+                            delete client.launchedIntents[i];
+                        }
+                    }
+                };
+
+                /**
+                 * Augmentation for Intents Api invoke. Wraps callback to remove the callback when reaching
+                 * error/complete state.
+                 * @method intentRegisterAugment
+                 * @private
+                 * @static
+                 * @param client
+                 * @param message
+                 */
+                var intentInvokeAugment = function (message) {
+                    if (message.callback) {
+                        var wrappedCallback = message.callback;
+                        // Wrap the callback to make sure it is removed when the intent state machine stops.
+                        message.callback = function (reply, done) {
+                            wrappedCallback(reply, done);
+                            reply = reply || {};
+                            reply.entity = reply.entity || {};
+                            if (reply.entity.state === &quot;error&quot; || reply.entity.state === &quot;complete&quot;) {
+                                done();
+                            }
+                        };
+                    }
+                };
+
+                /**
+                 * Augmentation for Intents Api broadcast. Compiles the results of all intent handlers and then,
+                 * returns the responfixese in the promise resolution. Callback acts like invoke callback.
+                 * @method intentRegisterAugment
+                 * @private
+                 * @static
+                 * @param client
+                 * @param message
+                 */
+                var intentBroadcastAugment = function (client, message) {
+                    var broadcastWrappedCallback = message.callback || function () {};
+                    var registeredCallbacks = client.registeredCallbacks;
+
+                    // Wrap the callback to filter out all of the &quot;complete&quot; messages from each handler sent
+                    // intended for a promise resolution. Also store all results for the promise resolution.
+                    message.callback = function (reply, done) {
+                        if (!registeredCallbacks[reply.replyTo]) {
+                            return;
+                        }
+                        var callback = registeredCallbacks[reply.replyTo];
+                        var handlers = callback.handlers;
+                        var attemptResolve = function (resource) {
+                            var handlerIndex = handlers.indexOf(resource);
+                            if (handlerIndex &gt; -1) {
+                                handlers.splice(handlerIndex, 1);
+                            }
+                            if (handlers.length === 0) {
+                                callback.reply.entity = callback.results;
+                                callback.reply.response = &quot;complete&quot;;
+                                callback.pRes(callback.reply);
+                                done();
+                            }
+                        };
+                        if (reply.response === &quot;complete&quot;) {
+                            callback.results = callback.results || {};
+                            callback.results[reply.resource] = reply.entity;
+                            attemptResolve(reply.resource);
+
+                        } else if (reply.entity &amp;&amp; reply.entity.state === &quot;error&quot; &amp;&amp; client.registeredCallbacks[reply.replyTo]) {
+                            attemptResolve(reply.entity.handler.resource);
+                        } else {
+                            broadcastWrappedCallback(reply, done);
+                        }
+                    };
+                };
+
+                /**
+                 * Augmenters for Intent Api specific actions.
+                 * @method intentAugment
+                 * @private
+                 * @static
+                 * @param client
+                 * @param message {Object}
+                 */
+                var intentAugment = function (client, message) {
+                    switch (message.packet.action) {
+                        case &quot;register&quot;:
+                            intentRegisterAugment(client, message);
+                            break;
+                        case &quot;invoke&quot;:
+                            intentInvokeAugment(message);
+                            break;
+                        case &quot;broadcast&quot;:
+                            intentBroadcastAugment(client, message);
+                            break;
+
+                    }
+                };
+
+                /**
                  * Function generator. Generates API functions given a messageBuilder function.
                  * @method augment
                  * @param messageBuilder
@@ -719,19 +841,12 @@ ozpIwc.util.ApiPromiseMixin = (function (apiMap, log, util) {
                 var augment = function (messageBuilder, client) {
                     return function (resource, fragment, otherCallback) {
                         var message = messageBuilder(resource, fragment, otherCallback);
-                        var packet = message.packet;
 
 
-                        if (packet.dst === &quot;intents.api&quot; &amp;&amp; packet.action === &quot;register&quot;) {
-                            for (var i in client.launchedIntents) {
-                                var loadedResource = &#x27;/&#x27; + client.launchedIntents[i].entity.intent.type + &#x27;/&#x27; + client.launchedIntents[i].entity.intent.action;
-                                if (resource === loadedResource) {
-                                    client.intentInvocationHandling(packet, client.launchedIntents[i], message.callback);
-                                    delete client.launchedIntents[i];
-                                }
-                            }
+                        if (message.packet.dst === &quot;intents.api&quot;) {
+                            intentAugment(client, message);
                         }
-                        return client.send(packet, message.callback);
+                        return client.send(message.packet, message.callback);
                     };
                 };
 
@@ -885,7 +1000,20 @@ ozpIwc.util.ApiPromiseMixin = (function (apiMap, log, util) {
                 //respondOn &quot;all&quot;, &quot;error&quot;, or no value (default all) will register a promise callback.
                 if (packet.respondOn !== &quot;none&quot;) {
                     this.promiseCallbacks[packet.msgId] = function (reply, done) {
-                        if (reply.src === &quot;$transport&quot; || /(ok).*/.test(reply.response)) {
+                        if (reply.src === &quot;intents.api&quot; &amp;&amp;
+                            (packet.action === &quot;invoke&quot; &amp;&amp; /(ok).*/.test(reply.response)) ||
+                            (packet.action === &quot;broadcast&quot; &amp;&amp; /(complete).*/.test(reply.response))) {
+                            // dont sent the response to the promise
+                        } else if (reply.src === &quot;intents.api&quot; &amp;&amp; packet.action === &quot;broadcast&quot; &amp;&amp; /(pending).*/.test(reply.response)) {
+                            //Broadcast request acknowledged and prepares logic ot handle resolving once all runners
+                            // finish.
+                            if (self.registeredCallbacks[packet.msgId]) {
+                                self.registeredCallbacks[packet.msgId].handlers = reply.entity.handlers || [];
+                                self.registeredCallbacks[packet.msgId].pRes = promiseRes;
+                                self.registeredCallbacks[packet.msgId].reply = reply;
+                            }
+                            done();
+                        } else if (reply.src === &quot;$transport&quot; || /(ok).*/.test(reply.response) || /(complete).*/.test(reply.response)) {
                             done();
                             promiseRes(reply);
                         } else if (/(bad|no).*/.test(reply.response)) {
