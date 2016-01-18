@@ -1,51 +1,73 @@
-$(document).ready(function() {
-    var mode = ozpIwc.util.parseQueryParams().offline || false;
-    if(mode === "false"){
-        mode = false;
-    }
-    var map = new CustomMap("map",mode, 'tiles');
+'use strict';
+$('document').ready(function() {
+  var mode = ozpIwc.util.parseQueryParams().offline || false;
+  if (mode === "false") {
+    mode = false;
+  }
+  var locations = {};
+  var map = new CustomMap("map", mode, 'tiles');
 
+  // Create the IWC Client
+  var iwc = new ozpIwc.Client(OzoneConfig.iwcUrl);
 
-    //Create the IWC Client
-    //Once the IWC client is connected configure it to map features.
-    var client=new ozpIwc.Client({peerUrl: window.OzoneConfig.iwcUrl});
-    client.connect().then(function(){
+  //=======================================
+  // Location: Contains IWC reference and map functionality
+  //
+  // IWC References:
+  // API: Data
+  // Resource: *
+  //=======================================
+  var Location = function(config) {
+    this.resource = config.resource;
+    this.reference = new iwc.data.Reference(config.resource);
+    this.map = config.map;
 
-        var intents = client.intents();
-        var data = client.data();
+    var self = this;
+    var onChange = function(changes) {
+      self.map.updateMarker(self.resource, changes.newValue);
+    };
 
-        var mappingIntent = function(event){
-            // This intent is expected to receive a data.api resource name to be used.
-            var resource = event.entity;
-
-            // Gather the resource
-            data.get(resource).then(function(resp){
-                // If this resource isn't already mapped
-                if(!map.locationData[resource]){
-                    // Attempt to add the resource to the map as a marker
-                    var id = map.addMarker(resp.entity,resource);
-
-                    // If the marker was successfully created, watch the resource for further changes
-                    if(typeof id !== "undefined") {
-                        return data.watch(resource, function (event) {
-                            var newValue = event.entity.newValue;
-                            map.updateMarker(resource,newValue);
-                        });
-                    }
-                }
-            });
-        };
-        var removeAt = window.location.href.indexOf('/index.html');
-        var newPath = window.location.href.substring(0,removeAt);
-
-        intents.register("/json/coord/map",{
-            contentType: "application/vnd.ozp-iwc-intent-handler-v1+json",
-            entity: {
-                icon : newPath + "/icon.png",
-                label: "Location Viewer"
-            }
-        },mappingIntent);
+    this.reference.watch(onChange).then(function(location) {
+      self.map.addMarker(location, self.resource);
     });
+  };
+
+
+  //=======================================
+  // Location Mapping shared functionality:
+  //      Registers Intent for /json/coord/map
+  //
+  //
+  // IWC References:
+  // API: Intents
+  // Resource: /json/coord/map
+  //=======================================
+  var mappingRef = new iwc.intents.Reference("/json/coord/map");
+
+  // Runtime-generated url for the icon in the intent's metaData.
+  var iconPath = (function() {
+    var removeAt = window.location.href.indexOf('/index.html');
+    var newPath = window.location.href.substring(0, removeAt);
+    if (removeAt < 0 && window.location.href[window.location.href.length - 1] === '/') {
+      newPath = window.location.href.substring(0, window.location.href.length - 1);
+    }
+    return newPath + "/icon.png";
+  }());
+
+  var metaData = {
+    icon: iconPath,
+    label: "Location Viewer"
+  };
+
+  // This function expects to receive a data.api resource name to be used.
+  var mapFn = function(resource) {
+    if (!locations[resource]) {
+      locations[resource] = new Location({
+        map: map,
+        resource: resource
+      });
+    }
+  };
+
+  mappingRef.register(metaData, mapFn);
 });
-
-

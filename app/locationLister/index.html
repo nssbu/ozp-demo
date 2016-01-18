@@ -48,13 +48,13 @@
 
                         <span class="pull-right">
                             <button style="display: inline-block; margin-right: 10px;" type="button" ng-disabled="mapDisabled()"
-                                class="btn btn-primary btn-xs" ng-click="invokeMap(currentLocationId)" >Map</button>
+                                class="btn btn-primary btn-xs" ng-click="invokeMap(currentLocation.resource)" >Map</button>
                             <button style="display: inline-block; margin-right: 10px;" type="button" ng-disabled="analyzeDisabled()"
-                                    class="btn btn-primary btn-xs" ng-click="invokeAnalyze(currentLocation.coords)" >Analyze</button>
+                                    class="btn btn-primary btn-xs" ng-click="invokeAnalyze(currentLocation.value.coords)" >Analyze</button>
                             <button style="display: inline-block; margin-right: 10px;" type="button"
-                                    class="btn btn-default btn-xs" ng-click="editSelectedLocation()"  ng-disabled="!currentLocationId">Edit</button>
+                                    class="btn btn-default btn-xs" ng-click="editSelectedLocation()"  ng-disabled="!lastSelected">Edit</button>
                             <button style="display: inline-block" type="button"
-                                    class="btn btn-default btn-xs" ng-click="deleteSelectedLocation()" ng-disabled="!currentLocationId">Delete</button>
+                                    class="btn btn-default btn-xs" ng-click="deleteSelectedLocation()" ng-disabled="!lastSelected">Delete</button>
                         </span>
                     </div>
                 </div>

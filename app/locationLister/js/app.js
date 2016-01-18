@@ -1,278 +1,373 @@
+'use strict';
+
 var locationLister = angular.module('LocationLister', [
-    'ozpIwcClient',
-    'ui.bootstrap'
+  'ozpIwcClient',
+  'ui.bootstrap'
 ]);
 locationLister.controller('MainController', ['ozpIwcClient']);
 
-locationLister.controller('MainController', function($scope, $log, $modal, iwcConnectedClient) {
-    $scope.id = 0;
-    $scope.locations = {};
-    $scope.client = iwcConnectedClient;
-    $scope.mapHandlers = [];
-    $scope.analyzeHandlers = [];
+locationLister.controller('MainController', function($scope, $log, $modal, iwc) {
+  $scope.id = 0;
+  $scope.locations = {};
+  $scope.mapHandlers = [];
+  $scope.analyzeHandlers = [];
+
+  //=======================================
+  // Location List View
+  //
+  // IWC References:
+  // API: Data
+  // Resource: /locationLister/listings
+  // Collects: /locationLister/listings/*
+  //=======================================
+  $scope.listingsRef = new iwc.data.Reference("/locationLister/listings", {
+    collect: true
+  });
 
 
-/**
- * UI-only functionality
- */
-    $scope.mapDisabled = function(){
-        return !($scope.mapHandlers.length > 0 && $scope.currentLocationId);
-    };
-    $scope.analyzeDisabled = function(){
-        return !($scope.analyzeHandlers.length > 0 && $scope.currentLocationId);
-    };
+  var handleCollection = function(collection) {
+    var colArr = collection || [];
 
-    $scope.locationModal = function(listing){
-        var modalInstance = $modal.open({
-            templateUrl: "templates/modal.html",
-            controller: "EditController",
-            resolve: {
-                listing: function () {
-                    return listing;
-                }
-            }
-        });
+    colArr.forEach(function(resource) {
+      if (!$scope.locations[resource]) {
+        $scope.locations[resource] = new ListViewItem(resource);
+      }
+    });
+    $scope.$apply();
+  };
 
-        return modalInstance.result;
-    };
+  var onCollectionChange = function(changes) {
+    handleCollection(changes.newCollection);
+    $log.debug(changes);
+  };
 
-    $scope.handleLocationSelect = function(key) {
-        $scope.currentLocation = $scope.locations[key];
-        $scope.currentLocationId = key;
+  // Watch For new locations added to the collection
+  $scope.listingsRef.watch(onCollectionChange);
 
+  // Get the initial collection
+  $scope.listingsRef.list().then(handleCollection);
+
+
+
+  //=======================================
+  // Location List View UI Behavior
+  // UI logic for selecting a Location List View Item
+  //
+  // IWC References:
+  // API: Data
+  // Resource: /locationLister/listings/*
+  //=======================================
+  $scope.handleLocationSelect = function(location) {
+    $scope.currentLocation = location;
+
+    if($scope.lastSelected !== this) {
         if ($scope.lastSelected) {
-            $scope.lastSelected.selected = '';
+          $scope.lastSelected.selected = '';
         }
         this.selected = 'selected';
         $scope.lastSelected = this;
-    };
-
-    $scope.clearLocationSelect = function() {
-        $scope.currentLocation = {};
-        $scope.currentLocationId = "";
-    };
-
-    $scope.isValidListing = function(listing){
-        if(listing && typeof listing.title !== 'undefined' && listing.coords
-            && typeof listing.coords.lat !== 'undefined' && typeof listing.coords.long !== 'undefined'){
-            return true;
-        } else {
-            return false;
-        }
-    };
-/**
- * IWC Non-Recurring Actions
- */
-    $scope.getListings = function(){
-        return $scope.client.api('data.api').bulkGet('/locationLister/listings').then(function(reply) {
-            if (Array.isArray(reply.entity) && reply.entity.length > 0) {
-                reply.entity.forEach(function (listing) {
-                    if($scope.isValidListing(listing.entity)) {
-                        $scope.locations[listing.resource] = listing.entity;
-                    }
-                });
-            }
-        });
-    };
-
-
-    $scope.addListing = function(listing){
-        listing = listing || {};
-        return $scope.locationModal(listing).then(function (output) {
-            return $scope.client.api('data.api').addChild('/locationLister/listings', {entity:  output.listing}).then(function(){
-                console.log(arguments)
-            }).catch(function(e){
-                console.log(e);
-            });
-        });
-    };
-
-    $scope.invokeMap = function(listingResource) {
-        return $scope.client.api('intents.api').invoke("/json/coord/map", {entity: listingResource})['catch'](function(er){
-            $log.debug(er);
-        });
-    };
-
-    $scope.invokeAnalyze = function(coords) {
-        return $scope.client.api('intents.api').invoke("/json/coord/analyze", {entity: coords})['catch'](function(er){
-            $log.debug(er);
-        });
-    };
-
-    $scope.editSelectedLocation = function() {
-        if($scope.currentLocationId) {
-            var id = $scope.currentLocationId;
-
-            $scope.locationModal($scope.currentLocation).then(function (output) {
-                $scope.client.api('data.api').set(id,{entity: output.listing});
-            });
-        }
-
-    };
-
-    $scope.deleteSelectedLocation = function() {
-        return $scope.client.api('data.api').delete($scope.currentLocationId);
-    };
-
-/**
- * IWC Recurring Actions
- */
-    $scope.regulateMapping = function(){
-         $scope.client.api('intents.api').watch("/json/coord/map",function(event){
-            $scope.mapHandlers = event.entity.newCollection;
-            $scope.$apply();
-         }).then(function(response) {
-             if (response.entity) {
-                 $scope.mapHandlers = response.collection;
-                 $scope.$apply();
-             }
-         });
-    };
-
-    $scope.regulateAnalyzing = function(){
-        $scope.client.api('intents.api').watch("/json/coord/analyze",function(event){
-            $scope.analyzeHandlers = event.entity.newCollection;
-            $scope.$apply();
-        }).then(function(response){
-            if(response.entity) {
-                $scope.analyzeHandlers = response.collection;
-                $scope.$apply();
-            }
-        });
-    };
-
-    $scope.watchListings = function(){
-
-        var onChange = function(reply) {
-            var promises = [];
-            reply.entity.newCollection.forEach(function(listing){
-                promises.push($scope.client.data().get(listing));
-            });
-            $log.debug(reply);
-
-            Promise.all(promises).then(function(listings){
-                $scope.locations = {};
-                for(var i in listings) {
-                    $scope.locations[listings[i].resource] = listings[i].entity;
-                }
-                $scope.$apply();
-            }).catch(function(err){
-                console.log(err);
-            });
-        };
-
-        return $scope.client.data().watch('/locationLister/listings',{},onChange).then(function(response){
-            console.log(response);
-            onChange({
-                entity: {
-                    newCollection: response.collection || []
-                }
-            });
-
-        });
-    };
-
-    $scope.regulateListings = function(){
-        return $scope.getListings().then($scope.watchListings);
-    };
-
-    $scope.registerSaving = function(){
-        var savingIntent = function(event){
-            // This intent is expected to receive a JSON Object to prefill its add location modal.
-            var payload = event.entity;
-            if(payload && payload.title && payload.coords) {
-                $scope.addListing(payload);
-            }
-
-        };
-
-        var removeAt = window.location.href.indexOf('/index.html');
-        var newPath = window.location.href.substring(0,removeAt);
-        if(removeAt < 0 &&window.location.href[window.location.href.length-1] === '/'){
-            newPath = window.location.href.substring(0,window.location.href.length-1);
-        }
-
-        return $scope.client.api('intents.api').register("/json/coord/save",{
-            contentType: "application/vnd.ozp-iwc-intent-handler-v1+json",
-            entity: {
-                icon : newPath + "/icon.png",
-                label: "Location Lister"
-            }
-        },savingIntent);
-    };
-
-
-/*
- * Controller Init
- */
-    $scope.registerSaving()
-        .then($scope.regulateMapping)
-        .then($scope.regulateAnalyzing)
-        .then($scope.regulateListings)
-        .then(function(){
-            $log.debug("Connected! address:", iwcConnectedClient.address);
-            $scope.$apply();
-        });
-
-
-
-});
-
-locationLister.factory("iwcConnectedClient",function($location, $window, $log, iwcClient) {
-    var ozpIwcPeerUrl = '';
-    var queryParams = $location.search();
-    if (queryParams.hasOwnProperty('ozpIwc.peer')) {
-        ozpIwcPeerUrl = queryParams['ozpIwc.peer'];
-        $log.debug('found IWC bus in query param: ' + ozpIwcPeerUrl);
-    } else {
-        ozpIwcPeerUrl = $window.OzoneConfig.iwcUrl;
     }
+  };
 
-    var ozpBusInfo = {
-        'url': ozpIwcPeerUrl,
-        'connected': false
-    };
 
-    ozpBusInfo.connected = false;
-    $log.debug('LocationLister using IWC bus: ' + ozpBusInfo.url);
-    return new iwcClient.Client({
-        peerUrl: ozpBusInfo.url
+  $scope.clearLocationSelect = function() {
+    $scope.currentLocation = undefined;
+  };
+
+  $scope.deleteSelectedLocation = function() {
+    if ($scope.currentLocation) {
+      return $scope.currentLocation.reference.delete();
+    }
+  };
+
+  //=======================================
+  // Location List View Item
+  //
+  // IWC References:
+  // API: Data
+  // Resource: /locationLister/listings/*
+  // Collects: none
+  //=======================================
+  var ListViewItem = function(resource) {
+    this.reference = new iwc.data.Reference(resource);
+    this.resource = resource;
+    this.value = {};
+
+    var self = this;
+    this.reference.watch(this.onChange).then(function(val) {
+      self.value = val;
+      $scope.$apply();
     });
+  };
+
+  ListViewItem.prototype.onChange = function(changes) {
+    this.value = changes.newValue;
+    $scope.$apply();
+  };
+
+
+  //=======================================
+  // Map Button: Invokes map intent
+  //
+  // IWC References:
+  // API: Intents
+  // Resource: /json/coord/map
+  //=======================================
+  $scope.invokeMap = function(listingResource) {
+    return $scope.mappingRef.invoke(listingResource)['catch'](function(er) {
+      $log.debug(er);
+    });
+  };
+
+
+  //=======================================
+  // Map Handler Count: Number of remote handlers
+  //
+  // IWC References:
+  // API: Intents
+  // Resource: /json/coord/map
+  // Collects: /json/coord/map/*
+  //=======================================
+  $scope.mappingRef = new iwc.intents.Reference("/json/coord/map", {
+    collect: true
+  });
+  $scope.mapDisabled = function() {
+    return !($scope.mapHandlers.length > 0 && $scope.lastSelected);
+  };
+
+  var onMapColChange = function(changes) {
+    $scope.mapHandlers = changes.newCollection;
+    $scope.$apply();
+  };
+
+  $scope.mappingRef.watch(onMapColChange);
+
+  // Get the initial collection
+  $scope.mappingRef.list().then(function(collection) {
+    $scope.mapHandlers = collection;
+    $scope.$apply();
+  });
+
+
+  //=======================================
+  // Map Button: Invokes analyze intent
+  //
+  // IWC References:
+  // API: Intents
+  // Resource: /json/coord/analyze
+  //=======================================
+  $scope.analyzeRef = new iwc.intents.Reference("/json/coord/analyze");
+  $scope.invokeAnalyze = function(coords) {
+    return $scope.analyzeRef.invoke(coords)['catch'](function(er) {
+      $log.debug(er);
+    });
+  };
+
+  //=======================================
+  // Analysis Handler Count (Remote Handlers)
+  //
+  // IWC References:
+  // API: Intents
+  // Resource: /json/coord/map
+  // Collects: /json/coord/map/*
+  //=======================================
+  $scope.analyzeRef = new iwc.intents.Reference("/json/coord/analyze");
+
+  $scope.analyzeDisabled = function() {
+    return !($scope.analyzeHandlers.length > 0 && $scope.lastSelected);
+  };
+
+  var onAnalyzeColChange = function(changes) {
+    $scope.analyzeHandlers = changes.newCollection;
+    $scope.$apply();
+  };
+
+  $scope.analyzeRef.watch(onAnalyzeColChange);
+
+  // Get the initial collection
+  $scope.analyzeRef.list().then(function(collection) {
+    $scope.analyzeHandlers = collection;
+    $scope.$apply();
+  });
+
+  //=======================================
+  // Location save modal:
+  //      Creates/Updates locations. Generates new references
+  //      in the listings collection when saving new location.
+  //
+  // IWC References:
+  // API: Data
+  // Resource: /locationLister/listings
+  // Collects: none
+  //=======================================
+  $scope.locationModal = function(listing) {
+    var modalInstance = $modal.open({
+      templateUrl: "templates/modal.html",
+      controller: "EditController",
+      resolve: {
+        listing: function() {
+          return listing;
+        }
+      }
+    });
+
+    return modalInstance.result;
+  };
+
+  // Called when the "Add Location" button is pressed
+  $scope.addListing = function(listing) {
+    listing = listing || {};
+
+    // Opens popup modal, resolves with the input data.
+    return $scope.locationModal(listing).then(function(output) {
+
+      // Autogenerates the resouce in the listings collection.
+      return $scope.listingsRef.addChild(output.listing).catch(function(e) {
+        console.log(e);
+      });
+    });
+  };
+
+  // Called when a Location List View Item is selected and Edit is clicked.
+  // Edits the value of the Location List View Item.
+  $scope.editSelectedLocation = function() {
+    if ($scope.currentLocation) {
+      $scope.locationModal($scope.currentLocation).then(function(output) {
+        // Use the scope stored reference to update the resource
+        $scope.locations[$scope.currentLocation.resource].reference.set(output.listing);
+      });
+    }
+  };
+
+  //=======================================
+  // Location Save shared functionality:
+  //      Registers Intent for /json/coord/save
+  //
+  // IWC References:
+  // API: Intents
+  // Resource: /json/coord/save
+  //=======================================
+  $scope.savingRef = new iwc.intents.Reference("/json/coord/save");
+
+  // Runtime-generated url for the icon in the intent's metaData.
+  var iconPath = (function() {
+    var removeAt = window.location.href.indexOf('/index.html');
+    var newPath = window.location.href.substring(0, removeAt);
+    if (removeAt < 0 && window.location.href[window.location.href.length - 1] === '/') {
+      newPath = window.location.href.substring(0, window.location.href.length - 1);
+    }
+    return newPath + "/icon.png";
+  }());
+
+  var metaData = {
+    icon: iconPath,
+    label: "Location Lister"
+  };
+
+  // The functionality to share. Opens the modal for saving the received location.
+  var saveLocation = function(location) {
+    if (location && location.title && location.coords) {
+      $scope.addListing(location);
+    }
+  };
+
+  $scope.savingRef.register(metaData, saveLocation);
 });
 
 
-locationLister.directive( "locationList", function() {
-    return {
-        restrict: 'E',
-        scope :{
-            locations : "=locations",
-            onselect: "=onselect"
-        },
-        templateUrl: 'templates/locationList.tpl.html'
+// This factory adds wrappings around the IWC client generation to allow
+// query param bus selection and logs the Bus/Address upon connection.
+//
+// For most applications using the "ozpIwcClient" module is sufficient
+// to receive the IWC Library.
+locationLister.factory("iwc", function($location, $window, $log, iwcClient) {
+
+  // Added functionality to allow the application to connect to a different IWC Bus
+  // if "?ozpIwc.peer=<encodeURIComponent of the Bus URL>" is appended to
+  // the application url.
+  var ozpIwcPeerUrl = '';
+  var queryParams = $location.search();
+  if (queryParams.hasOwnProperty('ozpIwc.peer')) {
+    ozpIwcPeerUrl = queryParams['ozpIwc.peer'];
+    $log.debug('found IWC bus in query param: ' + ozpIwcPeerUrl);
+  } else {
+    ozpIwcPeerUrl = $window.OzoneConfig.iwcUrl;
+  }
+
+  var iwc = new iwcClient.Client(ozpIwcPeerUrl);
+
+  iwc.connect().then(function() {
+    $log.debug("Connected to IWC Bus: " + ozpIwcPeerUrl + "\nIWC Address: ", iwc.address);
+  });
+
+  return iwc;
+});
+
+
+locationLister.directive("locationList", function() {
+  return {
+    restrict: 'E',
+    scope: {
+      locations: "=locations",
+      onselect: "=onselect"
+    },
+    templateUrl: 'templates/locationList.tpl.html'
+  };
+});
+
+// Controller for the Add/Edit Location Modal
+locationLister.controller("EditController", function($scope, $modalInstance, listing) {
+
+  if (listing) {
+    $scope.listing = listing;
+  } else {
+    $scope.listing = {
+      title: '',
+      coords: {
+        lat: 0,
+        long: 0
+      },
+      description: ''
     };
+  }
+
+  $scope.ok = function() {
+    $modalInstance.close({
+      listing: $scope.listing
+    });
+  };
+
+  $scope.cancel = function() {
+    $modalInstance.dismiss('cancel');
+  };
+
 });
 
+// A filter to not display List View Items that are not of proper format.
+locationLister.filter('filterLocations', function() {
+  return function(input) {
+    var inputArray = [];
 
-locationLister.controller('EditController', function($scope, $modalInstance,listing) {
-    if(listing && listing.title && listing.coords){
-        $scope.listing = listing;
-    } else {
-        $scope.listing = {
-            title: '',
-            coords: {
-                lat: 0,
-                long: 0
-            },
-            description: ''
-        };
+    for (var item in input) {
+      inputArray.push(input[item]);
     }
 
-    $scope.ok = function () {
-        $modalInstance.close({listing: $scope.listing});
-    };
+    return inputArray.filter(function(listing) {
+      if (!listing || !listing.value) {
+        return false;
+      }
 
-    $scope.cancel = function () {
-        $modalInstance.dismiss('cancel');
-    };
+      if (typeof listing.value.title === "undefined") {
+        return false;
+      }
 
+      if (!listing.value.coords ||
+        typeof listing.value.coords.lat === "undefined" ||
+        typeof listing.value.coords.long === "undefined") {
+        return false;
+      }
+
+      return true;
+    });
+  };
 });
