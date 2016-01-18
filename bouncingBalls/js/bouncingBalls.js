@@ -1,3 +1,4 @@
+"use strict";
 var bouncing = bouncing || {};
 bouncing.balls= bouncing.balls || {};
 bouncing.ourBalls = bouncing.ourBalls || [];
@@ -6,96 +7,131 @@ bouncing.currentColor=bouncing.currentColor || "black";
 var params=ozpIwc.util.parseQueryParams();
 
 $(document).ready(function(){
-    var colors=$("#ballColor option");
+//------------------------------------------
+// UI Setup
+//------------------------------------------
+    var colorOptions = $("#ballColor option");
+    var ballColor = $("#ballColor");
+    var viewPort = $('#viewport');
+    var fps = $('#fps');
+    var averageLatencies = $("#averageLatencies");
+    var frameRate = params.fps || 20;
 
+    bouncing.currentColor=params.color ||
+        colorOptions[Math.floor(Math.random() * colorOptions.length)].value;
+    ballColor.val(bouncing.currentColor);
+    fps.text(""+frameRate);
 
-    bouncing.currentColor=params['color'] || colors[Math.floor(Math.random() * colors.length)].value;
-    $("#ballColor").val(bouncing.currentColor);
+    setLocalBallColor(bouncing.currentColor);
+    ballColor.change(function(e) {
+        var color=e.target.value;
+        setLocalBallColor(color);
+    });
 
-    var setBallsColor=function(color) {
+	window.setInterval(function() {
+		var elapsed=(ozpIwc.util.now()-client.startTime)/1000;
+		averageLatencies.text(
+			"I/O: Pkt/sec [ " + (client.receivedPackets/elapsed).toFixed(1) +
+            " / " +  (client.sentPackets/elapsed).toFixed(1) + " ]"
+		);
+	},500);
+
+//------------------------------------------
+// IWC Setup
+//------------------------------------------
+    var lastUpdate=new Date().getTime();
+    var ballCount = 0;
+
+    //======================================
+    // Create a connection to the IWC
+    // (automatically connects)
+    //======================================
+    var client=new ozpIwc.Client({peerUrl: window.OzoneConfig.iwcUrl});
+
+    //======================================
+    // Create a reference for tracking balls
+    //======================================
+    var ballsRef = client.data.ref("/balls",{
+        lifespan: "Ephemeral",
+        fullResponse: true,
+        collect: true
+    });
+
+    //======================================
+    // Update the UI with connection info
+    // when its connection resolves
+    //======================================
+    client.connect()
+        .then(uiAddressUpdate)
+        .then(watchForBalls)
+        .then(genLocalBall)
+        .then(startBallUpdates);
+
+//------------------------------------------
+// Function Defs
+//------------------------------------------
+    function setLocalBallColor(color) {
         $('#viewport rect')[0].setAttribute("fill",color);
         for(var i=0;i<bouncing.ourBalls.length;++i) {
             bouncing.ourBalls[i].state.color=color;
         }
-    };
+    }
 
-    setBallsColor(bouncing.currentColor);
-
-    $("#ballColor").change(function(e) {
-        var color=e.target.value;
-        setBallsColor(color);
-    });
-
-
-	window.setInterval(function() {
-		var elapsed=(ozpIwc.util.now()-client.startTime)/1000;
-
-		$('#averageLatencies').text(
-			"I/O: Pkt/sec [ " + (client.receivedPackets/elapsed).toFixed(1) + " / " +  (client.sentPackets/elapsed).toFixed(1) + " ]"
-		);
-	},500);
-});
-
-var client=new ozpIwc.Client({peerUrl: window.OzoneConfig.iwcUrl});
-client.connect().then(function(){
-	// setup
-	var viewPort=$('#viewport');
-    var fps = params['fps'] || 20;
-    $('#myAddress').text(client.address);
-    $('#fps').text(""+fps);
-
-
-    //=================================================================
-	// cleanup when we are done
-	window.addEventListener("beforeunload",function() {
-		for(var i=0;i<bouncing.ourBalls.length;++i) {
-            bouncing.ourBalls[i].cleanup();
-		}
-	});
-
-	//=================================================================
-	// Animate our balls
-	var lastUpdate=new Date().getTime();
-	var animate=function() {
-		var now=new Date().getTime();
-		var delta=(now-lastUpdate)/1000.0;
-		for(var i=0;i<bouncing.ourBalls.length;++i) {
+    function animate() {
+        var now=new Date().getTime();
+        var delta=(now-lastUpdate)/1000.0;
+        for(var i=0;i<bouncing.ourBalls.length;++i) {
             bouncing.ourBalls[i].tick(delta);
-		}
-		lastUpdate=now;
-	};
+        }
+        lastUpdate=now;
+    }
 
-	window.setInterval(animate,1000/fps);
+    function uiAddressUpdate(){
+        $('#myAddress').text(client.address);
+    }
 
-
-    //=================================================================
-    // add our ball
-    //=================================================================
-    client.data().addChild("/balls",{lifespan: "Ephemeral"}).then(function(packet){
-        bouncing.ourBalls.push(new BallPublisher({
-            resource:packet.entity.resource,
-            iwcClient: client
-        }));
-    })['catch'](function(err){
-        console.log("Failed to push our ball: " + JSON.stringify(err,null,2));
-    });
-
-	//=================================================================
-	// listen for balls changing
-    //=================================================================
-	var onBallsChanged=function(reply) {
-        reply.entity.newCollection.forEach(function(b) {
+    function onBallsChanged(reply) {
+        reply.newCollection.forEach(function(b) {
             //If the ball does not exist, create it.
             bouncing.balls[b]= bouncing.balls[b] || new Ball(b,viewPort,client);
         });
+    }
 
-	};
-
-    client.data().watch("/balls",{lifespan: "Ephemeral", pattern: "/balls/"},onBallsChanged).then(function(reply){
-        //watch request resolve the resource if it exists
-        reply.collection.forEach(function(b) {
-            //If the ball does not exist, create it.
-            bouncing.balls[b]= bouncing.balls[b] || new Ball(b,viewPort,client);
+    //======================================
+    // Listen for balls created/destroyed
+    // to update tracking
+    //======================================
+    function watchForBalls() {
+        return ballsRef.watch(onBallsChanged).then(function(reply){
+            var allBalls = reply.collection || [];
+            //watch request resolve the resource if it exists
+            allBalls.forEach(function(b) {
+                //If the ball does not exist, create it.
+                bouncing.balls[b]= bouncing.balls[b] || new Ball(b,viewPort,client);
+            });
         });
-    });
+    }
+
+    //======================================
+    // Create a resource for the ball this application produces.
+    // IWC decides autogenerates a resource path with addChild.
+    //======================================
+    function genLocalBall() {
+        // use the client's address to ensure uniqueness
+        var resourcePath = "/balls/" + client.address + "/" + ballCount++;
+
+        var localBallRef = client.data.ref(resourcePath, {
+            lifespan: "bound",
+            respondOn: "none"
+        });
+        bouncing.ourBalls.push(new BallPublisher(localBallRef));
+    }
+
+    //======================================
+    // Animate the tracked balls based on
+    // the set fps.
+    //======================================
+    function startBallUpdates() {
+        window.setInterval(animate,frameRate);
+    }
 });

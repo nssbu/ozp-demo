@@ -1,5 +1,5 @@
 /* global debuggerModule */
-debuggerModule.controller("ApiDisplayCtrl", ["$scope", "$attrs", "iwcClient", "apiSettingService", function (scope, attrs, client, apiDat) {
+debuggerModule.controller("ApiDisplayCtrl", ["$scope", "$attrs", "iwcClient", "apiSettingService", "$log", function (scope, attrs, client, apiDat, log) {
     // IWC message parameters
     scope.msg = {
         api: 'data.api',  // data.api, system.api, etc
@@ -46,7 +46,7 @@ debuggerModule.controller("ApiDisplayCtrl", ["$scope", "$attrs", "iwcClient", "a
             displayName: "actions",
             headerCellTemplate: 'templates/headerTemplate.tpl.html',
             cellTemplate: 'templates/resourceTemplate.tpl.html',
-            width: "5%"
+            width: "130"
 
         }, {
             field: 'resource',
@@ -138,7 +138,7 @@ debuggerModule.controller("ApiDisplayCtrl", ["$scope", "$attrs", "iwcClient", "a
         });
     };
 
-    scope.refresh = function () {
+    scope.init = function () {
         client.api(scope.api).list("/").then(function (response) {
             scope.keys = response.entity.map(function (k) {
                 var key = {
@@ -156,12 +156,63 @@ debuggerModule.controller("ApiDisplayCtrl", ["$scope", "$attrs", "iwcClient", "a
             if (scope.gridApi && scope.gridApi.core) {
                 scope.gridApi.core.handleWindowResize();
             }
+        }).catch(function(err){
+            log.error(err);
         });
 
     };
 
+    scope.refresh = function () {
+        client.api(scope.api).list("/").then(function (response) {
+            var allKeys = scope.keys.slice();
+            // Loop through all the resources in the api
+            response.entity.forEach(function (k) {
+                var newKey = true;
+                // Loop through all the local resouces if match reload the key
+                for(var i in allKeys){
+                    if(scope.keys[i].resource === k){
+                        newKey = false;
+                        allKeys[i] = false;
+                        scope.loadKey(scope.keys[i]);
+                        break;
+                    }
+                }
+                // If no match was found its a new resource.
+                if(newKey){
+                    scope.keys.push({
+                        'resource': k,
+                        'isLoaded': false,
+                        'isWatched': false
+                    });
+                    scope.loadKey(scope.keys[scope.keys.length-1]);
+                }
+            });
+            // Loop through any key that wasn't in the list response and remove it. it was
+            // deleted.
+            for(var i in allKeys){
+                if(allKeys[i].resource){
+                    for(var j in scope.keys){
+                        if(scope.keys[j].resource === allKeys[i].resource){
+                            scope.keys.splice(j,1);
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+    };
+
+    scope.toggleWatchKey = function(key){
+        if(key.isWatched){
+            scope.unwatchKey(key);
+        } else {
+            scope.watchKey(key);
+        }
+    };
+
     scope.watchKey = function (key) {
-        if (key.isWatched) {
+        if (!key.isWatched) {
+            key.isWatched = true;
             client.api(scope.api).watch(key.resource, function (response) {
                 if (response.response === 'changed') {
                     scope.$evalAsync(function () {
@@ -177,10 +228,33 @@ debuggerModule.controller("ApiDisplayCtrl", ["$scope", "$attrs", "iwcClient", "a
                     key.collection = response.collection;
                     key.permissions = response.permissions;
                     key.contentType = response.contentType;
+                    key.watchData = {
+                        msgId: response.replyTo
+                    };
                 });
             });
-        } else {
-            client.api(scope.api).unwatch(key.resource);
+        }
+    };
+
+    scope.watchFiltered = function(keys){
+        keys = keys || scope.gridApi.core.getVisibleRows(scope.gridApi.grid).map(function(row){
+            return row.entity;
+        });
+
+        keys.forEach(scope.watchKey);
+    };
+
+    scope.unwatchFiltered = function(keys){
+        keys = keys || scope.gridApi.core.getVisibleRows(scope.gridApi.grid).map(function(row){
+            return row.entity;
+        });
+        keys.forEach(scope.unwatchKey);
+    };
+
+    scope.unwatchKey = function(key){
+        if(key.isWatched){
+            key.isWatched = false;
+            client.api(scope.api).unwatch(key.resource,key.watchData);
         }
     };
 
@@ -242,7 +316,12 @@ debuggerModule.controller("ApiDisplayCtrl", ["$scope", "$attrs", "iwcClient", "a
         }
     });
 
-    scope.refresh();
+    //Unwatch everything when closing the api display.
+    scope.$on("$destroy", function(){
+        scope.unwatchFiltered(scope.keys);
+    });
+
+    scope.init();
 }]);
 
 debuggerModule.directive("apiDisplay", function () {
