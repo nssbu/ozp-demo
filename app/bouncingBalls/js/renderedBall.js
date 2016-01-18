@@ -1,3 +1,4 @@
+"use strict";
 var bouncing = bouncing || {};
 bouncing.balls= bouncing.balls || {};
 bouncing.currentColor = bouncing.currentColor || "black";
@@ -9,27 +10,31 @@ bouncing.currentColor = bouncing.currentColor || "black";
  * @param {ozpIwc.Client} iwcClient reference to an IWC client to gather information with
  * @constructor
  */
-var Ball=function(ballRef,svgElement,iwcClient) {
+var Ball=function(ballPath,svgElement,iwcClient) {
+	// DOM properties
 	this.svg=svgElement;
 	this.el=document.createElementNS("http://www.w3.org/2000/svg", 'g');
 	this.el.setAttribute("class","ball");
-
 	this.circle=document.createElementNS("http://www.w3.org/2000/svg", 'circle');
 	this.el.appendChild(this.circle);
-
 	this.label=document.createElementNS("http://www.w3.org/2000/svg", 'text');
 	this.label.setAttribute("class","svgHidden");
 	this.el.appendChild(this.label);
-
 	this.svg.append(this.el);
 
-
-	this.ballResource=ballRef;
-	this.iwc=iwcClient;
+	// Metrics
 	this.packets=0;
 	this.lastUpdate=ozpIwc.util.now();
 	this.updateDelta=0;
 	this.updateCount=0;
+
+	// IWC
+	this.ref = iwcClient.data.ref(ballPath, {
+		lifespan: "bound",
+		fullCallback: true,
+		fullResponse: true
+	});
+
 	this.refreshed = false;
 	var self=this;
 
@@ -41,11 +46,11 @@ var Ball=function(ballRef,svgElement,iwcClient) {
 		self.draw(reply.entity.newValue);
 	};
 
-	this.iwc.data().watch(ballRef,onBallChange).then(function(response){
+	this.ref.watch(onBallChange).then(function(response){
 		self.watchData = {
 			msgId: response.replyTo,
 			src: response.dst
-		}
+		};
 	});
 
 	this.removeWatchdog = function(){
@@ -67,6 +72,7 @@ var Ball=function(ballRef,svgElement,iwcClient) {
 			},500);
 		}
 	};
+
 	this.interval = setInterval(this.removeWatchdog,10000);
 
 	$(this.el).click(function() {
@@ -97,11 +103,11 @@ Ball.prototype.draw=function(info) {
 	this.circle.setAttribute("r",info.r);
 	this.circle.setAttribute("fill",info.color);
 	this.label.setAttribute("x",info.r  + 5);
-	this.label.textContent=info.label
-		+ "[pkt=" + this.packets
-		+ ",updateAvg=" + Math.floor(this.updateDelta/this.updateCount) + "ms"
+	this.label.textContent=info.label +
+		"[pkt=" + this.packets +
+		",updateAvg=" + Math.floor(this.updateDelta/this.updateCount) + "ms" +
 //			+ ",avg=" + (this.totalLatency/this.packets).toPrecision(2)
-		+']';
+		"]";
 
 };
 
@@ -112,7 +118,7 @@ Ball.prototype.draw=function(info) {
 Ball.prototype.remove=function() {
     clearInterval(this.interval);
 
-	this.iwc.data().unwatch(this.ballResource,this.watchData);
+	this.ref.unwatch(this.watchData);
 
 	this.el.setAttribute('display','none');
 	delete bouncing.balls[this.ballResource];
@@ -129,8 +135,9 @@ Ball.prototype.remove=function() {
  * @param config
  * @constructor
  */
-var BallPublisher=function(config) {
-	config = config || {};
+var BallPublisher=function(reference) {
+	this.reference = reference;
+
 	this.state={
 		x: 100+Math.floor(Math.random()*100),
 		y: 100+Math.floor(Math.random()*100),
@@ -138,58 +145,49 @@ var BallPublisher=function(config) {
 		vy: -100+Math.floor(Math.random()*200),
 		r: 25+Math.floor(Math.random()*50),
 		color: bouncing.currentColor,
-		owner: config.owner,
-		label: config.resource
+		label: reference.resource
 	};
-	this.resource=config.resource;
-    this.iwc=config.iwcClient;
-	this.onTick=config.onTick || function() {};
 
-	var extents={
+	this.extents={
 		minX: 0,
 		minY: 0,
 		maxX: 1000,
 		maxY: 1000
 	};
-    var self = this;
-	/**
-	 * Recalculates the ball's position and updates its resource on the Data Api.
-	 *
-	 * @method tick
-	 * @param {Number} delta the time delta from last update.
-	 */
-	this.tick=function(delta) {
-		var ball=this.state;
-		ball.x+=delta*ball.vx;
-		ball.y+=delta*ball.vy;
+};
 
-		if(ball.x-ball.r <= extents.minX || ball.x+ball.r >= extents.maxX) {
-			ball.vx=-ball.vx;
-		}
-		if(ball.y-ball.r <= extents.minY || ball.y+ball.r >= extents.maxY) {
-			ball.vy=-ball.vy;
-		}
-		ball.x=Math.max(ball.x,extents.minX+ball.r);
-		ball.x=Math.min(ball.x,extents.maxX-ball.r);
-		ball.y=Math.max(ball.y,extents.minY+ball.r);
-		ball.y=Math.min(ball.y,extents.maxY-ball.r);
+/**
+ * Recalculates the ball's position and updates its resource on the Data Api.
+ *
+ * @method tick
+ * @param {Number} delta the time delta from last update.
+ */
+BallPublisher.prototype.tick = function(delta) {
+	var ball=this.state;
+	ball.x+=delta*ball.vx;
+	ball.y+=delta*ball.vy;
 
+	if(ball.x-ball.r <= this.extents.minX || ball.x+ball.r >= this.extents.maxX) {
+		ball.vx=-ball.vx;
+	}
+	if(ball.y-ball.r <= this.extents.minY || ball.y+ball.r >= this.extents.maxY) {
+		ball.vy=-ball.vy;
+	}
+	ball.x=Math.max(ball.x,this.extents.minX+ball.r);
+	ball.x=Math.min(ball.x,this.extents.maxX-ball.r);
+	ball.y=Math.max(ball.y,this.extents.minY+ball.r);
+	ball.y=Math.min(ball.y,this.extents.maxY-ball.r);
 
-		self.iwc.data().set(this.resource,{
-			lifespan: "Ephemeral",
-			entity: ball,
-            respondOn: "none"
-        });
-	};
+	this.reference.set(ball);
+};
 
-	/**
-	 * Removes the ball's resource from the Data Api. All watchers will cease to receive information on this ball unless
-	 * it is recreated.
-	 *
-	 * @method cleanup
-	 * @returns {*}
-	 */
-	this.cleanup=function() {
-		return self.iwc.data().delete(this.resource);
-	};
+/**
+ * Removes the ball's resource from the Data Api. All watchers will cease to receive information on this ball unless
+ * it is recreated.
+ *
+ * @method cleanup
+ * @returns {*}
+ */
+BallPublisher.prototype.cleanup = function(){
+	return this.reference.delete();
 };
