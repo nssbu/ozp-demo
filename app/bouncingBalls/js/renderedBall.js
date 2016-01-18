@@ -29,7 +29,7 @@ var Ball=function(ballPath,svgElement,iwcClient) {
 	this.updateCount=0;
 
 	// IWC
-	this.ref = iwcClient.data.ref(ballPath, {
+	this.ref = new iwcClient.data.Reference(ballPath, {
 		lifespan: "bound",
 		fullCallback: true,
 		fullResponse: true

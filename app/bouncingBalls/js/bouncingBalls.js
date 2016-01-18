@@ -51,9 +51,8 @@ $(document).ready(function(){
     //======================================
     // Create a reference for tracking balls
     //======================================
-    var ballsRef = client.data.ref("/balls",{
+    var ballsRef = new client.data.Reference("/balls",{
         lifespan: "Ephemeral",
-        fullResponse: true,
         collect: true
     });
 
@@ -102,10 +101,8 @@ $(document).ready(function(){
     // to update tracking
     //======================================
     function watchForBalls() {
-        return ballsRef.watch(onBallsChanged).then(function(reply){
-            var allBalls = reply.collection || [];
-            //watch request resolve the resource if it exists
-            allBalls.forEach(function(b) {
+        return ballsRef.watch(onBallsChanged).then(ballsRef.list).then(function(collection){
+            collection.forEach(function(b) {
                 //If the ball does not exist, create it.
                 bouncing.balls[b]= bouncing.balls[b] || new Ball(b,viewPort,client);
             });
@@ -120,7 +117,7 @@ $(document).ready(function(){
         // use the client's address to ensure uniqueness
         var resourcePath = "/balls/" + client.address + "/" + ballCount++;
 
-        var localBallRef = client.data.ref(resourcePath, {
+        var localBallRef = new client.data.Reference(resourcePath, {
             lifespan: "bound",
             respondOn: "none"
         });
@@ -132,6 +129,6 @@ $(document).ready(function(){
     // the set fps.
     //======================================
     function startBallUpdates() {
-        window.setInterval(animate,frameRate);
+        window.setInterval(animate,1000/frameRate);
     }
 });
