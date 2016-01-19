@@ -54,12 +54,8 @@ footer {
     z-index: -1;
 }
 
-.selected .list-group-item {
+.selected a.list-group-item {
     background: #BDBDBD;
-}
-
-a.list-group-item:focus, a.list-group-item:hover {
-    background: #EAEAEA;
 }
 
 .modal-header-compact {
