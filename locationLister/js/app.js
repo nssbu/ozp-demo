@@ -76,7 +76,8 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwc) 
 
   $scope.deleteSelectedLocation = function() {
     if ($scope.currentLocation) {
-      return $scope.currentLocation.reference.delete();
+      $scope.currentLocation.reference.delete();
+      delete $scope.locations[$scope.currentLocation.resource];
     }
   };
 
