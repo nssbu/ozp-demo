@@ -1,6 +1,5 @@
-
 <ul id="location-listings" class="list-group">
-    <div ng-repeat="(key, value) in locations | filterLocations" class="{{selected}}">
+    <div ng-repeat="(key, value) in locations | filterLocations"  ng-class="selected === value ? 'selected' : ''">
         <a href="#" ng-click="onselect(value)" class="list-group-item ">
             <h5 class="list-group-item-heading ">{{value.value.title}}</h5>
             <p>Lat/Long: {{value.value.coords.lat}}, {{value.value.coords.long}}</p>

@@ -21,5 +21,8 @@
   },
   "resolutions": {
     "angular": "1.4.x"
+  },
+  "devDependencies": {
+    "remarkable-bootstrap-notify": "~3.1.3"
   }
 }
