@@ -77,7 +77,6 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwc) 
   $scope.deleteSelectedLocation = function() {
     if ($scope.currentLocation) {
       $scope.currentLocation.reference.delete();
-      delete $scope.locations[$scope.currentLocation.resource];
     }
   };
 
@@ -93,17 +92,17 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwc) 
     this.reference = new iwc.data.Reference(resource);
     this.resource = resource;
     this.value = {};
-
     var self = this;
-    this.reference.watch(this.onChange).then(function(val) {
+
+    var onChange = function(changes) {
+      self.value = changes.newValue;
+      $scope.$apply();
+    };
+
+    this.reference.watch(onChange).then(function(val) {
       self.value = val;
       $scope.$apply();
     });
-  };
-
-  ListViewItem.prototype.onChange = function(changes) {
-    this.value = changes.newValue;
-    $scope.$apply();
   };
 
 
@@ -217,7 +216,6 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwc) 
 
   // Called when the "Add Location" button is pressed
   $scope.addListing = function(listing) {
-    listing = listing || {};
 
     // Opens popup modal, resolves with the input data.
     return $scope.locationModal(listing).then(function(output) {
