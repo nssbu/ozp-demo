@@ -8,43 +8,15 @@ locationAnalyzer.controller('MainController', ['ozpIwcClient']);
 
 locationAnalyzer.controller('MainController', function($scope, $log, iwc) {
 
-  $scope.saveHandlers = [];
   $scope.lat = 0;
   $scope.long = 0;
 
-  //=======================================
-  // Save Handler Count: Number of remote handlers
-  //
-  // IWC References:
-  // API: Intents
-  // Resource: /json/coord/save
-  // Collects: /json/coord/save/*
-  //=======================================
-  $scope.saveRef = new iwc.intents.Reference("/json/coord/save", {
-    collect: true
-  });
+  //=========================================
+  // Save Functionality
+  //=========================================
+  $scope.save = new Intent("/json/coord/save");
 
-  var onSaveColChange = function(changes) {
-    $scope.saveHandlers = changes.newCollection;
-    $scope.$apply();
-  };
-
-  $scope.saveRef.watch(onSaveColChange);
-
-  // Get the initial collection
-  $scope.saveRef.list().then(function(collection) {
-    $scope.saveHandlers = collection;
-    $scope.$apply();
-  });
-
-  //=======================================
-  // Invoke Remote Saving
-  //
-  // IWC References:
-  // API: Intents
-  // Resource: /json/coord/save
-  //=======================================
-  $scope.saveRef = new iwc.intents.Reference("/json/coord/save");
+  // The Location Lister expects the location data in the formatted structure.
   $scope.invokeSave = function() {
     var formatted = {
       title: "Saved from LocationAnalyzer",
@@ -53,7 +25,17 @@ locationAnalyzer.controller('MainController', function($scope, $log, iwc) {
         long: $scope.long
       }
     };
-    $scope.saveRef.invoke(formatted).catch(function(er) {
+
+    // Run the save functionality on the Intent handler
+    // Gather the new resource when successfull and make a UI notification
+    $scope.save.run(formatted).then(function(value) {
+      var locationRef = new iwc.data.Reference(value.resource);
+      locationRef.get().then(function(value) {
+        $.notify({
+          message: "Location saved as: " + value.title
+        });
+      });
+    }).catch(function(er) {
       $log.error(er);
     });
   };
@@ -67,7 +49,8 @@ locationAnalyzer.controller('MainController', function($scope, $log, iwc) {
   // API: Intents
   // Resource: /json/coord/analyze
   //=======================================
-  $scope.analyzeRef = new iwc.intents.Reference("/json/coord/analyze");
+  var analyze = new Intent("/json/coord/analyze");
+
 
   // Runtime-generated url for the icon in the intent's metaData.
   var iconPath = (function() {
@@ -84,19 +67,25 @@ locationAnalyzer.controller('MainController', function($scope, $log, iwc) {
     label: "Location Analyzer"
   };
 
-  var analyze = function(coord) {
+  var analyzeFn = function(coord) {
     // This intent is expected to receive a JSON Object to prefill its add location modal.
-    if (coord && (typeof coord.lat !== "undefined") && (typeof coord.long !== "undefined")) {
+    if (coord && (typeof coord.lat !== "undefined") &&
+      (typeof coord.long !== "undefined") &&
+      -90 <= coord.lat <= 90 && -180 <= coord.lat <= 180) {
       $scope.lat = coord.lat;
       $scope.long = coord.long;
       $scope.$apply($scope.update);
     } else {
-      console.log("Invalid format received for /json/coord/analyze");
+      $.notify({
+        message: "Invalid format received",
+      }, {
+        type: 'danger'
+      });
     }
 
   };
 
-  $scope.analyzeRef.register(metaData, analyze);
+  analyze.register(metaData, analyzeFn);
 
   //=======================================
   // Analysis logic
@@ -136,6 +125,7 @@ locationAnalyzer.controller('MainController', function($scope, $log, iwc) {
         break;
       case $scope.long === 180 || $scope.long === -180:
         ew = " and on the antimeridian";
+        break;
       case $scope.long > 0:
         ew = " and in the eastern hemisphere.";
         break;
@@ -190,6 +180,39 @@ locationAnalyzer.controller('MainController', function($scope, $log, iwc) {
     'North Pole': $scope.getDistance(90, 0),
     'South Pole': $scope.getDistance(-90, 0)
   };
+
+
+  //=======================================
+  // Intent: A wrapper for invoking remote functions
+  //         as well as tracking the number of
+  //         matching functions.
+  //
+  //=======================================
+  function Intent(resource) {
+    // collection enabled to tie # of handlers to the UI
+    this.reference = new iwc.intents.Reference(resource, {
+      collect: true
+    });
+    this.run = this.reference.invoke;
+    this.register = this.reference.register;
+    this.handlers = [];
+
+    var self = this;
+
+    var handleCollection = function(collection) {
+      self.handlers = collection;
+      $scope.$apply();
+    };
+
+    var onCollectionChange = function(changes) {
+      handleCollection(changes.newCollection);
+    };
+
+    // Watch for updates the the collection
+    this.reference.watch(onCollectionChange);
+    // Get initial collection
+    this.reference.list().then(handleCollection);
+  }
 });
 
 // This factory adds wrappings around the IWC client generation to allow

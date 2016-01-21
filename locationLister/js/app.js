@@ -7,246 +7,54 @@ var locationLister = angular.module('LocationLister', [
 locationLister.controller('MainController', ['ozpIwcClient']);
 
 locationLister.controller('MainController', function($scope, $log, $modal, iwc) {
-  $scope.id = 0;
-  $scope.locations = {};
-  $scope.mapHandlers = [];
-  $scope.analyzeHandlers = [];
+  var locationList = new LocationList('/locationLister/listings');
 
   //=======================================
-  // Location List View
-  //
-  // IWC References:
-  // API: Data
-  // Resource: /locationLister/listings
-  // Collects: /locationLister/listings/*
+  // Location List UI Behavior
   //=======================================
-  $scope.listingsRef = new iwc.data.Reference("/locationLister/listings", {
-    collect: true
-  });
-
-
-  var handleCollection = function(collection) {
-    var colArr = collection || [];
-
-    colArr.forEach(function(resource) {
-      if (!$scope.locations[resource]) {
-        $scope.locations[resource] = new ListViewItem(resource);
-      }
-    });
-    $scope.$apply();
-  };
-
-  var onCollectionChange = function(changes) {
-    handleCollection(changes.newCollection);
-    $log.debug(changes);
-  };
-
-  // Watch For new locations added to the collection
-  $scope.listingsRef.watch(onCollectionChange);
-
-  // Get the initial collection
-  $scope.listingsRef.list().then(handleCollection);
-
-
-
-  //=======================================
-  // Location List View UI Behavior
-  // UI logic for selecting a Location List View Item
-  //
-  // IWC References:
-  // API: Data
-  // Resource: /locationLister/listings/*
-  //=======================================
-  $scope.handleLocationSelect = function(location) {
-    $scope.currentLocation = location;
-
-    if($scope.lastSelected !== this) {
-        if ($scope.lastSelected) {
-          $scope.lastSelected.selected = '';
-        }
-        this.selected = 'selected';
-        $scope.lastSelected = this;
-    }
-  };
-
-
-  $scope.clearLocationSelect = function() {
-    $scope.currentLocation = undefined;
-  };
-
-  $scope.deleteSelectedLocation = function() {
-    if ($scope.currentLocation) {
-      $scope.currentLocation.reference.delete();
-    }
-  };
-
-  //=======================================
-  // Location List View Item
-  //
-  // IWC References:
-  // API: Data
-  // Resource: /locationLister/listings/*
-  // Collects: none
-  //=======================================
-  var ListViewItem = function(resource) {
-    this.reference = new iwc.data.Reference(resource);
-    this.resource = resource;
-    this.value = {};
-    var self = this;
-
-    var onChange = function(changes) {
-      self.value = changes.newValue;
-      $scope.$apply();
-    };
-
-    this.reference.watch(onChange).then(function(val) {
-      self.value = val;
-      $scope.$apply();
-    });
-  };
-
-
-  //=======================================
-  // Map Button: Invokes map intent
-  //
-  // IWC References:
-  // API: Intents
-  // Resource: /json/coord/map
-  //=======================================
-  $scope.invokeMap = function(listingResource) {
-    return $scope.mappingRef.invoke(listingResource)['catch'](function(er) {
-      $log.debug(er);
-    });
-  };
-
-
-  //=======================================
-  // Map Handler Count: Number of remote handlers
-  //
-  // IWC References:
-  // API: Intents
-  // Resource: /json/coord/map
-  // Collects: /json/coord/map/*
-  //=======================================
-  $scope.mappingRef = new iwc.intents.Reference("/json/coord/map", {
-    collect: true
-  });
-  $scope.mapDisabled = function() {
-    return !($scope.mapHandlers.length > 0 && $scope.lastSelected);
-  };
-
-  var onMapColChange = function(changes) {
-    $scope.mapHandlers = changes.newCollection;
-    $scope.$apply();
-  };
-
-  $scope.mappingRef.watch(onMapColChange);
-
-  // Get the initial collection
-  $scope.mappingRef.list().then(function(collection) {
-    $scope.mapHandlers = collection;
-    $scope.$apply();
-  });
-
-
-  //=======================================
-  // Map Button: Invokes analyze intent
-  //
-  // IWC References:
-  // API: Intents
-  // Resource: /json/coord/analyze
-  //=======================================
-  $scope.analyzeRef = new iwc.intents.Reference("/json/coord/analyze");
-  $scope.invokeAnalyze = function(coords) {
-    return $scope.analyzeRef.invoke(coords)['catch'](function(er) {
-      $log.debug(er);
-    });
-  };
-
-  //=======================================
-  // Analysis Handler Count (Remote Handlers)
-  //
-  // IWC References:
-  // API: Intents
-  // Resource: /json/coord/map
-  // Collects: /json/coord/map/*
-  //=======================================
-  $scope.analyzeRef = new iwc.intents.Reference("/json/coord/analyze");
-
-  $scope.analyzeDisabled = function() {
-    return !($scope.analyzeHandlers.length > 0 && $scope.lastSelected);
-  };
-
-  var onAnalyzeColChange = function(changes) {
-    $scope.analyzeHandlers = changes.newCollection;
-    $scope.$apply();
-  };
-
-  $scope.analyzeRef.watch(onAnalyzeColChange);
-
-  // Get the initial collection
-  $scope.analyzeRef.list().then(function(collection) {
-    $scope.analyzeHandlers = collection;
-    $scope.$apply();
-  });
-
-  //=======================================
-  // Location save modal:
-  //      Creates/Updates locations. Generates new references
-  //      in the listings collection when saving new location.
-  //
-  // IWC References:
-  // API: Data
-  // Resource: /locationLister/listings
-  // Collects: none
-  //=======================================
-  $scope.locationModal = function(listing) {
-    var modalInstance = $modal.open({
-      templateUrl: "templates/modal.html",
-      controller: "EditController",
-      resolve: {
-        listing: function() {
-          return listing;
-        }
-      }
-    });
-
-    return modalInstance.result;
-  };
+  $scope.locations = locationList.locations;
 
   // Called when the "Add Location" button is pressed
-  $scope.addListing = function(listing) {
+  // Opens popup modal, resolves with the input data.
+  // Autogenerates the resouce in the locationList collection.
+  $scope.addListing = function(location) {
+    return $scope.locationModal(location).then(function(output) {
 
-    // Opens popup modal, resolves with the input data.
-    return $scope.locationModal(listing).then(function(output) {
-
-      // Autogenerates the resouce in the listings collection.
-      return $scope.listingsRef.addChild(output.listing).catch(function(e) {
+      return locationList.addLocation(output.listing).catch(function(e) {
         console.log(e);
       });
     });
   };
 
-  // Called when a Location List View Item is selected and Edit is clicked.
-  // Edits the value of the Location List View Item.
-  $scope.editSelectedLocation = function() {
-    if ($scope.currentLocation) {
-      $scope.locationModal($scope.currentLocation).then(function(output) {
-        // Use the scope stored reference to update the resource
-        $scope.locations[$scope.currentLocation.resource].reference.set(output.listing);
+  // Called when "Edit" is clicked.
+  $scope.editLocation = function(location) {
+    if (location) {
+      $scope.locationModal(location.value).then(function(output) {
+        // Use the location's reference to update the resource
+        location.update(output.listing);
       });
     }
   };
 
+  // Called when a Location is selected.
+  $scope.handleLocationSelect = function(location) {
+    $scope.selectedLocation = location;
+  };
+
   //=======================================
-  // Location Save shared functionality:
-  //      Registers Intent for /json/coord/save
-  //
-  // IWC References:
-  // API: Intents
-  // Resource: /json/coord/save
+  // Map Intent (Remote)
   //=======================================
-  $scope.savingRef = new iwc.intents.Reference("/json/coord/save");
+  $scope.map = new Intent("/json/coord/map");
+
+  //=======================================
+  // Analyze Intent (Remote)
+  //=======================================
+  $scope.analyze = new Intent("/json/coord/analyze");
+
+  //=======================================
+  // Save Intent (Register for Remotes)
+  //=======================================
+  var save = new Intent("/json/coord/save");
 
   // Runtime-generated url for the icon in the intent's metaData.
   var iconPath = (function() {
@@ -266,11 +74,133 @@ locationLister.controller('MainController', function($scope, $log, $modal, iwc) 
   // The functionality to share. Opens the modal for saving the received location.
   var saveLocation = function(location) {
     if (location && location.title && location.coords) {
-      $scope.addListing(location);
+    // Return the resource path to the invoker
+      return $scope.addListing(location);
     }
   };
 
-  $scope.savingRef.register(metaData, saveLocation);
+  save.register(metaData, saveLocation);
+
+  //=======================================
+  // Location modal
+  //=======================================
+  $scope.locationModal = function(listing) {
+    var modalInstance = $modal.open({
+      templateUrl: "templates/modal.html",
+      controller: "EditController",
+      resolve: {
+        listing: function() {
+          return listing;
+        }
+      }
+    });
+
+    return modalInstance.result;
+  };
+
+  //=======================================
+  // Location
+  //
+  // IWC References (Uses in this application):
+  // API: Data
+  // Resource: /locationLister/listings/<AutoGenerated ID>
+  // Collects: none
+  //=======================================
+  function Location(resource) {
+    this.reference = new iwc.data.Reference(resource);
+    this.resource = resource;
+    this.update = this.reference.set;
+    this.delete = this.reference.delete;
+    this.value = {};
+    var self = this;
+
+    var onChange = function(changes) {
+      self.value = changes.newValue;
+      $scope.$apply();
+    };
+
+    this.reference.watch(onChange).then(function(val) {
+      self.value = val;
+      $scope.$apply();
+    });
+  }
+
+  //=======================================
+  // Location List: a collection of Locations
+  //
+  // IWC References (Uses in this application):
+  // API: Data
+  // Resource: /locationLister/listings/*
+  // Collects: none
+  //=======================================
+  function LocationList(resource) {
+    this.reference = new iwc.data.Reference(resource, {
+      collect: true
+    });
+    this.addLocation = this.reference.addChild;
+    this.locations = {};
+    var self = this;
+
+    var handleCollection = function(collection) {
+      collection.forEach(function(resource) {
+        if (!self.locations[resource]) {
+          self.locations[resource] = new Location(resource);
+        }
+      });
+      $scope.$apply();
+    };
+
+    var onCollectionChange = function(changes) {
+      handleCollection(changes.newCollection);
+    };
+
+    // Watch For new locations added to the collection
+    this.reference.watch(onCollectionChange);
+    // Get the initial collection
+    this.reference.list().then(handleCollection);
+  }
+
+  //=======================================
+  // Intent: A wrapper for invoking remote functions
+  //         as well as tracking the number of
+  //         matching functions.
+  //
+  // IWC References (Uses in this application):
+  // API: Intents
+  // Resource: /json/coord/map
+  // Collects: /json/coord/map/*
+  //
+  // Resource: /json/coord/analyze
+  // Collects: /json/coord/analyze/*
+  //
+  // Resource: /json/coord/save
+  // Collects: /json/coord/save/*
+  //=======================================
+  function Intent(resource) {
+    // collection enabled to tie # of handlers to the UI
+    this.reference = new iwc.intents.Reference(resource, {
+      collect: true
+    });
+    this.run = this.reference.invoke;
+    this.register = this.reference.register;
+    this.handlers = [];
+
+    var self = this;
+
+    var handleCollection = function(collection) {
+      self.handlers = collection;
+      $scope.$apply();
+    };
+
+    var onCollectionChange = function(changes) {
+      handleCollection(changes.newCollection);
+    };
+
+    // Watch for updates the the collection
+    this.reference.watch(onCollectionChange);
+    // Get initial collection
+    this.reference.list().then(handleCollection);
+  }
 });
 
 
@@ -308,7 +238,8 @@ locationLister.directive("locationList", function() {
     restrict: 'E',
     scope: {
       locations: "=locations",
-      onselect: "=onselect"
+      onselect: "=onselect",
+      selected: "=selected"
     },
     templateUrl: 'templates/locationList.tpl.html'
   };

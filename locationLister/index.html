@@ -1,14 +1,19 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <link href="../bower_components/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
     <!-- cuz IE -->
     <script>
-      if (!window.console) { window.console = {}; }
-      if (!window.console.log) { window.console.log = function () { }; }
+        if (!window.console) {
+            window.console = {};
+        }
+        if (!window.console.log) {
+            window.console.log = function() {};
+        }
     </script>
     <script src="../bower_components/angular/angular.js"></script>
     <script src="../bower_components/angular-bootstrap/ui-bootstrap-tpls.js"></script>
@@ -24,9 +29,8 @@
             <div class="row">
                 <div class="col-md-12">
                     <h4>My Locations
-                        <button style="display: inline-block" type="button"
-                                class="btn btn-default btn-xs pull-right" ng-click="addListing()">Add Location</button>
-                        </h4>
+                        <button style="display: inline-block" type="button" class="btn btn-default btn-xs pull-right" ng-click="addListing()">Add Location</button>
+                    </h4>
                 </div>
             </div>
         </div>
@@ -34,7 +38,7 @@
     <div id="content">
         <div class="container">
             <div class="row" id="locationList">
-                <location-list locations="locations" onselect="handleLocationSelect"></location-list>
+                <location-list locations="locations" onselect="handleLocationSelect" selected="selectedLocation"></location-list>
             </div>
         </div>
     </div>
@@ -43,18 +47,13 @@
             <div class="row">
                 <div class="col-md-12">
                     <div style="margin-top: 10px;">
-                        <span>Map Handlers: {{mapHandlers.length}}
-                              Analysis Handlers: {{analyzeHandlers.length}} </span>
+                        <span>Map Handlers: {{map.handlers.length}} Analysis Handlers: {{analyze.handlers.length}} </span>
 
                         <span class="pull-right">
-                            <button style="display: inline-block; margin-right: 10px;" type="button" ng-disabled="mapDisabled()"
-                                class="btn btn-primary btn-xs" ng-click="invokeMap(currentLocation.resource)" >Map</button>
-                            <button style="display: inline-block; margin-right: 10px;" type="button" ng-disabled="analyzeDisabled()"
-                                    class="btn btn-primary btn-xs" ng-click="invokeAnalyze(currentLocation.value.coords)" >Analyze</button>
-                            <button style="display: inline-block; margin-right: 10px;" type="button"
-                                    class="btn btn-default btn-xs" ng-click="editSelectedLocation()"  ng-disabled="!lastSelected">Edit</button>
-                            <button style="display: inline-block" type="button"
-                                    class="btn btn-default btn-xs" ng-click="deleteSelectedLocation()" ng-disabled="!lastSelected">Delete</button>
+                            <button style="display: inline-block; margin-right: 10px;" type="button" ng-disabled="map.handlers.length < 1" class="btn btn-primary btn-xs" ng-click="map.run(selectedLocation.resource)">Map</button>
+                            <button style="display: inline-block; margin-right: 10px;" type="button" ng-disabled="analyze.handlers.length < 1" class="btn btn-primary btn-xs" ng-click="analyze.run(selectedLocation.value.coords)">Analyze</button>
+                            <button style="display: inline-block; margin-right: 10px;" type="button" class="btn btn-default btn-xs" ng-click="editLocation(selectedLocation)" ng-disabled="!selectedLocation">Edit</button>
+                            <button style="display: inline-block" type="button" class="btn btn-default btn-xs" ng-click="selectedLocation.delete()" ng-disabled="!selectedLocation">Delete</button>
                         </span>
                     </div>
                 </div>
@@ -62,4 +61,5 @@
         </div>
     </footer>
 </body>
+
 </html>
