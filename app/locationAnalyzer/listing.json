@@ -2,6 +2,7 @@
   "description": "Analyze all of your favorite locations. Part of the location application suite.",
   "descriptionShort": "Analyze all of your favorite locations.",
   "title": "Location Analyzer",
+  "unique_name": "com.ozp.location.analyzer",
   "icons": {
     "small": "locationAnalyzer/icon.png",
     "large": "locationAnalyzer/icon.png"

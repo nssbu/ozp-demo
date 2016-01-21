@@ -2,6 +2,7 @@
   "description": "List all of your favorite locations. Part of the location application suite.",
   "descriptionShort": "List all of your favorite locations.",
   "title": "Location Lister",
+  "unique_name": "com.ozp.location.lister",
   "icons": {
     "small": "locationLister/icon.png",
     "large": "locationLister/icon.png"

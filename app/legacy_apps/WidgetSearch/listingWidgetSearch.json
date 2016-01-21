@@ -2,6 +2,7 @@
   "description": "Widget Search",
   "descriptionShort": "Widget Search",
   "title": "org.owfgoss.owf.examples.WidgetSearch",
+  "unique_name": "com.ozp.owf.examples.WidgetSearch",
   "icons": {
     "small": "legacy_resources/images/tracker.gif",
     "large": "legacy_resources/images/tracker.gif"

@@ -2,6 +2,7 @@
   "description": "Announcing Clock.",
   "descriptionShort": "Announcing Clock.",
   "title": "org.owfgoss.owf.examples.Clock",
+  "unique_name": "com.ozp.owf.examples.Clock",
   "icons": {
     "small": "legacy_resources/images/clocksm.gif",
     "large": "legacy_resources/images/clock.gif"

@@ -2,6 +2,7 @@
   "description": "A red bouncing ball. Watch it bounce and  bounce and bounce with other bouncing balls.",
   "descriptionShort": "A red bouncing ball.",
   "title": "Red Bouncing Ball",
+  "unique_name": "com.ozp.bouncingballs.red",
   "icons": {
     "small": "bouncingBalls/redBall16.png",
     "large": "bouncingBalls/redBall32.png"

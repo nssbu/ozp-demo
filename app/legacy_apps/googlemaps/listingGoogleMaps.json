@@ -2,6 +2,7 @@
   "description": "Google Maps",
   "descriptionShort": "Google Maps",
   "title": "org.owfgoss.owf.examples.GoogleMaps",
+  "unique_name": "com.ozp.owf.examples.GoogleMaps",
   "icons": {
     "small": "legacy_apps/googlemaps/img/logo.png",
     "large": "legacy_apps/googlemaps/img/logo.png"

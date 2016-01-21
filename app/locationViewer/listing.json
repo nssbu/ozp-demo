@@ -2,6 +2,7 @@
   "description": "View all of your favorite locations. Part of the location application suite.",
   "descriptionShort": "View all of your favorite locations.",
   "title": "Location View",
+  "unique_name": "com.ozp.location.viewer",
   "icons": {
     "small": "locationViewer/icon.png",
     "large": "locationViewer/icon.png"
