@@ -2,6 +2,7 @@
   "description": "Directions.",
   "descriptionShort": "Directions.",
   "title": "org.owfgoss.owf.examples.GetDirections",
+  "unique_name": "com.ozp.owf.examples.GetDirections",
   "icons": {
     "small": "legacy_apps/directions/img/logo.png",
     "large": "legacy_apps/directions/img/logo.png"

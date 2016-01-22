@@ -2,6 +2,7 @@
   "description": "Second Tracker.",
   "descriptionShort": "Second Tracker.",
   "title": "org.owfgoss.owf.examples.SecondTracker",
+  "unique_name": "com.ozp.owf.examples.SecondTracker",
   "icons": {
     "small": "legacy_resources/images/trackersm.gif",
     "large": "legacy_resources/images/tracker.gif"

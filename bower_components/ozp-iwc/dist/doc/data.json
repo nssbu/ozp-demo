@@ -2,7 +2,7 @@
     "project": {
         "name": "ozpIwc",
         "description": "",
-        "version": "1.2.0",
+        "version": "1.2.2",
         "url": ""
     },
     "files": {
@@ -7123,7 +7123,7 @@
         },
         {
             "file": "src/js/bus/api/services/intents/api.js",
-            "line": 292,
+            "line": 295,
             "description": "A handler for the \"delivering\" state of an in-flight intent node.\nSends a packet to the chosen handler.",
             "todo": [
                 "should resolve on response from the handler that transitions the node to \"running\"."
@@ -7144,7 +7144,7 @@
         },
         {
             "file": "src/js/bus/api/services/intents/api.js",
-            "line": 314,
+            "line": 317,
             "description": "A handler for the \"complete\" state of an in-flight intent node.\nSends notification to the invoker that the intent was handled & deletes the in-flight intent node as it is no\nlonger needed.",
             "itemtype": "method",
             "name": "handleComplete",
@@ -7162,7 +7162,7 @@
         },
         {
             "file": "src/js/bus/api/services/intents/api.js",
-            "line": 336,
+            "line": 339,
             "description": "A handler for the \"error\" state of an in-flight intent node.\nSends notification to the invoker that the intent was handled & deletes the in-flight intent node as it is no\nlonger needed.",
             "itemtype": "method",
             "name": "handleError",
@@ -13799,6 +13799,55 @@
             "submodule": "ozpIwc.util"
         },
         {
+            "file": "src/js/client/util/util.js",
+            "line": 202,
+            "description": "A css injection to produce the util.pulseWindow animation",
+            "class": "ozpIwc.Client",
+            "module": "ozpIwc",
+            "submodule": "ozpIwc.util"
+        },
+        {
+            "file": "src/js/client/util/util.js",
+            "line": 261,
+            "description": "Pulses the Client's browser window with a non-intrusive flashing overlay.",
+            "static": 1,
+            "itemtype": "method",
+            "name": "pulseWindow",
+            "params": [
+                {
+                    "name": "client",
+                    "description": "",
+                    "type": "Object"
+                }
+            ],
+            "class": "ozpIwc.Client",
+            "module": "ozpIwc",
+            "submodule": "ozpIwc.util"
+        },
+        {
+            "file": "src/js/client/util/util.js",
+            "line": 281,
+            "description": "Temporarily changes the Client's browser window title to the given\nmessage.",
+            "static": 1,
+            "itemtype": "method",
+            "name": "pulseTitle",
+            "params": [
+                {
+                    "name": "client",
+                    "description": "",
+                    "type": "Object"
+                },
+                {
+                    "name": "message",
+                    "description": "The message to put as the title",
+                    "type": "String"
+                }
+            ],
+            "class": "ozpIwc.Client",
+            "module": "ozpIwc",
+            "submodule": "ozpIwc.util"
+        },
+        {
             "file": "src/js/client/client.js",
             "line": 49,
             "description": "Takes in the various Client parameter options\n([string]),([object]),(string,[object]) and formats the config.\nThis is done to not break semver and force updated Client code.",
@@ -13976,7 +14025,7 @@
         },
         {
             "file": "src/js/client/client.js",
-            "line": 278,
+            "line": 288,
             "description": "Disconnects the client from the IWC bus.",
             "itemtype": "method",
             "name": "disconnect",
@@ -13986,7 +14035,7 @@
         },
         {
             "file": "src/js/client/client.js",
-            "line": 306,
+            "line": 316,
             "description": "Connects the client from the IWC bus.\nFires: {{#crossLink \"ozpIwc.Client/connected:event\"}}{{/crossLink}}",
             "itemtype": "method",
             "name": "connect",
@@ -13996,7 +14045,7 @@
         },
         {
             "file": "src/js/client/client.js",
-            "line": 316,
+            "line": 326,
             "description": "Promise to chain off of for client connection asynchronous actions.",
             "itemtype": "property",
             "name": "connectPromise",
@@ -14007,7 +14056,7 @@
         },
         {
             "file": "src/js/client/client.js",
-            "line": 335,
+            "line": 345,
             "description": "Creates an invisible iFrame Peer for IWC bus communication. Resolves when iFrame communication has been\ninitialized.",
             "itemtype": "method",
             "name": "createIframePeer",
@@ -14021,7 +14070,7 @@
         },
         {
             "file": "src/js/client/client.js",
-            "line": 358,
+            "line": 368,
             "description": "Client to Bus sending implementation. Not to be used directly.",
             "access": "private",
             "tagname": "",
@@ -14040,7 +14089,7 @@
         },
         {
             "file": "src/js/client/client.js",
-            "line": 368,
+            "line": 378,
             "description": "Gathers the launch data passed to the opened application. Launch data can be passed as a query parameter, inside\nwindow.name, or inside window.hash as long as it's key is \"launchData\".\n\nPromise resolve with the launchData object.",
             "itemtype": "method",
             "name": "getLaunchData",
@@ -17363,11 +17412,11 @@
         },
         {
             "message": "replacing incorrect tag: returns with return",
-            "line": " src/js/client/client.js:335"
+            "line": " src/js/client/client.js:345"
         },
         {
             "message": "replacing incorrect tag: returns with return",
-            "line": " src/js/client/client.js:368"
+            "line": " src/js/client/client.js:378"
         },
         {
             "message": "replacing incorrect tag: returns with return",
@@ -17476,6 +17525,10 @@
         {
             "message": "Missing item type\nConfigs, override in iwc.conf.js and include prior to ozpIwc-bus.js.",
             "line": " src/js/bus/wiring/configLoading.js:1"
+        },
+        {
+            "message": "Missing item type\nA css injection to produce the util.pulseWindow animation",
+            "line": " src/js/client/util/util.js:202"
         },
         {
             "message": "Missing item type\nAll message formatting calls sits inside the API wrapper's messageBuilder object. These\ncalls will return a formatted message ready to be sent.\n(e.g: data().messageBuilder.set)",

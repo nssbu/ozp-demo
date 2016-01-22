@@ -16851,9 +16851,12 @@ ozpIwc.api.intents.Api = (function (api, log, ozpConfig, util) {
                 }
             };
 
-
+            var invokersChooser = self.matchingNodes('/inFlightIntent/chooser/choose/' + intentNode.entity.invokePacket.src);
             var registeredChoosers = self.matchingNodes('/inFlightIntent/chooser/choose/');
-            return itterChoosers(registeredChoosers);
+
+            return itterChoosers(invokersChooser).catch(function(err) {
+                return itterChoosers(registeredChoosers);
+            });
         };
 
         var showChooser = function (err) {
@@ -16877,9 +16880,9 @@ ozpIwc.api.intents.Api = (function (api, log, ozpConfig, util) {
                 return node;
             });
         };
-        
+
         updateInvoker(this, node);
-        return this.getPreference(node.entity.intent.type + "/" + node.entity.intent.action).then(function (handlerResource) {
+        return this.getPreference(node.entity.invokePacket.src + "/" + node.entity.intent.type + "/" + node.entity.intent.action).then(function (handlerResource) {
             if (handlerResource in self.data) {
                 node = api.intents.FSM.transition(node, {
                     entity: {
@@ -18159,13 +18162,17 @@ ozpIwc.api.system.node.ApplicationNode = (function (api, util) {
      * @return String
      */
     Node.prototype.resourceFallback = function (serializedForm) {
-        if (serializedForm.id) {
+        /*jshint camelcase: false */
+        if (serializedForm.unique_name) {
+            return "/application/" + serializedForm.unique_name;
+        } else if (serializedForm.id) {
             return "/application/" + serializedForm.id;
         }
     };
 
     return Node;
 }(ozpIwc.api, ozpIwc.util));
+
 var ozpIwc = ozpIwc || {};
 ozpIwc.api = ozpIwc.api || {};
 ozpIwc.api.system = ozpIwc.api.system || {};
@@ -18220,6 +18227,7 @@ ozpIwc.api.system.node.ApplicationNodeV2 = (function (api, util) {
 
     return Node;
 }(ozpIwc.api, ozpIwc.util));
+
 var ozpIwc = ozpIwc || {};
 ozpIwc.api = ozpIwc.api || {};
 ozpIwc.api.system = ozpIwc.api.system || {};

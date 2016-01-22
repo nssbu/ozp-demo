@@ -242,9 +242,12 @@ ozpIwc.api.intents.Api = (function (api, log, ozpConfig, util) {
                 }
             };
 
-
+            var invokersChooser = self.matchingNodes('/inFlightIntent/chooser/choose/' + intentNode.entity.invokePacket.src);
             var registeredChoosers = self.matchingNodes('/inFlightIntent/chooser/choose/');
-            return itterChoosers(registeredChoosers);
+
+            return itterChoosers(invokersChooser).catch(function(err) {
+                return itterChoosers(registeredChoosers);
+            });
         };
 
         var showChooser = function (err) {
@@ -268,9 +271,9 @@ ozpIwc.api.intents.Api = (function (api, log, ozpConfig, util) {
                 return node;
             });
         };
-        
+
         updateInvoker(this, node);
-        return this.getPreference(node.entity.intent.type + "/" + node.entity.intent.action).then(function (handlerResource) {
+        return this.getPreference(node.entity.invokePacket.src + "/" + node.entity.intent.type + "/" + node.entity.intent.action).then(function (handlerResource) {
             if (handlerResource in self.data) {
                 node = api.intents.FSM.transition(node, {
                     entity: {

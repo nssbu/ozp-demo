@@ -2,6 +2,7 @@
   "description": "A blue bouncing ball. Watch it bounce and  bounce and bounce with other bouncing balls.",
   "descriptionShort": "A blue bouncing ball.",
   "title": "Blue Bouncing Ball",
+  "unique_name": "com.ozp.bouncingballs.blue",
   "icons": {
     "small": "bouncingBalls/blueBall16.png",
     "large": "bouncingBalls/blueBall32.png"

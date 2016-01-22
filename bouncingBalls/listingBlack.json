@@ -2,6 +2,7 @@
   "description": "A black bouncing ball. Watch it bounce and  bounce and bounce with other bouncing balls.",
   "descriptionShort": "A black bouncing ball.",
   "title": "Black Bouncing Ball",
+  "unique_name": "com.ozp.bouncingballs.black",
   "icons": {
     "small": "bouncingBalls/blackBall16.png",
     "large": "bouncingBalls/blackBall32.png"

@@ -2,6 +2,7 @@
   "description": "A green bouncing ball. Watch it bounce and  bounce and bounce with other bouncing balls.",
   "descriptionShort": "A green bouncing ball.",
   "title": "Green Bouncing Ball",
+  "unique_name": "com.ozp.bouncingballs.green",
   "icons": {
     "small": "bouncingBalls/greenBall16.png",
     "large": "bouncingBalls/greenBall32.png"

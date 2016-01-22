@@ -17,7 +17,7 @@
                 <h1><img src="../assets/css/logo.png" title="ozpIwc" width="117" height="52"></h1>
         </div>
         <div class="yui3-u-1-4 version">
-            <em>API Docs for: 1.2.0</em>
+            <em>API Docs for: 1.2.2</em>
         </div>
     </div>
     <div id="bd" class="yui3-g">
@@ -464,6 +464,16 @@ ozpIwc.Client = (function (util) {
             var launcherResource = &#x27;/application/vnd.ozp-iwc-launch-data-v1+json/run/&#x27; + client.address;
             client.intents().register(launcherResource, sharedWorkerRegistrationData, sharedWorkerLauncher);
 
+
+            //-----------------------------------------
+            // Application Highlight Intent Handler
+            //-----------------------------------------
+            var highlightHandler = function (data, inFlightIntent) {
+                util.pulseWindow(client);
+                util.pulseTitle(client);
+            };
+            var hilightResource = &#x27;/application/ozp-iwc/highlight/&#x27; + client.address;
+            client.intents().register(hilightResource, sharedWorkerRegistrationData, highlightHandler);
         }).catch(function(err) {
             // Supress the error here, the application will get it from its
             // connect() call.

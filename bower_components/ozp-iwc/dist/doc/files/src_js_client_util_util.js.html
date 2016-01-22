@@ -17,7 +17,7 @@
                 <h1><img src="../assets/css/logo.png" title="ozpIwc" width="117" height="52"></h1>
         </div>
         <div class="yui3-u-1-4 version">
-            <em>API Docs for: 1.2.0</em>
+            <em>API Docs for: 1.2.2</em>
         </div>
     </div>
     <div id="bd" class="yui3-g">
@@ -396,6 +396,114 @@ ozpIwc.util = (function (util) {
         // the iframe_peer is a dir above the bus code.
         return path.split(&#x27;/&#x27;).slice(0,-2).join(&#x27;/&#x27;);
     }());
+
+
+    /**
+     * A css injection to produce the util.pulseWindow animation
+     */
+     var css =
+     &quot;.ozp-iwc-pulse {  &quot; +
+         &quot;pointer-events: none; &quot; +
+         &quot;position: fixed; &quot; +
+         &quot;top: 0; &quot; +
+         &quot;left: 0; &quot; +
+         &quot;z-index: 5; &quot; +
+         &quot;width: 100%; &quot; +
+         &quot;height: 100%; &quot; +
+         &quot;-webkit-animation: ozp-iwc-pulse 1s linear; &quot; +
+         &quot;-moz-animation: ozp-iwc-pulse 1s linear; &quot; +
+         &quot;-ms-animation: ozp-iwc-pulse 1s linear; &quot; +
+         &quot;animation: ozp-iwc-pulse 1s linear; &quot; +
+     &quot;}&quot; +
+     &#x27;@keyframes &quot;ozp-iwc-pulse&quot; {&#x27; +
+         &quot;0% {background: rgba(210, 88, 40, 0);} &quot; +
+         &quot;25% {background: rgba(210, 88, 40, 0.9);} &quot; +
+         &quot;50% {background: rgba(210, 88, 40, 0.5);} &quot; +
+         &quot;75% {background: rgba(210, 88, 40, 0.9);} &quot; +
+         &quot;100% {background: rgba(210, 88, 40, 0);} &quot; +
+     &quot;}&quot; +
+
+     &#x27;@-moz-keyframes &quot;ozp-iwc-pulse&quot; {&#x27; +
+         &quot;0% {background: rgba(210, 88, 40, 0);} &quot; +
+         &quot;25% {background: rgba(210, 88, 40, 0.9);} &quot; +
+         &quot;50% {background: rgba(210, 88, 40, 0.5);} &quot; +
+         &quot;75% {background: rgba(210, 88, 40, 0.9);} &quot; +
+         &quot;100% {background: rgba(210, 88, 40, 0);} &quot; +
+     &quot;}&quot; +
+
+     &#x27;@-webkit-keyframes &quot;ozp-iwc-pulse&quot; {&#x27; +
+         &quot;0% {background: rgba(210, 88, 40, 0);} &quot; +
+         &quot;25% {background: rgba(210, 88, 40, 0.9);} &quot; +
+         &quot;50% {background: rgba(210, 88, 40, 0.5);} &quot; +
+         &quot;75% {background: rgba(210, 88, 40, 0.9);} &quot; +
+         &quot;100% {background: rgba(210, 88, 40, 0);} &quot; +
+     &quot;}&quot; +
+     &#x27;@-ms-keyframes &quot;ozp-iwc-pulse&quot; {&#x27; +
+         &quot;0% {background: rgba(210, 88, 40, 0);} &quot; +
+         &quot;25% {background: rgba(210, 88, 40, 0.9);} &quot; +
+         &quot;50% {background: rgba(210, 88, 40, 0.5);} &quot; +
+         &quot;75% {background: rgba(210, 88, 40, 0.9);} &quot; +
+         &quot;100% {background: rgba(210, 88, 40, 0);} &quot; +
+     &quot;}&quot;;
+     var head = document.head || document.getElementsByTagName(&#x27;head&#x27;)[0];
+     var style = document.createElement(&#x27;style&#x27;);
+
+     style.type = &#x27;text/css&#x27;;
+     if (style.styleSheet){
+       style.styleSheet.cssText =css;
+     } else {
+       style.appendChild(document.createTextNode(css));
+     }
+
+     head.appendChild(style);
+
+     /**
+      * Pulses the Client&#x27;s browser window with a non-intrusive flashing overlay.
+      * @static
+      * @method pulseWindow
+      * @param  {Object} client
+      */
+      util.pulseWindow = function(client){
+        var overlay = document.getElementById(&quot;ozpIwcOverlay.&quot;+client.address);
+        if(!overlay){
+            overlay = document.createElement(&#x27;div&#x27;);
+            overlay.id = &quot;ozpIwcOverlay.&quot;+client.address;
+            overlay.className = &quot;ozp-iwc-pulse&quot;;
+            document.body.appendChild(overlay);
+            setTimeout(function(){
+                overlay.parentNode.removeChild(overlay);
+            },1010);
+        }
+    };
+
+    var isAnimating = false;
+    /**
+     * Temporarily changes the Client&#x27;s browser window title to the given
+     * message.
+     * @static
+     * @method pulseTitle
+     * @param  {Object} client
+     * @param  {String} message The message to put as the title
+     */
+    util.pulseTitle = function(client, message) {
+        if(!isAnimating){
+            isAnimating = true;
+            var oldTitle = document.title;
+            var animTitle = message || &quot;IWC Selected&quot;;
+            var setAnim = function(){
+                document.title = animTitle;
+            };
+            var setOrig = function(){
+                document.title = oldTitle;
+            };
+
+            setAnim();
+            setTimeout(function(){
+                setOrig();
+                isAnimating = false;
+            }, 1000);
+        }
+    };
 
     return util;
 }(ozpIwc.util));

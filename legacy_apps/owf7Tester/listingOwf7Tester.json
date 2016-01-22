@@ -2,6 +2,7 @@
   "description": "Owf 7 Tester",
   "descriptionShort": "Owf 7 Tester",
   "title": "org.owfgoss.owf.examples.owf7Tester",
+  "unique_name": "com.ozp.owf.examples.owf7Tester",
   "icons": {
     "small": "legacy_resources/images/tracker.gif",
     "large": "legacy_resources/images/tracker.gif"

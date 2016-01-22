@@ -2,6 +2,7 @@
   "description": "Stock Watcher",
   "descriptionShort": "Stock Watcher",
   "title": "org.owfgoss.owf.examples.StockWatcher",
+  "unique_name": "com.ozp.owf.examples.StockWatcher",
   "icons": {
     "small": "legacy_apps/StockWatcher/images/stockwatchsm.gif",
     "large": "legacy_apps/StockWatcher/images/stockwatch.gif"
