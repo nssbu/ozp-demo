@@ -20,7 +20,7 @@
     "ol3": "hastebrot/ol3-dist#3.1.1"
   },
   "resolutions": {
-    "angular": "1.2.29"
+    "angular": ">=1.3.0"
   },
   "devDependencies": {
     "remarkable-bootstrap-notify": "~3.1.3"
